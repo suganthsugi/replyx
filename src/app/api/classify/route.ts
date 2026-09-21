@@ -7,6 +7,18 @@ import type { ClassifyResponse } from "@/lib/types";
 
 export const runtime = "nodejs";
 
+/** Pull the USD cost out of the raw Decisions API response (`usage.cost`). */
+function extractCost(raw: unknown): number {
+  if (raw && typeof raw === "object" && "usage" in raw) {
+    const usage = (raw as { usage?: unknown }).usage;
+    if (usage && typeof usage === "object" && "cost" in usage) {
+      const cost = (usage as { cost?: unknown }).cost;
+      if (typeof cost === "number" && Number.isFinite(cost)) return cost;
+    }
+  }
+  return 0;
+}
+
 export async function POST(request: Request) {
   let body: unknown;
   try {
@@ -32,6 +44,7 @@ export async function POST(request: Request) {
       message,
       answers: mockAnswers(message, cards),
       mock: true,
+      cost: 0,
     };
     return NextResponse.json(payload);
   }
@@ -42,6 +55,7 @@ export async function POST(request: Request) {
       message,
       answers: normalizeAnswers(raw, cards),
       mock: false,
+      cost: extractCost(raw),
     };
     return NextResponse.json(payload);
   } catch (err) {

@@ -71,4 +71,6 @@ export interface ClassifyResponse {
   message: string;
   answers: AnswerMap;
   mock: boolean;
+  /** USD cost of this request as reported by the API (0 for mock). */
+  cost: number;
 }
