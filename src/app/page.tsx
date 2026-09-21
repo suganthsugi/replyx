@@ -79,11 +79,9 @@ export default function Home() {
               <button
                 key={s}
                 type="button"
-                onClick={() => {
-                  setMessage(s);
-                  classify(s);
-                }}
-                className="rounded-full border border-black/[.08] bg-white px-3 py-1 text-xs text-zinc-600 transition-colors hover:border-indigo-300 hover:text-zinc-900 dark:border-white/[.12] dark:bg-zinc-900 dark:text-zinc-300"
+                title={s}
+                onClick={() => setMessage(s)}
+                className="max-w-full truncate rounded-full border border-black/[.08] bg-white px-3 py-1 text-xs text-zinc-600 transition-colors hover:border-indigo-300 hover:bg-indigo-50 hover:text-zinc-900 dark:border-white/[.12] dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-indigo-950/40 dark:hover:text-zinc-100"
               >
                 {s.length > 46 ? s.slice(0, 46) + "…" : s}
               </button>
