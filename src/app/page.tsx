@@ -46,13 +46,6 @@ export default function Home() {
     classify(message);
   }
 
-  function onKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      classify(message);
-    }
-  }
-
   return (
     <div className="min-h-dvh bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50">
       <div className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-10 sm:px-6">
@@ -69,9 +62,8 @@ export default function Home() {
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              onKeyDown={onKeyDown}
               rows={2}
-              placeholder="Type a customer message…  (Enter to send, Shift+Enter for a new line)"
+              placeholder="Type a customer message, then click Send…"
               className="max-h-40 flex-1 resize-none bg-transparent px-3 py-2 text-sm outline-none placeholder:text-zinc-400"
             />
             <button
