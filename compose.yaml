@@ -1,0 +1,226 @@
+# Development stack (research D26). Production runs from the same Dockerfiles (D24).
+#
+#   cp .env.example .env
+#   docker compose up -d --build          # postgres, valkey, mailpit, install, api, worker, web
+#   docker compose --profile scan up -d   # also ClamAV (then set CLAMAV_HOST=clamav:3310 in .env)
+#   docker compose run --rm tools bash scripts/test-affected.sh
+#   docker compose run --rm playwright pnpm --filter web test:e2e
+#
+# The repo is bind-mounted at /repo. Dependencies live in named volumes (one node_modules volume
+# per workspace package), filled by the one-shot `install` service before api/worker/web start.
+# After changing a package.json: `docker compose run --rm tools pnpm install`.
+
+name: replyx
+
+# Shared dev image (apps/api/Dockerfile `dev` stage: Node 24 + pnpm, no source or deps baked in).
+x-api-dev: &api-dev
+  build:
+    context: .
+    dockerfile: apps/api/Dockerfile
+    target: dev
+  image: replyx-api-dev
+  working_dir: /repo
+  env_file: .env
+
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: replyx
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      # Read by infra/postgres/init.sql through psql \getenv on the first start of an empty volume.
+      REPLYX_OWNER_PASSWORD: ${REPLYX_OWNER_PASSWORD:?set REPLYX_OWNER_PASSWORD in .env}
+      REPLYX_APP_PASSWORD: ${REPLYX_APP_PASSWORD:?set REPLYX_APP_PASSWORD in .env}
+      REPLYX_PLATFORM_PASSWORD: ${REPLYX_PLATFORM_PASSWORD:?set REPLYX_PLATFORM_PASSWORD in .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      # TCP on purpose: the entrypoint's temporary init server listens on the socket only, so
+      # this stays unhealthy until init.sql has run and the real server is up.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d replyx"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  valkey:
+    image: valkey/valkey:8
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  mailpit:
+    image: axllent/mailpit
+    ports:
+      - "8025:8025" # web UI: http://localhost:8025
+      - "1025:1025" # SMTP
+
+  clamav:
+    image: clamav/clamav
+    profiles: [scan]
+    volumes:
+      - clamav-db:/var/lib/clamav
+
+  # One-shot: installs the whole workspace from the lockfile into the node_modules volumes.
+  install:
+    <<: *api-dev
+    command: ["pnpm", "install", "--frozen-lockfile"]
+    restart: "no"
+    volumes:
+      - .:/repo
+      - node_modules_root:/repo/node_modules
+      - node_modules_api:/repo/apps/api/node_modules
+      - node_modules_web:/repo/apps/web/node_modules
+      - node_modules_docs:/repo/apps/docs/node_modules
+      - pnpm-store:/pnpm/store
+
+  api:
+    <<: *api-dev
+    # TypeScript's watcher (nest builder "tsc") ignores CHOKIDAR_USEPOLLING, so map it to the
+    # TSC_* polling switches here.
+    command:
+      - sh
+      - -c
+      - |
+        if [ "$$CHOKIDAR_USEPOLLING" = "true" ]; then
+          export TSC_WATCHFILE=DynamicPriorityPolling TSC_WATCHDIRECTORY=RecursiveDirectoryUsingDynamicPriorityPolling
+        fi
+        exec pnpm --filter api dev:api
+    ports:
+      - "3000:3000"
+    volumes:
+      - .:/repo
+      - node_modules_root:/repo/node_modules
+      - node_modules_api:/repo/apps/api/node_modules
+      - node_modules_web:/repo/apps/web/node_modules
+      - node_modules_docs:/repo/apps/docs/node_modules
+      - replyx-files:/data/files
+    depends_on: &app-depends
+      install:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      mailpit:
+        condition: service_started
+
+  worker:
+    <<: *api-dev
+    command:
+      - sh
+      - -c
+      - |
+        if [ "$$CHOKIDAR_USEPOLLING" = "true" ]; then
+          export TSC_WATCHFILE=DynamicPriorityPolling TSC_WATCHDIRECTORY=RecursiveDirectoryUsingDynamicPriorityPolling
+        fi
+        exec pnpm --filter api dev:worker
+    volumes:
+      - .:/repo
+      - node_modules_root:/repo/node_modules
+      - node_modules_api:/repo/apps/api/node_modules
+      - node_modules_web:/repo/apps/web/node_modules
+      - node_modules_docs:/repo/apps/docs/node_modules
+      - replyx-files:/data/files
+      # api and worker both `nest start --watch` into apps/api/dist. The worker compiles into its
+      # own volume so the two watchers never overwrite each other's output.
+      - worker-dist:/repo/apps/api/dist
+    depends_on: *app-depends
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      target: dev
+    image: replyx-web-dev
+    working_dir: /repo/apps/web
+    command: ["pnpm", "exec", "vite", "--host"]
+    environment:
+      # Vite 6's bundled chokidar reads this directly. Web gets no other .env values.
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-false}
+    ports:
+      - "5173:5173" # http://acme.localhost:5173, http://console.localhost:5173
+    volumes:
+      - .:/repo
+      - node_modules_root:/repo/node_modules
+      - node_modules_api:/repo/apps/api/node_modules
+      - node_modules_web:/repo/apps/web/node_modules
+      - node_modules_docs:/repo/apps/docs/node_modules
+    depends_on:
+      install:
+        condition: service_completed_successfully
+      api:
+        condition: service_started
+
+  # Runs repo scripts, tests and pnpm commands: `docker compose run --rm tools <cmd>`.
+  tools:
+    <<: *api-dev
+    profiles: [tools]
+    command: ["bash"]
+    environment:
+      # Testcontainers starts sibling containers through the host daemon and reaches their
+      # published ports through the host.
+      TESTCONTAINERS_HOST_OVERRIDE: host.docker.internal
+      # The bind-mounted repo is owned by a different uid than root; let git read it.
+      GIT_CONFIG_COUNT: "1"
+      GIT_CONFIG_KEY_0: safe.directory
+      GIT_CONFIG_VALUE_0: /repo
+    extra_hosts:
+      # Docker Desktop defines host.docker.internal itself; Docker Engine on Linux needs this.
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - .:/repo
+      - node_modules_root:/repo/node_modules
+      - node_modules_api:/repo/apps/api/node_modules
+      - node_modules_web:/repo/apps/web/node_modules
+      - node_modules_docs:/repo/apps/docs/node_modules
+      - pnpm-store:/pnpm/store
+      - /var/run/docker.sock:/var/run/docker.sock
+
+  # End-to-end tests: `docker compose run --rm playwright pnpm --filter web test:e2e`.
+  # The image tag must match the @playwright/test version in pnpm-lock.yaml.
+  playwright:
+    image: mcr.microsoft.com/playwright:v${PLAYWRIGHT_VERSION:-1.63.0}-noble
+    profiles: [e2e]
+    # Shares web's network namespace, so localhost:5173 is the Vite server and tenant hosts such
+    # as http://acme.localhost:5173 work unchanged (browsers resolve *.localhost to loopback).
+    # Other services (api, mailpit) still resolve by name.
+    network_mode: "service:web"
+    ipc: host
+    init: true
+    working_dir: /repo
+    # The image has Node 24 but no pnpm; enable it from the root package.json `packageManager`.
+    entrypoint:
+      - sh
+      - -c
+      - corepack enable && exec "$$@"
+      - playwright
+    command: ["pnpm", "--filter", "web", "test:e2e"]
+    environment:
+      COREPACK_HOME: /corepack
+      COREPACK_ENABLE_DOWNLOAD_PROMPT: "0"
+    volumes:
+      - .:/repo
+      - node_modules_root:/repo/node_modules
+      - node_modules_api:/repo/apps/api/node_modules
+      - node_modules_web:/repo/apps/web/node_modules
+      - node_modules_docs:/repo/apps/docs/node_modules
+      - playwright-corepack:/corepack
+    depends_on:
+      web:
+        condition: service_started
+
+volumes:
+  pgdata:
+  replyx-files:
+  worker-dist:
+  pnpm-store:
+  clamav-db:
+  playwright-corepack:
+  node_modules_root:
+  node_modules_api:
+  node_modules_web:
+  node_modules_docs:

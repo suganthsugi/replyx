@@ -17,3 +17,6 @@ coverage
 .DS_Store
 playwright-report
 test-results
+specs
+docs
+.next
