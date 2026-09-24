@@ -4,13 +4,14 @@ import pg from 'pg';
 
 import { UnitOfWork } from './unit-of-work.js';
 
+import type { IdentityTables } from './tables/identity.js';
 import type { TenancyTables } from './tables/tenancy.js';
 
 /**
  * Kysely table map. Each migration that adds tables also adds their row types under `tables/`
  * and adds them to this intersection (tenant-owned tables include `tenant_id: string`).
  */
-export type Database = TenancyTables;
+export type Database = TenancyTables & IdentityTables;
 
 export type DB = Database;
 
