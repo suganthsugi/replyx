@@ -8,6 +8,7 @@ A commit message is a single line — a subject only, no body.
 
 - Keep it concise and imperative: `Add ticket severity filter`, not `Added a filter...`.
 - No blank line + body paragraph. No bullet lists. One line, full stop.
+- Spec Kit task commits use `type(scope): Txxx Summary` (e.g. `feat(tickets): T012 Add ticket list endpoint`) — see `.claude/skills/conventional-commit/SKILL.md`.
 
 ## 2. Unit commits (one functionality change per commit)
 
