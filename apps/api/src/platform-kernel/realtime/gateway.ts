@@ -19,6 +19,7 @@ import { MetricsService } from '../observability/metrics.js';
 import { isStreamKey, type DomainEventPayload } from '../outbox/event-types.js';
 import { CONTROL_EVENT, CUSTOMER_NAMESPACE, roomFor, STAFF_NAMESPACE, type ControlMessage } from '../outbox/relay.js';
 
+import { AccessChangeHandler } from './access-change.handler.js';
 import { REALTIME_PATH } from './redis-io.adapter.js';
 import {
   CLOSING_EVENT,
@@ -50,7 +51,8 @@ import type { Namespace, Server } from 'socket.io';
  * - `subscribe`/`unsubscribe` answer with acks; anything the caller may not see is `NOT_FOUND`.
  *   `sync` replays missed events (sync.handler.ts).
  * - Control events from the relay (`session.revoked`, `tenant.suspended`) send `closing { code }`
- *   and disconnect the affected sockets on this process.
+ *   and disconnect the affected sockets on this process; `access.changed` recomputes rooms
+ *   (access-change.handler.ts).
  */
 
 class HandshakeError extends Error {
@@ -122,6 +124,7 @@ export class StaffGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     private readonly metrics: MetricsService,
     private readonly access: StreamAccess,
     private readonly syncHandler: SyncHandler,
+    private readonly accessChange: AccessChangeHandler,
   ) {}
 
   /** For the root namespace Nest passes the `Server` itself. */
@@ -197,6 +200,8 @@ export class StaffGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
         }
       } else if (message.type === 'tenant.suspended') {
         this.close(tenantRoom(message.tenantId), 'TENANT_SUSPENDED');
+      } else if (message.type === 'access.changed' && this.server !== undefined) {
+        await this.accessChange.handle(this.server, message);
       }
     } catch (error) {
       this.logger.error(`Control ${message.type} failed: ${error instanceof Error ? error.message : 'unknown'}`);
@@ -264,7 +269,7 @@ export class CustomerGateway implements OnGatewayInit, OnGatewayConnection, OnGa
 /** Real-time gateway (api process only). */
 @Module({
   imports: [HttpKernelModule, IdentityModule],
-  providers: [RealtimeAuth, StreamAccess, SyncHandler, StaffGateway, CustomerGateway],
+  providers: [RealtimeAuth, StreamAccess, SyncHandler, AccessChangeHandler, StaffGateway, CustomerGateway],
   exports: [StaffGateway],
 })
 export class RealtimeModule {}

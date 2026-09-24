@@ -78,6 +78,7 @@ export interface ControlMessage {
   seq: number;
   tenantId: string;
   type: DomainEventType;
+  occurredAt: string;
   payload: JsonValue;
 }
 
@@ -147,7 +148,14 @@ export function planDelivery(event: RelayEvent, routes: readonly EventRoute[]): 
     });
   }
   const control = CONTROL_EVENT_TYPES.has(event.type as DomainEventType)
-    ? { id: event.id, seq: event.seq, tenantId: event.tenantId, type: event.type as DomainEventType, payload: event.payload }
+    ? {
+        id: event.id,
+        seq: event.seq,
+        tenantId: event.tenantId,
+        type: event.type as DomainEventType,
+        occurredAt: event.occurredAt.toISOString(),
+        payload: event.payload,
+      }
     : undefined;
   return { jobs: routes, emits, ...(control === undefined ? {} : { control }) };
 }

@@ -75,7 +75,7 @@ function staffGateway(groupOf?: (id: string) => Promise<string | null | undefine
   const policy = { effectiveAccess: vi.fn(() => Promise.resolve(access(groups))) };
   const tickets = groupOf === undefined ? undefined : { groupOf: vi.fn((_ctx: unknown, id: string) => groupOf(id)) };
   const streams = new StreamAccess(policy as never, tickets);
-  return new StaffGateway({} as never, policy as never, {} as never, { wsConnections: { add: vi.fn() } } as never, streams, {} as never);
+  return new StaffGateway({} as never, policy as never, {} as never, { wsConnections: { add: vi.fn() } } as never, streams, {} as never, {} as never);
 }
 
 function socket(kind: 'staff' | 'customer' = 'staff') {

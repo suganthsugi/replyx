@@ -91,6 +91,7 @@ describe('planDelivery', () => {
       seq: 42,
       tenantId: TENANT,
       type: 'access.changed',
+      occurredAt: '2026-09-24T10:15:02.113Z',
       payload: { accessVersion: '3', reason: 'x' },
     });
   });
