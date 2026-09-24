@@ -4,6 +4,7 @@ import { AppModule } from '../../src/app.module.js';
 import { configureApiApp } from '../../src/app.setup.js';
 import { Clock } from '../../src/platform-kernel/clock.js';
 
+import type { DynamicModule, Type } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import type { AddressInfo } from 'node:net';
 
@@ -49,10 +50,14 @@ export interface TestWorker {
 let apiApp: Promise<TestApp> | undefined;
 let worker: Promise<TestWorker> | undefined;
 
-export function getTestApp(): Promise<TestApp> {
+/**
+ * `options.imports` adds modules (e.g. a probe controller for kernel tests); only the first call
+ * in a test file builds the app, so pass them there (typically in `beforeAll`).
+ */
+export function getTestApp(options: { imports?: (Type | DynamicModule)[] } = {}): Promise<TestApp> {
   apiApp ??= (async () => {
     const clock = new TestClock();
-    const moduleRef = await Test.createTestingModule({ imports: [AppModule.forRoot({ role: 'api' })] })
+    const moduleRef = await Test.createTestingModule({ imports: [AppModule.forRoot({ role: 'api' }), ...(options.imports ?? [])] })
       .overrideProvider(Clock)
       .useValue(clock)
       .compile();
