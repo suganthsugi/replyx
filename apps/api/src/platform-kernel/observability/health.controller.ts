@@ -3,6 +3,7 @@ import { constants as fsConstants, promises as fs } from 'node:fs';
 import { Controller, Get, HttpCode, Inject, Module, Res } from '@nestjs/common';
 import { sql, type Kysely } from 'kysely';
 
+import { Public } from '../../authorization/registry/module-permissions.js';
 import { PLATFORM_DB, type Database } from '../db/database.js';
 import { REDIS } from '../redis/redis.module.js';
 
@@ -19,6 +20,7 @@ const CHECK_TIMEOUT_MS = 2_000;
  * error messages or connection details.
  */
 @Controller('health')
+@Public()
 export class HealthController {
   constructor(
     @Inject(PLATFORM_DB) private readonly db: Kysely<Database>,
