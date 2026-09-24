@@ -5,6 +5,9 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
@@ -47,7 +50,11 @@ jobs:
       - name: Generated API client is up to date
         run: |
           bash scripts/generate-api-client.sh
-          git diff --exit-code -- apps/web/src/api/generated || (echo "Run scripts/generate-api-client.sh and commit the result" && exit 1)
+          if [ -n "$(git status --porcelain -- apps/web/src/api/generated)" ]; then
+            git status --porcelain -- apps/web/src/api/generated
+            echo "Run scripts/generate-api-client.sh and commit the result"
+            exit 1
+          fi
 
       - name: Lint OpenAPI spec
         run: npx @redocly/cli lint apps/api/openapi.yaml
