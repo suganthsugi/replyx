@@ -1,6 +1,7 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 
 import { DatabaseModule } from './platform-kernel/db/database.js';
+import { HttpKernelModule } from './platform-kernel/http/http-kernel.module.js';
 
 /**
  * The same codebase runs as two processes (research D1):
@@ -17,7 +18,7 @@ export class AppModule {
     // Modules used by both processes (database, logging, outbox writer, domain modules).
     const shared: ModuleImports = [DatabaseModule];
     // HTTP controllers, guards and the Socket.IO gateway (api only).
-    const apiOnly: ModuleImports = [];
+    const apiOnly: ModuleImports = [HttpKernelModule];
     // Outbox relay, queue consumers and sweepers (worker only).
     const workerOnly: ModuleImports = [];
 
