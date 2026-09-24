@@ -10,6 +10,7 @@ import { LoggingModule } from './platform-kernel/observability/logger.js';
 import { MetricsModule } from './platform-kernel/observability/metrics.js';
 import { OutboxModule } from './platform-kernel/outbox/outbox.service.js';
 import { OutboxRelayModule } from './platform-kernel/outbox/relay.js';
+import { RealtimeModule } from './platform-kernel/realtime/gateway.js';
 import { RedisModule } from './platform-kernel/redis/redis.module.js';
 import { TenancyModule } from './tenancy/tenant-provisioning.service.js';
 
@@ -38,7 +39,7 @@ export class AppModule {
       TenancyModule,
     ];
     // HTTP controllers, guards and the Socket.IO gateway (api only).
-    const apiOnly: ModuleImports = [ApiPipelineModule, HealthModule];
+    const apiOnly: ModuleImports = [ApiPipelineModule, HealthModule, RealtimeModule];
     // Outbox relay, queue consumers and sweepers (worker only).
     const workerOnly: ModuleImports = [JobsModule, OutboxRelayModule];
 

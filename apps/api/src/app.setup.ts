@@ -1,5 +1,6 @@
-import { IoAdapter } from '@nestjs/platform-socket.io';
 import { Logger } from 'nestjs-pino';
+
+import { RedisIoAdapter } from './platform-kernel/realtime/redis-io.adapter.js';
 
 import type { NestExpressApplication } from '@nestjs/platform-express';
 
@@ -19,9 +20,8 @@ export function configureApiApp(app: NestExpressApplication): NestExpressApplica
   // Host-based tenant resolution needs the original Host; Caddy is the only proxy in front.
   app.set('trust proxy', 'loopback, linklocal, uniquelocal');
   app.setGlobalPrefix(API_PREFIX, { exclude: UNPREFIXED_ROUTES });
-  // Socket.IO on the same HTTP server. The gateway (T037) sets path `/rt` and swaps in the
-  // Redis adapter for cross-process fan-out.
-  app.useWebSocketAdapter(new IoAdapter(app));
+  // Socket.IO on the same HTTP server at `/rt`, with the Redis adapter for cross-process fan-out.
+  app.useWebSocketAdapter(new RedisIoAdapter(app));
   app.enableShutdownHooks();
   return app;
 }
