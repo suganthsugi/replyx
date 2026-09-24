@@ -43,3 +43,6 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# next.js build output (legacy app, archived)
+/.next/
