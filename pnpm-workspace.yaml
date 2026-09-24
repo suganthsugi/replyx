@@ -3,4 +3,13 @@ packages:
   - packages/*
 
 allowBuilds:
+  '@swc/core': true
+  argon2: true
+  esbuild: true
+  msgpackr-extract: true
+  '@scarf/scarf': false
+  cpu-features: false
+  msw: false
+  protobufjs: false
+  ssh2: false
   unrs-resolver: false
