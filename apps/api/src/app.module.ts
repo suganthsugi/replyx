@@ -1,5 +1,7 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 
+import { DatabaseModule } from './platform-kernel/db/database.js';
+
 /**
  * The same codebase runs as two processes (research D1):
  * - `api`: HTTP + WebSocket (src/main.api.ts)
@@ -13,7 +15,7 @@ type ModuleImports = NonNullable<DynamicModule['imports']>;
 export class AppModule {
   static forRoot(options: { role: ProcessRole }): DynamicModule {
     // Modules used by both processes (database, logging, outbox writer, domain modules).
-    const shared: ModuleImports = [];
+    const shared: ModuleImports = [DatabaseModule];
     // HTTP controllers, guards and the Socket.IO gateway (api only).
     const apiOnly: ModuleImports = [];
     // Outbox relay, queue consumers and sweepers (worker only).
