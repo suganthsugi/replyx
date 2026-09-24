@@ -1,0 +1,4 @@
+{{{content}}}
+
+--
+Sent by {{workspaceName}}

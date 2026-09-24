@@ -6,6 +6,8 @@ import { AuthorizationModule } from './authorization/authorization.module.js';
 import { ClockModule } from './platform-kernel/clock.js';
 import { DatabaseModule } from './platform-kernel/db/database.js';
 import { JobsModule } from './platform-kernel/jobs/jobs.module.js';
+import { QueuesModule } from './platform-kernel/jobs/queues.js';
+import { MailModule } from './platform-kernel/mail/mail.service.js';
 import { HealthModule } from './platform-kernel/observability/health.controller.js';
 import { LoggingModule } from './platform-kernel/observability/logger.js';
 import { MetricsModule } from './platform-kernel/observability/metrics.js';
@@ -35,6 +37,8 @@ export class AppModule {
       RedisModule,
       ClockModule,
       OutboxModule,
+      QueuesModule,
+      MailModule,
       // The api process syncs the permission registry on start-up; the worker only reads it.
       AuthorizationModule.forRoot({ syncOnBootstrap: options.role === 'api' }),
       TenancyModule,

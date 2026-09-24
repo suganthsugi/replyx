@@ -13,6 +13,7 @@ import { Clock } from '../clock.js';
 import { MetricsService } from '../observability/metrics.js';
 
 import { IdempotentHandler } from './idempotent-handler.js';
+import { JobProcessor } from './job-processor.js';
 import {
   createBullConnection,
   DEAD_LETTER_QUEUE,
@@ -31,25 +32,35 @@ export interface EventRoute {
   consumer: string;
 }
 
-/** Every `IdempotentHandler` provider in the app, indexed by consumer and by event type. */
+/**
+ * Every `IdempotentHandler` (indexed by consumer and event type) and `JobProcessor` (indexed by
+ * job name) provider in the app.
+ */
 @Injectable()
 export class JobRouter implements OnModuleInit {
   private readonly handlers = new Map<string, IdempotentHandler>();
+  private readonly processors = new Map<string, JobProcessor>();
   private readonly routes = new Map<string, EventRoute[]>();
 
   constructor(private readonly discovery: DiscoveryService) {}
 
   onModuleInit(): void {
-    const handlers = this.discovery
-      .getProviders()
-      .map((wrapper) => wrapper.instance as unknown)
-      .filter((instance): instance is IdempotentHandler => instance instanceof IdempotentHandler);
-    this.register(handlers);
+    const instances = this.discovery.getProviders().map((wrapper) => wrapper.instance as unknown);
+    this.register(
+      instances.filter((instance): instance is IdempotentHandler => instance instanceof IdempotentHandler),
+      instances.filter((instance): instance is JobProcessor => instance instanceof JobProcessor),
+    );
   }
 
-  register(handlers: readonly IdempotentHandler[]): void {
+  register(handlers: readonly IdempotentHandler[], processors: readonly JobProcessor[] = []): void {
+    for (const processor of processors) {
+      if (this.processors.has(processor.jobName) || this.handlers.has(processor.jobName)) {
+        throw new Error(`Job ${processor.jobName} is registered twice`);
+      }
+      this.processors.set(processor.jobName, processor);
+    }
     for (const handler of handlers) {
-      if (this.handlers.has(handler.consumer)) {
+      if (this.handlers.has(handler.consumer) || this.processors.has(handler.consumer)) {
         throw new Error(`Consumer ${handler.consumer} is registered twice`);
       }
       this.handlers.set(handler.consumer, handler);
@@ -70,8 +81,13 @@ export class JobRouter implements OnModuleInit {
     return this.handlers.get(consumer);
   }
 
+  processor(jobName: string): JobProcessor | undefined {
+    return this.processors.get(jobName);
+  }
+
   queuesInUse(): QueueName[] {
-    return QUEUE_NAMES.filter((queue) => [...this.handlers.values()].some((h) => h.queue === queue));
+    const used = [...this.handlers.values(), ...this.processors.values()].map((entry) => entry.queue);
+    return QUEUE_NAMES.filter((queue) => used.includes(queue));
   }
 }
 
@@ -79,7 +95,7 @@ const WORKER_CONCURRENCY = 5;
 const METRICS_INTERVAL_MS = 15_000;
 
 /**
- * Runs the consumers (worker process only): one BullMQ worker per queue that has handlers, with
+ * Runs consumers and processors (worker process only): one BullMQ worker per queue in use, with
  * 5 attempts and exponential backoff (queues.ts). A job that fails its last attempt is copied to
  * the dead-letter queue. `queue_depth` and `dead_letter_count` are refreshed every 15 s.
  */
@@ -114,10 +130,12 @@ export class JobWorkers implements OnApplicationBootstrap, OnApplicationShutdown
     this.logger.log(`Consuming ${queues.length} queue(s)`);
   }
 
-  async run(job: Job<EventJobData>): Promise<string> {
+  async run(job: Job<EventJobData>): Promise<unknown> {
     const handler = this.router.handler(job.name);
-    if (handler === undefined) throw new Error(`No consumer ${job.name}`);
-    return handler.process(job.data, job.id);
+    if (handler !== undefined) return handler.process(job.data, job.id);
+    const processor = this.router.processor(job.name);
+    if (processor !== undefined) return processor.process(job.data, job as Job<unknown>);
+    throw new Error(`No consumer ${job.name}`);
   }
 
   async onFailed(queue: QueueName, job: Job<EventJobData> | undefined, error: Error): Promise<void> {
@@ -127,7 +145,7 @@ export class JobWorkers implements OnApplicationBootstrap, OnApplicationShutdown
     const entry: DeadLetterData = {
       queue,
       consumer: job.name,
-      data: job.data,
+      data: pickIds(job.data),
       attempts: job.attemptsMade,
       error: error.message.slice(0, 500),
       failedAt: this.clock.now().toISOString(),
@@ -158,10 +176,18 @@ export class JobWorkers implements OnApplicationBootstrap, OnApplicationShutdown
   }
 }
 
-/** Queues and consumers for the worker process (the relay enqueues through `QueueRegistry`). */
+function pickIds(data: unknown): Partial<EventJobData> {
+  const { tenantId, eventId } = (data ?? {}) as Partial<Record<keyof EventJobData, unknown>>;
+  return {
+    ...(typeof tenantId === 'string' ? { tenantId } : {}),
+    ...(typeof eventId === 'string' ? { eventId } : {}),
+  };
+}
+
+/** Consumers and processors for the worker process (queues come from the global `QueuesModule`). */
 @Module({
   imports: [DiscoveryModule],
-  providers: [QueueRegistry, JobRouter, JobWorkers],
-  exports: [QueueRegistry, JobRouter],
+  providers: [JobRouter, JobWorkers],
+  exports: [JobRouter],
 })
 export class JobsModule {}

@@ -5,6 +5,12 @@
   "compilerOptions": {
     "builder": "tsc",
     "tsConfigPath": "tsconfig.build.json",
-    "deleteOutDir": false
+    "deleteOutDir": false,
+    "assets": [
+      {
+        "include": "platform-kernel/mail/templates/**/*",
+        "watchAssets": true
+      }
+    ]
   }
 }

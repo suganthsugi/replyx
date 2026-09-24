@@ -1,4 +1,4 @@
-import { Injectable, type OnApplicationShutdown } from '@nestjs/common';
+import { Global, Injectable, Module, type OnApplicationShutdown } from '@nestjs/common';
 import { Queue, type JobsOptions } from 'bullmq';
 import { Redis } from 'ioredis';
 
@@ -38,7 +38,8 @@ export interface EventJobData {
 export interface DeadLetterData {
   queue: QueueName;
   consumer: string;
-  data: EventJobData;
+  /** Only ids: processor jobs (email) may carry link tokens, which must not linger here. */
+  data: Partial<EventJobData>;
   attempts: number;
   error: string;
   failedAt: string;
@@ -96,3 +97,8 @@ export class QueueRegistry implements OnApplicationShutdown {
     await this.connection?.quit().catch(() => this.connection?.disconnect());
   }
 }
+
+/** Shared by both processes: the api enqueues emails, the worker's relay enqueues event jobs. */
+@Global()
+@Module({ providers: [QueueRegistry], exports: [QueueRegistry] })
+export class QueuesModule {}
