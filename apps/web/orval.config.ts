@@ -42,6 +42,12 @@ export default defineConfig({
           useQuery: true,
           useMutation: true,
         },
+        fetch: {
+          // orval's fetch client defaults to returning {data,status,headers};
+          // the http mutator contract (src/data/http.ts) resolves to the
+          // parsed body only, so disable the wrapped return type.
+          includeHttpResponseReturnType: false,
+        },
       },
     },
   },
