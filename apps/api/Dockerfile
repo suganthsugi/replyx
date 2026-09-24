@@ -37,6 +37,10 @@ WORKDIR /repo
 # ---------------------------------------------------------------------------------------------
 FROM base AS dev
 ENV NODE_ENV=development
+# git: repo scripts (scripts/test-affected.sh) run from the `tools` service on this stage.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends git ca-certificates \
+ && rm -rf /var/lib/apt/lists/*
 EXPOSE 3000
 CMD ["pnpm", "--filter", "api", "dev:api"]
 
