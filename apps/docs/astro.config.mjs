@@ -6,25 +6,25 @@ export default defineConfig({
   integrations: [
     starlight({
       title: 'ReplyX Docs',
-      social: {
-        github: 'https://github.com/replyx/replyx',
-      },
+      social: [
+        { icon: 'github', label: 'GitHub', href: 'https://github.com/replyx/replyx' },
+      ],
       sidebar: [
         {
           label: 'Guides',
-          autogenerate: { directory: 'guides' },
+          items: [{ autogenerate: { directory: 'guides' } }],
         },
         {
           label: 'Admin',
-          autogenerate: { directory: 'admin' },
+          items: [{ autogenerate: { directory: 'admin' } }],
         },
         {
           label: 'Operators',
-          autogenerate: { directory: 'operators' },
+          items: [{ autogenerate: { directory: 'operators' } }],
         },
         {
           label: 'Developers',
-          autogenerate: { directory: 'developers' },
+          items: [{ autogenerate: { directory: 'developers' } }],
         },
         {
           label: 'API reference',
