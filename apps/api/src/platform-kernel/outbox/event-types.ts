@@ -5,8 +5,12 @@
  * inventing one.
  *
  * `payload` is what staff streams and consumers see. Events on a `conversation:*` stream also
- * carry a `customerPayload` built by the messaging projector (research D9).
+ * carry a `customerPayload` built by the messaging projector (research D9): the customer event
+ * type (`conversation.*`) and its data, since one domain event can mean different things to a
+ * customer (a state change can be `conversation.status` or `conversation.resolved`).
  */
+
+import type { JsonValue } from '../db/tables/column-types.js';
 
 /** Who caused the event. Matches `TenantContext['actor']`; `name` is filled in for display. */
 export type EventActor =
@@ -39,6 +43,28 @@ export interface DomainEventMap {
 
 export type DomainEventType = keyof DomainEventMap;
 
+/** What customer sockets receive for an event (contracts/realtime-events.md "Customer events"). */
+export interface CustomerProjection {
+  type: `conversation.${string}`;
+  data: JsonValue;
+}
+
+export function isCustomerProjection(value: unknown): value is CustomerProjection {
+  if (typeof value !== 'object' || value === null) return false;
+  const { type, data } = value as { type?: unknown; data?: unknown };
+  return typeof type === 'string' && type.startsWith('conversation.') && data !== undefined;
+}
+
+/**
+ * Events the gateways act on besides delivering them (T037/T039): the relay also broadcasts
+ * them to every api process with `serverSideEmit`.
+ */
+export const CONTROL_EVENT_TYPES: ReadonlySet<DomainEventType> = new Set([
+  'session.revoked',
+  'tenant.suspended',
+  'access.changed',
+]);
+
 export type DomainEventPayload<T extends DomainEventType> = DomainEventMap[T];
 
 /**
@@ -65,4 +91,17 @@ export function isStreamKey(value: string): value is StreamKey {
 
 export function isCustomerStream(stream: StreamKey): boolean {
   return stream.startsWith('conversation:');
+}
+
+/**
+ * The stream name clients see in the envelope and send back in `sync` (contract "Streams"):
+ * a socket only ever sees its own `user`, `views` and `conversation` streams, so those drop the
+ * id; `tickets:group:*` rooms are all the `tickets` stream; `ticket:{id}` is kept.
+ */
+export function clientStream(stream: StreamKey): string {
+  if (stream.startsWith('user:')) return 'user';
+  if (stream.startsWith('views:')) return 'views';
+  if (stream.startsWith('conversation:')) return 'conversation';
+  if (stream.startsWith('tickets:group:')) return 'tickets';
+  return stream;
 }

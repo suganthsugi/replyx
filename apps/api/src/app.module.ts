@@ -9,6 +9,7 @@ import { HealthModule } from './platform-kernel/observability/health.controller.
 import { LoggingModule } from './platform-kernel/observability/logger.js';
 import { MetricsModule } from './platform-kernel/observability/metrics.js';
 import { OutboxModule } from './platform-kernel/outbox/outbox.service.js';
+import { OutboxRelayModule } from './platform-kernel/outbox/relay.js';
 import { RedisModule } from './platform-kernel/redis/redis.module.js';
 import { TenancyModule } from './tenancy/tenant-provisioning.service.js';
 
@@ -39,7 +40,7 @@ export class AppModule {
     // HTTP controllers, guards and the Socket.IO gateway (api only).
     const apiOnly: ModuleImports = [ApiPipelineModule, HealthModule];
     // Outbox relay, queue consumers and sweepers (worker only).
-    const workerOnly: ModuleImports = [JobsModule];
+    const workerOnly: ModuleImports = [JobsModule, OutboxRelayModule];
 
     return {
       module: AppModule,

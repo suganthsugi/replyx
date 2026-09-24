@@ -4,8 +4,10 @@ import { tenantScopeOf, type TenantTransaction } from '../db/unit-of-work.js';
 import { uuidv7 } from '../ids.js';
 
 import {
+  isCustomerProjection,
   isCustomerStream,
   isStreamKey,
+  type CustomerProjection,
   type DomainEventPayload,
   type DomainEventType,
   type EventActor,
@@ -13,15 +15,13 @@ import {
   type StreamKey,
 } from './event-types.js';
 
-import type { JsonValue } from '../db/tables/column-types.js';
-
 export interface AppendInput<T extends DomainEventType> {
   type: T;
   /** Defaults to the transaction's context actor. */
   actor?: EventActor;
   payload: DomainEventPayload<T>;
   /** Required when any stream is `conversation:*`; never includes internal fields (research D9). */
-  customerPayload?: JsonValue;
+  customerPayload?: CustomerProjection;
   streams: readonly StreamKey[];
   cause?: EventCause;
 }
@@ -51,6 +51,9 @@ export class OutboxService {
     const hasCustomerStream = input.streams.some(isCustomerStream);
     if (hasCustomerStream && input.customerPayload === undefined) {
       throw new Error(`Event ${input.type} targets a customer stream without a customerPayload`);
+    }
+    if (hasCustomerStream && !isCustomerProjection(input.customerPayload)) {
+      throw new Error(`Event ${input.type} has a malformed customerPayload`);
     }
     if (!hasCustomerStream && input.customerPayload !== undefined) {
       throw new Error(`Event ${input.type} has a customerPayload but no customer stream`);
