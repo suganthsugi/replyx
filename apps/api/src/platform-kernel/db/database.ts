@@ -4,12 +4,13 @@ import pg from 'pg';
 
 import { UnitOfWork } from './unit-of-work.js';
 
+import type { TenancyTables } from './tables/tenancy.js';
+
 /**
- * Kysely table map. Empty until the first tables exist: each migration that adds a table also
- * adds its row type here (tenant-owned tables include `tenant_id: string`).
+ * Kysely table map. Each migration that adds tables also adds their row types under `tables/`
+ * and adds them to this intersection (tenant-owned tables include `tenant_id: string`).
  */
-// eslint-disable-next-line @typescript-eslint/no-empty-object-type -- extended as tables are added
-export interface Database {}
+export type Database = TenancyTables;
 
 export type DB = Database;
 
