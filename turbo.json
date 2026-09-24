@@ -1,6 +1,33 @@
 {
   "$schema": "https://turborepo.com/schema.json",
   "globalDependencies": ["tsconfig.base.json", "eslint.config.mjs", ".prettierrc"],
+  "globalPassThroughEnv": [
+    "CI",
+    "NODE_ENV",
+    "DOCKER_HOST",
+    "TESTCONTAINERS_HOST_OVERRIDE",
+    "TESTCONTAINERS_*",
+    "DATABASE_URL_OWNER",
+    "DATABASE_URL_APP",
+    "DATABASE_URL_PLATFORM",
+    "REDIS_URL",
+    "BASE_DOMAIN",
+    "CONSOLE_HOST",
+    "SESSION_SECRET",
+    "FILE_SIGNING_KEY",
+    "WEBHOOK_ENCRYPTION_KEY",
+    "FILE_STORAGE",
+    "FILES_DIR",
+    "S3_*",
+    "SMTP_*",
+    "CLAMAV_HOST",
+    "OPERATOR_BOOTSTRAP_EMAIL",
+    "OPERATOR_BOOTSTRAP_PASSWORD",
+    "VAPID_PUBLIC_KEY",
+    "VAPID_PRIVATE_KEY",
+    "CHOKIDAR_USEPOLLING",
+    "PLAYWRIGHT_*"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
