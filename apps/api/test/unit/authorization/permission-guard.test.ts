@@ -97,10 +97,10 @@ describe('auditRoutes', () => {
     expect(
       auditRoutes(
         [
-          { name: 'A.a', path: '/groups', access: [{ kind: 'permission', permission: 'group.create' }] },
-          { name: 'A.b', path: '/customer/conversation', access: [{ kind: 'customer' }] },
-          { name: 'A.c', path: '/platform/tenants', access: [{ kind: 'operator' }] },
-          { name: 'A.d', path: '/auth/sign-in', access: [{ kind: 'public' }] },
+          { name: 'A.a', method: 'POST', path: '/groups', access: [{ kind: 'permission', permission: 'group.create' }] },
+          { name: 'A.b', method: 'GET', path: '/customer/conversation', access: [{ kind: 'customer' }] },
+          { name: 'A.c', method: 'GET', path: '/platform/tenants', access: [{ kind: 'operator' }] },
+          { name: 'A.d', method: 'GET', path: '/auth/sign-in', access: [{ kind: 'public' }] },
         ],
         known,
       ),
@@ -110,12 +110,12 @@ describe('auditRoutes', () => {
   it('reports missing, duplicate and unknown decorators and misplaced audiences', () => {
     const problems = auditRoutes(
       [
-        { name: 'B.none', path: '/x', access: [] },
-        { name: 'B.two', path: '/x', access: [{ kind: 'public' }, { kind: 'customer' }] },
-        { name: 'B.unknown', path: '/x', access: [{ kind: 'permission', permission: 'nope.view' }] },
-        { name: 'B.customerOutside', path: '/tickets', access: [{ kind: 'customer' }] },
-        { name: 'B.staffInside', path: '/customer/x', access: [{ kind: 'permission', permission: 'group.create' }] },
-        { name: 'B.operatorOutside', path: '/tenants', access: [{ kind: 'operator' }] },
+        { name: 'B.none', method: 'GET', path: '/x', access: [] },
+        { name: 'B.two', method: 'GET', path: '/x', access: [{ kind: 'public' }, { kind: 'customer' }] },
+        { name: 'B.unknown', method: 'GET', path: '/x', access: [{ kind: 'permission', permission: 'nope.view' }] },
+        { name: 'B.customerOutside', method: 'GET', path: '/tickets', access: [{ kind: 'customer' }] },
+        { name: 'B.staffInside', method: 'GET', path: '/customer/x', access: [{ kind: 'permission', permission: 'group.create' }] },
+        { name: 'B.operatorOutside', method: 'GET', path: '/tenants', access: [{ kind: 'operator' }] },
       ],
       known,
     );

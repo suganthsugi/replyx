@@ -1,4 +1,4 @@
-import { Injectable, type OnApplicationBootstrap } from '@nestjs/common';
+import { Injectable, RequestMethod, type OnApplicationBootstrap } from '@nestjs/common';
 import { METHOD_METADATA, PATH_METADATA } from '@nestjs/common/constants.js';
 import { DiscoveryService, MetadataScanner } from '@nestjs/core';
 
@@ -17,6 +17,8 @@ export interface RouteInfo {
   name: string;
   /** Controller path joined with the handler path, without the global prefix. */
   path: string;
+  /** HTTP method, e.g. `GET` (used by the generated cross-tenant suite). */
+  method: string;
   access: readonly RouteAccess[];
 }
 
@@ -91,9 +93,11 @@ export class RouteAudit implements OnApplicationBootstrap {
       const controllerPath = Reflect.getMetadata(PATH_METADATA, metatype) as unknown;
       for (const methodName of this.scanner.getAllMethodNames(prototype)) {
         const handler = prototype[methodName] as object;
-        if (Reflect.getMetadata(METHOD_METADATA, handler) === undefined) continue;
+        const method = Reflect.getMetadata(METHOD_METADATA, handler) as RequestMethod | undefined;
+        if (method === undefined) continue;
         routes.push({
           name: `${metatype.name}.${methodName}`,
+          method: RequestMethod[method],
           path: joinPath(controllerPath, Reflect.getMetadata(PATH_METADATA, handler)),
           access: routeAccessOf(handler, metatype),
         });
