@@ -1,28 +1,18 @@
 {
-  "name": "ticket-classifier",
-  "version": "0.1.0",
+  "name": "replyx",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "next": "16.3.5",
-    "react": "19.2.8",
-    "react-dom": "19.2.8",
-    "server-only": "^0.0.1"
+    "lint": "turbo run lint",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test",
+    "build": "turbo run build"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.3.5",
-    "tailwindcss": "^4",
-    "typescript": "^5"
+    "eslint": "^9.39.5",
+    "prettier": "^3",
+    "turbo": "^2.11.3",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.70.0"
   },
   "packageManager": "pnpm@12.5.1"
 }
