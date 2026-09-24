@@ -13,6 +13,8 @@ export default defineConfig({
   plugins: [swc.vite({ module: { type: 'es6' } })],
   test: {
     environment: 'node',
+    // The dev image sets NODE_ENV=development; tests must not inherit it.
+    env: { NODE_ENV: 'test' },
     include: ['test/**/*.test.ts'],
     globalSetup: existsSync(globalSetupFile) ? [globalSetupFile] : [],
     passWithNoTests: true,

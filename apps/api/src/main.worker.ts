@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { Logger as PinoNestLogger } from 'nestjs-pino';
 
 import { AppModule } from './app.module.js';
 
@@ -7,7 +8,10 @@ const SHUTDOWN_SIGNALS = ['SIGINT', 'SIGTERM'] as const;
 
 async function bootstrap(): Promise<void> {
   // Application context only: no HTTP server, no WebSocket gateway.
-  const app = await NestFactory.createApplicationContext(AppModule.forRoot({ role: 'worker' }));
+  const app = await NestFactory.createApplicationContext(AppModule.forRoot({ role: 'worker' }), {
+    bufferLogs: true,
+  });
+  app.useLogger(app.get(PinoNestLogger));
   await app.init();
 
   // Holds the process open until a shutdown signal. BullMQ consumers (T036) and the outbox

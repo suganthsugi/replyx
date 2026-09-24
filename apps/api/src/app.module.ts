@@ -2,6 +2,10 @@ import { type DynamicModule, Module } from '@nestjs/common';
 
 import { DatabaseModule } from './platform-kernel/db/database.js';
 import { HttpKernelModule } from './platform-kernel/http/http-kernel.module.js';
+import { HealthModule } from './platform-kernel/observability/health.controller.js';
+import { LoggingModule } from './platform-kernel/observability/logger.js';
+import { MetricsModule } from './platform-kernel/observability/metrics.js';
+import { RedisModule } from './platform-kernel/redis/redis.module.js';
 
 /**
  * The same codebase runs as two processes (research D1):
@@ -16,9 +20,9 @@ type ModuleImports = NonNullable<DynamicModule['imports']>;
 export class AppModule {
   static forRoot(options: { role: ProcessRole }): DynamicModule {
     // Modules used by both processes (database, logging, outbox writer, domain modules).
-    const shared: ModuleImports = [DatabaseModule];
+    const shared: ModuleImports = [LoggingModule, MetricsModule, DatabaseModule, RedisModule];
     // HTTP controllers, guards and the Socket.IO gateway (api only).
-    const apiOnly: ModuleImports = [HttpKernelModule];
+    const apiOnly: ModuleImports = [HttpKernelModule, HealthModule];
     // Outbox relay, queue consumers and sweepers (worker only).
     const workerOnly: ModuleImports = [];
 
