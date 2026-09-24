@@ -41,7 +41,7 @@ export async function migrateToLatest(connectionString: string): Promise<void> {
       }
     }
     if (error !== undefined) {
-      throw error instanceof Error ? error : new Error(String(error));
+      throw error instanceof Error ? error : new Error('Migration failed', { cause: error });
     }
     if ((results ?? []).length === 0) {
       logger.log('No pending migrations');
