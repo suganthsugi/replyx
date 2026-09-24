@@ -5,6 +5,7 @@ import { HttpKernelModule } from './platform-kernel/http/http-kernel.module.js';
 import { HealthModule } from './platform-kernel/observability/health.controller.js';
 import { LoggingModule } from './platform-kernel/observability/logger.js';
 import { MetricsModule } from './platform-kernel/observability/metrics.js';
+import { OutboxModule } from './platform-kernel/outbox/outbox.service.js';
 import { RedisModule } from './platform-kernel/redis/redis.module.js';
 
 /**
@@ -20,7 +21,7 @@ type ModuleImports = NonNullable<DynamicModule['imports']>;
 export class AppModule {
   static forRoot(options: { role: ProcessRole }): DynamicModule {
     // Modules used by both processes (database, logging, outbox writer, domain modules).
-    const shared: ModuleImports = [LoggingModule, MetricsModule, DatabaseModule, RedisModule];
+    const shared: ModuleImports = [LoggingModule, MetricsModule, DatabaseModule, RedisModule, OutboxModule];
     // HTTP controllers, guards and the Socket.IO gateway (api only).
     const apiOnly: ModuleImports = [HttpKernelModule, HealthModule];
     // Outbox relay, queue consumers and sweepers (worker only).
