@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Placeholder until the monorepo is scaffolded: turbo tasks run once turbo.json exists.
+      - name: Lint
+        run: |
+          if [ -f turbo.json ]; then pnpm turbo run lint; else pnpm lint; fi
+
+      - name: Typecheck
+        run: |
+          if [ -f turbo.json ]; then pnpm turbo run typecheck; else echo "typecheck: no turbo.json yet — skipping"; fi
+
+      - name: Test
+        run: |
+          if [ -f turbo.json ]; then pnpm turbo run test; else echo "test: no turbo.json yet — skipping"; fi
+
+      - name: Coverage gate (api >= 80%, web >= 70%)
+        run: bash scripts/check-coverage.sh
+
+      - name: Generated API client is up to date
+        run: |
+          bash scripts/generate-api-client.sh
+          git diff --exit-code -- apps/web/src/api/generated || (echo "Run scripts/generate-api-client.sh and commit the result" && exit 1)
