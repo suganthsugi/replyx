@@ -1,6 +1,7 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 
 import { AuthorizationModule } from './authorization/authorization.module.js';
+import { ClockModule } from './platform-kernel/clock.js';
 import { DatabaseModule } from './platform-kernel/db/database.js';
 import { HttpKernelModule } from './platform-kernel/http/http-kernel.module.js';
 import { HealthModule } from './platform-kernel/observability/health.controller.js';
@@ -27,6 +28,7 @@ export class AppModule {
       MetricsModule,
       DatabaseModule,
       RedisModule,
+      ClockModule,
       OutboxModule,
       // The api process syncs the permission registry on start-up; the worker only reads it.
       AuthorizationModule.forRoot({ syncOnBootstrap: options.role === 'api' }),

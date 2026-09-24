@@ -13,6 +13,7 @@
     "dev:api": "nest start --watch --entryFile main.api",
     "dev:worker": "nest start --watch --entryFile main.worker",
     "migrate": "tsx src/platform-kernel/db/migrator.ts",
+    "dev:advance-clock": "tsx src/platform-kernel/clock.ts",
     "seed:dev": "nest build && node dist/tenancy/dev-seed.js",
     "test": "vitest run",
     "test:cross-tenant": "vitest run test/cross-tenant",
