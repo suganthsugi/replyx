@@ -1,0 +1,277 @@
+openapi: 3.1.0
+info:
+  title: ReplyX customer API
+  version: 0.1.0
+  description: >
+    The customer-facing conversation model (FR-048..FR-058). It never exposes tickets, numbers,
+    states, groups, owners, priorities, SLA or internal notes (research D9). Authorization is
+    by ownership: a customer can only reach their own conversation. Staff sessions are rejected
+    here and customer sessions are rejected by the staff API (403 on the other surface's routes
+    is replaced by 404 to avoid revealing structure).
+servers:
+  - url: https://{tenant}.replyx.app/api/v1/customer
+    variables: { tenant: { default: acme } }
+security:
+  - session: []
+paths:
+  /branding:
+    get:
+      summary: Public chat branding and availability (no session needed)
+      security: []
+      responses:
+        '200':
+          description: Branding
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tenantName, selfRegistration, available]
+                properties:
+                  tenantName: { type: string }
+                  logoUrl: { type: [string, 'null'] }
+                  colors: { type: object, properties: { primary: { type: string }, accent: { type: string } } }
+                  welcomeMessage: { type: [string, 'null'] }
+                  selfRegistration: { type: boolean }
+                  available: { type: boolean, description: False when the tenant is suspended }
+                  outOfHoursMessage: { type: [string, 'null'], description: Present only outside business hours }
+  /auth/sign-in-link:
+    post:
+      summary: Email a one-time sign-in link (FR-012); same response whether or not the account exists
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              additionalProperties: false
+              properties:
+                email: { type: string, format: email }
+                name: { type: string, maxLength: 120, description: Used only when self-registration creates the account }
+      responses:
+        '202': { description: 'If allowed, a link was sent' }
+        '429': { $ref: 'common.yaml#/components/responses/RateLimited' }
+        '503': { description: TENANT_SUSPENDED, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /auth/sign-in-link/redeem:
+    post:
+      summary: Redeem a sign-in link token (single use, 15-minute expiry)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+                trustDevice: { type: boolean, default: true }
+      responses:
+        '200': { description: Signed in; sets cookies, content: { application/json: { schema: { $ref: '#/components/schemas/CustomerMe' } } } }
+        '400': { description: LINK_INVALID_OR_EXPIRED, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /auth/sign-in:
+    post:
+      summary: Password sign-in for customers who set a password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                trustDevice: { type: boolean, default: true }
+      responses:
+        '200': { description: Signed in, content: { application/json: { schema: { $ref: '#/components/schemas/CustomerMe' } } } }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthenticated' }
+        '423': { description: ACCOUNT_LOCKED, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /auth/sign-out:
+    post:
+      summary: Sign out this device
+      responses:
+        '204': { description: Signed out }
+  /auth/sign-out-all:
+    post:
+      summary: Sign out everywhere
+      responses:
+        '204': { description: Signed out everywhere }
+  /me:
+    get:
+      summary: Current customer
+      responses:
+        '200': { description: Customer, content: { application/json: { schema: { $ref: '#/components/schemas/CustomerMe' } } } }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthenticated' }
+    patch:
+      summary: Update name, avatar, password, notification preference
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string, maxLength: 120 }
+                avatarAttachmentId: { type: [string, 'null'], format: uuid }
+                newPassword: { type: string, minLength: 12, maxLength: 200 }
+                currentPassword: { type: string, description: Required when a password is already set }
+                emailOnReply: { type: boolean }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/CustomerMe' } } } }
+  /conversation:
+    get:
+      summary: The customer's single thread (all tickets, public content only), newest page first
+      parameters:
+        - $ref: 'common.yaml#/components/parameters/Limit'
+        - { name: before, in: query, description: 'Cursor for older items (scroll up)', schema: { type: string } }
+      responses:
+        '200':
+          description: Thread page
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items, status, olderCursor, streamSeq]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/ThreadItem' } }
+                  olderCursor: { type: [string, 'null'] }
+                  status: { $ref: '#/components/schemas/FriendlyStatus' }
+                  pendingRating: { type: [object, 'null'], properties: { ratingId: { type: string, format: uuid } }, description: 'Offered after a resolution (P2)' }
+                  streamSeq: { type: integer, description: 'Latest seq of the conversation stream, for real-time catch-up' }
+  /messages:
+    post:
+      summary: Send a message (FR-050, FR-051) — routed to exactly one ticket, idempotent by clientMessageId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [body, clientMessageId]
+              additionalProperties: false
+              properties:
+                body: { type: string, minLength: 1, maxLength: 10000 }
+                clientMessageId: { type: string, format: uuid }
+                attachmentIds: { type: array, maxItems: 10, items: { type: string, format: uuid } }
+      responses:
+        '201': { description: 'Accepted (or the original message when the clientMessageId was already used)', content: { application/json: { schema: { $ref: '#/components/schemas/ConversationMessage' } } } }
+        '400': { $ref: 'common.yaml#/components/responses/ValidationFailed' }
+        '429': { $ref: 'common.yaml#/components/responses/RateLimited' }
+  /messages/read:
+    post:
+      summary: Mark support replies up to a message as read (drives read receipts)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [upToMessageId]
+              properties:
+                upToMessageId: { type: string, format: uuid }
+      responses:
+        '204': { description: Recorded }
+  /ratings/{id}:
+    put:
+      summary: Leave or change a satisfaction rating (P2, FR-087)
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [score]
+              properties:
+                score: { type: integer, minimum: 1, maximum: 5 }
+                comment: { type: string, maxLength: 1000 }
+      responses:
+        '204': { description: Saved }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+  /attachments:
+    post:
+      summary: Upload a file for the next message (25 MB, allowed types)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201': { description: Uploaded, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/AttachmentSummary' } } } }
+        '413': { description: ATTACHMENT_TOO_LARGE, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+        '415': { description: ATTACHMENT_TYPE_NOT_ALLOWED, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /attachments/{id}/download:
+    get:
+      summary: Download an attachment on a public message in the customer's own thread
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      responses:
+        '302': { description: 'Redirect to /api/v1/files/{token}, a signed link valid for 15 minutes' }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    session: { type: apiKey, in: cookie, name: rx_session }
+  schemas:
+    CustomerMe:
+      type: object
+      required: [id, name, email, hasPassword]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        avatarUrl: { type: [string, 'null'] }
+        hasPassword: { type: boolean }
+        emailOnReply: { type: boolean }
+    ConversationMessage:
+      description: Public message as the customer sees it. No ticket fields, ever.
+      type: object
+      required: [id, from, body, createdAt, attachments, delivery]
+      additionalProperties: false
+      properties:
+        id: { type: string, format: uuid }
+        from:
+          type: object
+          required: [kind]
+          properties:
+            kind: { type: string, enum: [me, support, system] }
+            name: { type: string, description: Agent display name for support messages }
+            avatarUrl: { type: [string, 'null'] }
+        body: { type: string }
+        attachments: { type: array, items: { $ref: 'common.yaml#/components/schemas/AttachmentSummary' } }
+        clientMessageId: { type: [string, 'null'] }
+        delivery: { type: string, enum: [sent, delivered, read], description: For the customer's own messages; support replies use read state via /messages/read }
+        createdAt: { type: string, format: date-time }
+    ResolvedMarker:
+      type: object
+      required: [id, text, createdAt]
+      additionalProperties: false
+      properties:
+        id: { type: string }
+        text: { type: string, examples: ["Glad we could help, just reply if you need anything else"] }
+        createdAt: { type: string, format: date-time }
+    ThreadItem:
+      oneOf:
+        - type: object
+          required: [type, message]
+          properties:
+            type: { const: message }
+            message: { $ref: '#/components/schemas/ConversationMessage' }
+        - type: object
+          required: [type, marker]
+          properties:
+            type: { const: resolved_marker }
+            marker: { $ref: '#/components/schemas/ResolvedMarker' }
+    FriendlyStatus:
+      type: object
+      required: [code, text]
+      additionalProperties: false
+      properties:
+        code: { type: string, enum: [idle, received, replying, answered] }
+        text: { type: string, examples: ["Support has your message", "Support is replying"] }

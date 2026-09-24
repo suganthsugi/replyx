@@ -1,0 +1,203 @@
+openapi: 3.1.0
+info:
+  title: ReplyX staff API — roles, permissions, groups
+  version: 0.1.0
+  description: FR-016..FR-030. Changes take effect immediately for connected users (access.changed event).
+servers:
+  - url: https://{tenant}.replyx.app/api/v1
+    variables: { tenant: { default: acme } }
+security:
+  - session: []
+paths:
+  /permissions:
+    get:
+      summary: The permission registry, grouped by module (role.view)
+      responses:
+        '200':
+          description: All registered permissions
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      required: [key, resource, action, module, description]
+                      properties:
+                        key: { type: string, examples: [ticket.merge] }
+                        resource: { type: string }
+                        action: { type: string }
+                        module: { type: string }
+                        description: { type: string }
+                        groupScoped: { type: boolean, description: 'True for ticket.* (also needs group access)' }
+  /roles:
+    get:
+      summary: List roles (role.view)
+      responses:
+        '200':
+          description: Roles
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Role' } }
+    post:
+      summary: Create a custom role (role.create)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleInput' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Role' } } } }
+        '400': { $ref: 'common.yaml#/components/responses/ValidationFailed' }
+        '409': { description: ROLE_NAME_TAKEN, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /roles/{id}:
+    parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+    get:
+      summary: Get a role with its permissions and group-access matrix (role.view)
+      responses:
+        '200': { description: Role, content: { application/json: { schema: { $ref: '#/components/schemas/Role' } } } }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+    put:
+      summary: Replace a role's name, permissions and group access (role.edit)
+      description: >
+        Admin role: permissions and group access are fixed (400 ADMIN_ACCESS_FIXED if reduced).
+        Owners who lose edit on a group are unassigned in the same transaction (FR-026).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RoleInput' }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Role' } } } }
+        '400': { $ref: 'common.yaml#/components/responses/ValidationFailed' }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+    delete:
+      summary: Delete a custom role (role.delete)
+      responses:
+        '204': { description: Deleted }
+        '409': { description: ROLE_IN_USE or SYSTEM_ROLE, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /groups:
+    get:
+      summary: List groups (group.view); includes the built-in Ungrouped entry flag
+      parameters:
+        - { name: status, in: query, schema: { type: string, enum: [active, inactive] } }
+      responses:
+        '200':
+          description: Groups
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Group' } }
+    post:
+      summary: Create a group (group.create); only Admin gets access
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GroupInput' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Group' } } } }
+        '409': { description: GROUP_NAME_TAKEN, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /groups/{id}:
+    parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+    get:
+      summary: Get a group (group.view)
+      responses:
+        '200': { description: Group, content: { application/json: { schema: { $ref: '#/components/schemas/Group' } } } }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+    patch:
+      summary: Edit name, description or status (group.edit)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/GroupInput' }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Group' } } } }
+    delete:
+      summary: Delete a group (group.delete)
+      responses:
+        '204': { description: Deleted }
+        '409': { description: GROUP_HAS_TICKETS, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /groups/{id}/eligible-owners:
+    get:
+      summary: Active staff whose roles grant edit on this group (FR-040, FR-062)
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      responses:
+        '200':
+          description: Eligible owners
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: 'common.yaml#/components/schemas/UserRef'
+                        - type: object
+                          properties:
+                            availability: { $ref: 'common.yaml#/components/schemas/Availability' }
+                            openTicketCount: { type: integer }
+components:
+  securitySchemes:
+    session: { type: apiKey, in: cookie, name: rx_session }
+  schemas:
+    GroupAccessEntry:
+      type: object
+      required: [groupId, view, create, edit, delete]
+      additionalProperties: false
+      properties:
+        groupId: { type: [string, 'null'], format: uuid, description: null = Ungrouped }
+        view: { type: boolean }
+        create: { type: boolean }
+        edit: { type: boolean }
+        delete: { type: boolean }
+    RoleInput:
+      type: object
+      required: [name, permissions, groupAccess]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 60 }
+        description: { type: string, maxLength: 300 }
+        permissions: { type: array, items: { type: string } }
+        groupAccess: { type: array, items: { $ref: '#/components/schemas/GroupAccessEntry' } }
+    Role:
+      type: object
+      required: [id, name, system, permissions, groupAccess, userCount]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        system: { type: [string, 'null'], enum: [customer, agent, manager, admin, null] }
+        permissions: { type: array, items: { type: string } }
+        groupAccess: { type: array, items: { $ref: '#/components/schemas/GroupAccessEntry' } }
+        userCount: { type: integer }
+    GroupInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        description: { type: string, maxLength: 300 }
+        status: { type: string, enum: [active, inactive] }
+    Group:
+      type: object
+      required: [id, name, status, openTicketCount]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        status: { type: string, enum: [active, inactive] }
+        openTicketCount: { type: integer }

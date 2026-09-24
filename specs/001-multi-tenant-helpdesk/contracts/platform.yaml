@@ -1,0 +1,148 @@
+openapi: 3.1.0
+info:
+  title: ReplyX platform console API
+  version: 0.1.0
+  description: >
+    Platform-operator API on the console host (FR-001, FR-001a, FR-004). Operators belong to no
+    tenant. Tenant data (tickets, messages, customers) is readable only through an active
+    support-access grant, read-only, and every call is written to that tenant's audit log.
+servers:
+  - url: https://console.replyx.app/api/v1/platform
+security:
+  - operatorSession: []
+paths:
+  /auth/sign-in:
+    post:
+      summary: Operator sign-in
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+      responses:
+        '200': { description: Signed in }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthenticated' }
+        '423': { description: ACCOUNT_LOCKED, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /auth/sign-out:
+    post:
+      summary: Operator sign-out
+      responses:
+        '204': { description: Signed out }
+  /tenants:
+    get:
+      summary: List tenants
+      parameters:
+        - $ref: 'common.yaml#/components/parameters/Limit'
+        - $ref: 'common.yaml#/components/parameters/Cursor'
+        - { name: status, in: query, schema: { type: string, enum: [active, suspended] } }
+        - { name: q, in: query, schema: { type: string } }
+      responses:
+        '200':
+          description: Tenants
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: 'common.yaml#/components/schemas/PageMeta'
+                  - type: object
+                    properties:
+                      items: { type: array, items: { $ref: '#/components/schemas/Tenant' } }
+    post:
+      summary: Create a tenant and invite its first admin (FR-001, FR-006)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, slug, adminEmail]
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                slug: { type: string, pattern: '^[a-z0-9](-?[a-z0-9]){2,39}$' }
+                adminEmail: { type: string, format: email }
+                timezone: { type: string, default: UTC }
+      responses:
+        '201': { description: 'Created with system roles, Ungrouped entry and default views', content: { application/json: { schema: { $ref: '#/components/schemas/Tenant' } } } }
+        '409': { description: SLUG_TAKEN or SLUG_RESERVED, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /tenants/{id}:
+    parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+    get:
+      summary: Tenant details (no business data)
+      responses:
+        '200': { description: Tenant, content: { application/json: { schema: { $ref: '#/components/schemas/Tenant' } } } }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+    patch:
+      summary: Rename or reconfigure platform-level settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string, maxLength: 120 }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Tenant' } } } }
+  /tenants/{id}/suspend:
+    post:
+      summary: Suspend — ends sessions, blocks sign-in, pauses webhooks; deletes nothing (FR-004)
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      responses:
+        '200': { description: Suspended, content: { application/json: { schema: { $ref: '#/components/schemas/Tenant' } } } }
+  /tenants/{id}/reactivate:
+    post:
+      summary: Reactivate a suspended tenant
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      responses:
+        '200': { description: Active, content: { application/json: { schema: { $ref: '#/components/schemas/Tenant' } } } }
+  /tenants/{id}/support-session:
+    post:
+      summary: Open a read-only support session under an active grant
+      description: >
+        Returns 404 SUPPORT_ACCESS_NOT_GRANTED when no active grant exists. The session is scoped
+        to the tenant, read-only (every write returns 403 READ_ONLY_SUPPORT_ACCESS), expires with
+        the grant, and ends immediately on revocation. Reads go through the staff API paths on the
+        tenant host with an operator support token and are audited as support_access.read.
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      responses:
+        '201':
+          description: Support session
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [tenantHost, expiresAt]
+                properties:
+                  tenantHost: { type: string }
+                  expiresAt: { type: string, format: date-time }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+components:
+  securitySchemes:
+    operatorSession: { type: apiKey, in: cookie, name: rx_op_session }
+  schemas:
+    Tenant:
+      type: object
+      required: [id, name, slug, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        slug: { type: string }
+        status: { type: string, enum: [active, suspended] }
+        createdAt: { type: string, format: date-time }
+        suspendedAt: { type: [string, 'null'], format: date-time }
+        activeSupportGrantUntil: { type: [string, 'null'], format: date-time }
+        stats:
+          type: object
+          description: Aggregate counts only, no business content
+          properties:
+            staffUsers: { type: integer }
+            customers: { type: integer }
+            ticketsLast30Days: { type: integer }

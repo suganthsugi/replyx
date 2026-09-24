@@ -1,0 +1,328 @@
+openapi: 3.1.0
+info:
+  title: ReplyX staff API — identity
+  version: 0.1.0
+  description: >
+    Staff sign-in, sessions, own profile, and user management (FR-007..FR-015).
+    Tenant comes from the host. All state-changing requests need X-CSRF-Token.
+servers:
+  - url: https://{tenant}.replyx.app/api/v1
+    variables: { tenant: { default: acme } }
+security:
+  - session: []
+paths:
+  /auth/sign-in:
+    post:
+      summary: Staff sign-in with email and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              additionalProperties: false
+              properties:
+                email: { type: string, format: email }
+                password: { type: string, minLength: 1, maxLength: 200 }
+      responses:
+        '200':
+          description: Signed in; sets rx_session and rx_csrf cookies
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { description: 'Wrong email or password (same response for unknown email)', content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+        '423': { description: ACCOUNT_LOCKED, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+        '429': { $ref: 'common.yaml#/components/responses/RateLimited' }
+        '503': { description: TENANT_SUSPENDED, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /auth/sign-out:
+    post:
+      summary: End the current session
+      responses:
+        '204': { description: Signed out }
+  /auth/sign-out-all:
+    post:
+      summary: End every session of the current user (FR-011)
+      responses:
+        '204': { description: All sessions ended; open sockets disconnect }
+  /auth/password-reset:
+    post:
+      summary: Request a password reset email (same response whether or not the email exists)
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '202': { description: Accepted }
+        '429': { $ref: 'common.yaml#/components/responses/RateLimited' }
+  /auth/password-reset/confirm:
+    post:
+      summary: Set a new password with a reset token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password]
+              properties:
+                token: { type: string }
+                password: { type: string, minLength: 12, maxLength: 200 }
+      responses:
+        '204': { description: Password changed; all other sessions ended }
+        '400': { $ref: 'common.yaml#/components/responses/ValidationFailed' }
+  /invitations/{token}:
+    get:
+      summary: Inspect an invitation before accepting
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Invitation details
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [email, tenantName]
+                properties:
+                  email: { type: string, format: email }
+                  tenantName: { type: string }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+  /invitations/{token}/accept:
+    post:
+      summary: Accept an invitation and set a password
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, password]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                password: { type: string, minLength: 12, maxLength: 200 }
+      responses:
+        '200':
+          description: Account active; signed in
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+  /me:
+    get:
+      summary: Current user, effective permissions and group access
+      responses:
+        '200':
+          description: Current user
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthenticated' }
+    patch:
+      summary: Update own profile (FR-013)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string, minLength: 1, maxLength: 120 }
+                avatarAttachmentId: { type: [string, 'null'], format: uuid }
+                availability: { $ref: 'common.yaml#/components/schemas/Availability' }
+                timeDisplay:
+                  type: object
+                  properties:
+                    timezone: { type: string }
+                    hour12: { type: boolean }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Me' }
+  /me/password:
+    put:
+      summary: Change own password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword: { type: string, minLength: 12, maxLength: 200 }
+      responses:
+        '204': { description: Changed; other sessions ended }
+        '400': { $ref: 'common.yaml#/components/responses/ValidationFailed' }
+  /users:
+    get:
+      summary: List users (user.view)
+      parameters:
+        - $ref: 'common.yaml#/components/parameters/Limit'
+        - $ref: 'common.yaml#/components/parameters/Cursor'
+        - { name: kind, in: query, schema: { type: string, enum: [staff, customer] } }
+        - { name: status, in: query, schema: { $ref: 'common.yaml#/components/schemas/UserStatus' } }
+        - { name: roleId, in: query, schema: { type: string, format: uuid } }
+        - { name: q, in: query, description: Name or email contains, schema: { type: string, maxLength: 100 } }
+      responses:
+        '200':
+          description: Page of users
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: 'common.yaml#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items: { type: array, items: { $ref: '#/components/schemas/User' } }
+        '403': { $ref: 'common.yaml#/components/responses/PermissionDenied' }
+    post:
+      summary: Invite a user (user.create) — staff with roles, or a customer
+      parameters:
+        - $ref: 'common.yaml#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, roleIds]
+              additionalProperties: false
+              properties:
+                email: { type: string, format: email }
+                name: { type: string, maxLength: 120 }
+                roleIds: { type: array, minItems: 1, items: { type: string, format: uuid } }
+      responses:
+        '201':
+          description: Invitation sent
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '409': { description: EMAIL_IN_USE, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /users/{id}:
+    parameters:
+      - $ref: 'common.yaml#/components/parameters/IdPath'
+    get:
+      summary: Get a user (user.view)
+      responses:
+        '200':
+          description: User
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+    patch:
+      summary: Edit a user's name or roles (user.edit)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string, maxLength: 120 }
+                roleIds: { type: array, minItems: 1, items: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Updated; access change takes effect immediately
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/User' }
+        '403': { $ref: 'common.yaml#/components/responses/PermissionDenied' }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+    delete:
+      summary: Hard-delete a user with no history (user.delete)
+      responses:
+        '204': { description: Deleted }
+        '409': { description: USER_HAS_HISTORY — deactivate or erase instead, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /users/{id}/deactivate:
+    post:
+      summary: Deactivate (user.edit) — blocks sign-in, ends sessions, unassigns tickets
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      responses:
+        '200': { description: Deactivated, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+  /users/{id}/reactivate:
+    post:
+      summary: Reactivate (user.edit)
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      responses:
+        '200': { description: Reactivated, content: { application/json: { schema: { $ref: '#/components/schemas/User' } } } }
+  /users/{id}/erase:
+    post:
+      summary: Data erasure (user.erase) — see spec Assumptions for what is removed
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [confirm]
+              properties:
+                confirm: { type: string, const: ERASE }
+      responses:
+        '202': { description: Erasure scheduled; audit entry written }
+components:
+  securitySchemes:
+    session:
+      type: apiKey
+      in: cookie
+      name: rx_session
+  schemas:
+    Me:
+      type: object
+      required: [id, email, name, kind, roles, permissions, groupAccess, accessVersion]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string }
+        avatarUrl: { type: [string, 'null'] }
+        kind: { type: string, enum: [staff, customer] }
+        availability: { $ref: 'common.yaml#/components/schemas/Availability' }
+        roles: { type: array, items: { type: object, required: [id, name], properties: { id: { type: string }, name: { type: string } } } }
+        permissions: { type: array, items: { type: string }, examples: [[ticket.view, ticket.edit]] }
+        groupAccess:
+          type: array
+          description: Effective (union) access; groupId null = Ungrouped
+          items:
+            type: object
+            required: [groupId, view, create, edit, delete]
+            properties:
+              groupId: { type: [string, 'null'], format: uuid }
+              view: { type: boolean }
+              create: { type: boolean }
+              edit: { type: boolean }
+              delete: { type: boolean }
+        accessVersion: { type: integer, description: Changes whenever access changes; clients refetch /me when it moves }
+    User:
+      type: object
+      required: [id, email, name, kind, status, roles]
+      properties:
+        id: { type: string, format: uuid }
+        email: { type: string, format: email }
+        name: { type: string }
+        kind: { type: string, enum: [staff, customer] }
+        status: { $ref: 'common.yaml#/components/schemas/UserStatus' }
+        locked: { type: boolean }
+        roles: { type: array, items: { type: object, properties: { id: { type: string }, name: { type: string } } } }
+        availability: { $ref: 'common.yaml#/components/schemas/Availability' }
+        lastSignInAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }

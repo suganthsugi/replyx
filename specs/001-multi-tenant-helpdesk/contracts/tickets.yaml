@@ -1,0 +1,765 @@
+openapi: 3.1.0
+info:
+  title: ReplyX staff API — tickets, messages, views, tags, macros, customers, attachments, search
+  version: 0.1.0
+  description: >
+    Every ticket read and write is limited by the policy service's access filter. A ticket outside
+    the caller's group access returns 404 (never 403). ticket.* permissions apply only within
+    groups where the role has the matching group access (FR-022, FR-023).
+servers:
+  - url: https://{tenant}.replyx.app/api/v1
+    variables: { tenant: { default: acme } }
+security:
+  - session: []
+paths:
+  /tickets:
+    get:
+      summary: List tickets visible to the caller, by view or by ad-hoc filter
+      parameters:
+        - $ref: 'common.yaml#/components/parameters/Limit'
+        - $ref: 'common.yaml#/components/parameters/Cursor'
+        - { name: viewId, in: query, schema: { type: string, format: uuid } }
+        - { name: state, in: query, style: form, explode: false, schema: { type: array, items: { $ref: 'common.yaml#/components/schemas/TicketState' } } }
+        - { name: priority, in: query, style: form, explode: false, schema: { type: array, items: { $ref: 'common.yaml#/components/schemas/Priority' } } }
+        - { name: groupId, in: query, description: "'ungrouped' for no group", schema: { type: string } }
+        - { name: ownerId, in: query, description: "'me' or 'unassigned' allowed", schema: { type: string } }
+        - { name: customerId, in: query, schema: { type: string, format: uuid } }
+        - { name: sort, in: query, schema: { type: string, enum: [updated_at, -updated_at, created_at, -created_at, priority, -priority, last_customer_message_at, -last_customer_message_at] } }
+      responses:
+        '200':
+          description: Page of tickets
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: 'common.yaml#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items: { type: array, items: { $ref: '#/components/schemas/TicketSummary' } }
+    post:
+      summary: Start a ticket for an existing customer (FR-038a) — needs create on the group
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdempotencyKey' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customerId, groupId, title, message]
+              additionalProperties: false
+              properties:
+                customerId: { type: string, format: uuid }
+                groupId: { type: string, format: uuid }
+                title: { type: string, minLength: 1, maxLength: 200 }
+                message: { $ref: '#/components/schemas/MessageBody' }
+                ownerId: { type: string, format: uuid }
+                priority: { $ref: 'common.yaml#/components/schemas/Priority' }
+                tagIds: { type: array, items: { type: string, format: uuid } }
+      responses:
+        '201': { description: 'Created (state open, waiting on customer)', content: { application/json: { schema: { $ref: '#/components/schemas/Ticket' } } } }
+        '403': { $ref: 'common.yaml#/components/responses/PermissionDenied' }
+        '409': { description: CUSTOMER_INACTIVE or GROUP_INACTIVE, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /tickets/{id}:
+    parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+    get:
+      summary: Ticket with properties, SLA, links and customer summary
+      responses:
+        '200': { description: Ticket, content: { application/json: { schema: { $ref: '#/components/schemas/Ticket' } } } }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+    patch:
+      summary: Change title, state, priority, group, owner or tags (edit on current group)
+      description: >
+        Only the fields sent are changed. Concurrent edits are applied in commit order: for the
+        same field the later change wins, and both changes appear in history (spec Assumptions).
+        Group change needs edit on the current group and create on the destination; the
+        destination must be active. From Ungrouped, edit on Ungrouped is enough (FR-041).
+        ownerId must be eligible for the (new) group (FR-040). pendingUntil is required for
+        pending_reminder and pending_close.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                title: { type: string, minLength: 1, maxLength: 200 }
+                state: { $ref: 'common.yaml#/components/schemas/TicketState' }
+                pendingUntil: { type: [string, 'null'], format: date-time }
+                priority: { $ref: 'common.yaml#/components/schemas/Priority' }
+                groupId: { type: [string, 'null'], format: uuid }
+                ownerId: { type: [string, 'null'], format: uuid }
+                tagIds: { type: array, items: { type: string, format: uuid } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Ticket' } } } }
+        '400': { $ref: 'common.yaml#/components/responses/ValidationFailed' }
+        '403': { $ref: 'common.yaml#/components/responses/PermissionDenied' }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+        '409':
+          description: OWNER_NOT_ELIGIBLE, GROUP_INACTIVE or INVALID_TRANSITION (body includes the current ticket)
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: 'common.yaml#/components/schemas/ErrorResponse'
+                  - type: object
+                    properties:
+                      current: { $ref: '#/components/schemas/Ticket' }
+    delete:
+      summary: Delete a ticket permanently (delete on its group)
+      responses:
+        '204': { description: Deleted; audit entry written }
+        '403': { $ref: 'common.yaml#/components/responses/PermissionDenied' }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+  /tickets/{id}/triage:
+    post:
+      summary: Triage an ungrouped ticket in one step (FR-063) — needs edit on Ungrouped
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [groupId]
+              additionalProperties: false
+              properties:
+                groupId: { type: string, format: uuid }
+                ownerId: { type: string, format: uuid }
+                priority: { $ref: 'common.yaml#/components/schemas/Priority' }
+                tagIds: { type: array, items: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Triaged. `visibleToCaller` is false when the caller has no access to the new group.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [visibleToCaller]
+                properties:
+                  visibleToCaller: { type: boolean }
+                  ticket: { $ref: '#/components/schemas/Ticket' }
+        '409': { description: 'ALREADY_TRIAGED (another user triaged it first) or GROUP_INACTIVE or OWNER_NOT_ELIGIBLE', content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /tickets/{id}/messages:
+    parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+    get:
+      summary: Timeline — customer messages, public replies and internal notes (view on group)
+      parameters:
+        - $ref: 'common.yaml#/components/parameters/Limit'
+        - $ref: 'common.yaml#/components/parameters/Cursor'
+        - { name: includeMerged, in: query, schema: { type: boolean, default: true } }
+      responses:
+        '200':
+          description: Page of messages, oldest first
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: 'common.yaml#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items: { type: array, items: { $ref: '#/components/schemas/Message' } }
+    post:
+      summary: Send a public reply or add an internal note (edit on group)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/MessageBody'
+                - type: object
+                  required: [visibility, clientMessageId]
+                  properties:
+                    visibility: { type: string, enum: [public, internal] }
+                    clientMessageId: { type: string, format: uuid }
+                    mentionIds: { type: array, items: { type: string, format: uuid }, description: Internal notes only }
+      responses:
+        '201': { description: 'Created (or the existing message for a repeated clientMessageId)', content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+        '403': { $ref: 'common.yaml#/components/responses/PermissionDenied' }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+  /tickets/{id}/messages/{messageId}/move:
+    post:
+      summary: Move a customer message to another ticket of the same customer (FR-042, ticket.move_message)
+      parameters:
+        - $ref: 'common.yaml#/components/parameters/IdPath'
+        - { name: messageId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetTicketId]
+              properties:
+                targetTicketId: { type: string, format: uuid }
+      responses:
+        '200': { description: Moved, content: { application/json: { schema: { $ref: '#/components/schemas/Message' } } } }
+        '409': { description: DIFFERENT_CUSTOMER, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /tickets/{id}/history:
+    get:
+      summary: Change history (view on group)
+      parameters:
+        - $ref: 'common.yaml#/components/parameters/IdPath'
+        - $ref: 'common.yaml#/components/parameters/Limit'
+        - $ref: 'common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: History entries, newest first
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: 'common.yaml#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          type: object
+                          required: [id, field, occurredAt, actor]
+                          properties:
+                            id: { type: string, format: uuid }
+                            field: { type: string }
+                            oldValue: {}
+                            newValue: {}
+                            occurredAt: { type: string, format: date-time }
+                            actor:
+                              type: object
+                              properties:
+                                kind: { type: string, enum: [user, system, automation, routing] }
+                                user: { $ref: 'common.yaml#/components/schemas/UserRef' }
+                                ruleName: { type: string }
+  /tickets/{id}/links:
+    parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+    post:
+      summary: Link to another ticket (edit on this ticket's group, view on the other)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetTicketId, kind]
+              properties:
+                targetTicketId: { type: string, format: uuid }
+                kind: { type: string, enum: [follow_up_of, related, duplicate_of] }
+      responses:
+        '201': { description: Linked, content: { application/json: { schema: { $ref: '#/components/schemas/TicketLink' } } } }
+  /tickets/{id}/links/{linkId}:
+    delete:
+      summary: Remove a link
+      parameters:
+        - $ref: 'common.yaml#/components/parameters/IdPath'
+        - { name: linkId, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '204': { description: Removed }
+  /tickets/{id}/merge:
+    post:
+      summary: Merge this ticket into another (ticket.merge + edit on both groups; same customer)
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetTicketId]
+              properties:
+                targetTicketId: { type: string, format: uuid }
+      responses:
+        '200': { description: Target ticket after merge, content: { application/json: { schema: { $ref: '#/components/schemas/Ticket' } } } }
+        '409': { description: DIFFERENT_CUSTOMER or ALREADY_MERGED, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /tickets/{id}/split:
+    post:
+      summary: Split a message into a new ticket (ticket.split + edit on group)
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [messageId]
+              properties:
+                messageId: { type: string, format: uuid }
+                title: { type: string, maxLength: 200 }
+      responses:
+        '201': { description: 'New ticket, linked split_from', content: { application/json: { schema: { $ref: '#/components/schemas/Ticket' } } } }
+  /tickets/{id}/apply-macro:
+    post:
+      summary: Apply a macro — inserts the reply and sets fields in one action (FR-068)
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [macroId, clientMessageId]
+              properties:
+                macroId: { type: string, format: uuid }
+                clientMessageId: { type: string, format: uuid }
+                bodyOverride: { type: string, maxLength: 10000, description: Edited macro text }
+      responses:
+        '200': { description: Updated ticket, content: { application/json: { schema: { $ref: '#/components/schemas/Ticket' } } } }
+  /tickets/bulk:
+    post:
+      summary: Bulk update (ticket.bulk_update; each ticket checked individually)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ticketIds, changes]
+              properties:
+                ticketIds: { type: array, minItems: 1, maxItems: 100, items: { type: string, format: uuid } }
+                changes:
+                  type: object
+                  properties:
+                    state: { $ref: 'common.yaml#/components/schemas/TicketState' }
+                    priority: { $ref: 'common.yaml#/components/schemas/Priority' }
+                    ownerId: { type: [string, 'null'], format: uuid }
+                    addTagIds: { type: array, items: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Per-ticket results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ticketId: { type: string }
+                        ok: { type: boolean }
+                        errorCode: { type: string }
+  /views:
+    get:
+      summary: Views visible to the caller, in order, with counts
+      responses:
+        '200':
+          description: Views
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/View' } }
+    post:
+      summary: Create a view (personal needs view.create; shared needs view.share)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ViewInput' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/View' } } } }
+        '400': { $ref: 'common.yaml#/components/responses/ValidationFailed' }
+  /views/counts:
+    get:
+      summary: Current counts for the caller's views (refetched on views.counts_changed)
+      responses:
+        '200':
+          description: Counts by view id
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { type: integer }
+  /views/order:
+    put:
+      summary: Reorder or hide views (view.edit for shared views; own personal views always)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                items:
+                  type: array
+                  items:
+                    type: object
+                    required: [id, position, hidden]
+                    properties:
+                      id: { type: string, format: uuid }
+                      position: { type: integer }
+                      hidden: { type: boolean }
+      responses:
+        '204': { description: Saved }
+  /views/{id}:
+    parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+    get:
+      summary: Get a view definition
+      responses:
+        '200': { description: View, content: { application/json: { schema: { $ref: '#/components/schemas/View' } } } }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+    put:
+      summary: Replace a view
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ViewInput' }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/View' } } } }
+    delete:
+      summary: Delete a view (default views can be hidden, not deleted)
+      responses:
+        '204': { description: Deleted }
+        '409': { description: SYSTEM_VIEW, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /tags:
+    get:
+      summary: Tenant tag list (tag.view)
+      parameters:
+        - { name: q, in: query, schema: { type: string, maxLength: 60 } }
+      responses:
+        '200':
+          description: Tags
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: 'common.yaml#/components/schemas/TagRef' } }
+    post:
+      summary: Create a tag (tag.create)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 40 }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/TagRef' } } } }
+        '409': { description: TAG_NAME_TAKEN, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /tags/{id}:
+    parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+    patch:
+      summary: Rename (tag.edit)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name: { type: string, minLength: 1, maxLength: 40 }
+      responses:
+        '200': { description: Renamed, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/TagRef' } } } }
+    delete:
+      summary: Delete (tag.delete); removes it from tickets and customers
+      responses:
+        '204': { description: Deleted }
+  /macros:
+    get:
+      summary: Macros available to the caller (macro.view)
+      responses:
+        '200':
+          description: Macros
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: '#/components/schemas/Macro' } }
+    post:
+      summary: Create (macro.create)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MacroInput' }
+      responses:
+        '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/Macro' } } } }
+  /macros/{id}:
+    parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+    put:
+      summary: Replace (macro.edit)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MacroInput' }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/Macro' } } } }
+    delete:
+      summary: Delete (macro.delete)
+      responses:
+        '204': { description: Deleted }
+  /customers/{id}:
+    get:
+      summary: Customer profile (FR-069); ticket lists limited to the caller's access
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      responses:
+        '200': { description: Profile, content: { application/json: { schema: { $ref: '#/components/schemas/CustomerProfile' } } } }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+    patch:
+      summary: Edit contact details and tags (user.edit)
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name: { type: string, maxLength: 120 }
+                phone: { type: string, maxLength: 40 }
+                company: { type: string, maxLength: 120 }
+                tagIds: { type: array, items: { type: string, format: uuid } }
+      responses:
+        '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/CustomerProfile' } } } }
+  /attachments:
+    post:
+      summary: Upload a file for a later message (max 25 MB; allowed types only)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '201': { description: Uploaded; scanStatus pending, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/AttachmentSummary' } } } }
+        '413': { description: ATTACHMENT_TOO_LARGE, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+        '415': { description: ATTACHMENT_TYPE_NOT_ALLOWED, content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /attachments/{id}/download:
+    get:
+      summary: Authorize, then redirect to a private URL valid for 15 minutes
+      parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
+      responses:
+        '302': { description: 'Redirect to /files/{token}, a signed link valid for 15 minutes', headers: { Location: { schema: { type: string } } } }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+        '409': { description: 'ATTACHMENT_NOT_READY (still scanning) or ATTACHMENT_BLOCKED', content: { application/json: { schema: { $ref: 'common.yaml#/components/schemas/ErrorResponse' } } } }
+  /files/{token}:
+    get:
+      summary: Stream a file through a signed, 15-minute link issued by an attachment download endpoint
+      description: >
+        No session needed; the token itself is the authorization. It is checked for signature,
+        expiry and that its tenant matches the host. Used by both the staff and customer
+        download endpoints (research D17).
+      security: []
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: File contents (Content-Disposition attachment, inline only for safe images)
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
+  /search:
+    get:
+      summary: Search tickets and customers the caller can access (FR-070)
+      parameters:
+        - { name: q, in: query, required: true, schema: { type: string, minLength: 1, maxLength: 200 } }
+        - { name: type, in: query, schema: { type: string, enum: [tickets, customers, all], default: all } }
+        - $ref: 'common.yaml#/components/parameters/Limit'
+        - $ref: 'common.yaml#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Results
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: 'common.yaml#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items]
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          oneOf:
+                            - type: object
+                              required: [type, ticket]
+                              properties:
+                                type: { const: ticket }
+                                ticket: { $ref: '#/components/schemas/TicketSummary' }
+                                highlight: { type: string, description: Plain-text snippet with match markers }
+                            - type: object
+                              required: [type, customer]
+                              properties:
+                                type: { const: customer }
+                                customer: { $ref: 'common.yaml#/components/schemas/UserRef' }
+                                email: { type: string }
+components:
+  securitySchemes:
+    session: { type: apiKey, in: cookie, name: rx_session }
+  schemas:
+    MessageBody:
+      type: object
+      required: [body]
+      properties:
+        body: { type: string, minLength: 1, maxLength: 10000 }
+        attachmentIds: { type: array, maxItems: 10, items: { type: string, format: uuid } }
+    SlaSummary:
+      type: object
+      properties:
+        status: { type: string, enum: [none, ok, warning, breached] }
+        policyName: { type: string }
+        nextDueAt: { type: [string, 'null'], format: date-time }
+        target: { type: string, enum: [first_response, next_response, resolution] }
+    TicketSummary:
+      type: object
+      required: [id, number, title, state, priority, waitingOn, customer, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        number: { type: integer }
+        title: { type: string }
+        state: { $ref: 'common.yaml#/components/schemas/TicketState' }
+        priority: { $ref: 'common.yaml#/components/schemas/Priority' }
+        waitingOn: { $ref: 'common.yaml#/components/schemas/WaitingOn' }
+        group: { oneOf: [ { $ref: 'common.yaml#/components/schemas/GroupRef' }, { type: 'null' } ] }
+        owner: { oneOf: [ { $ref: 'common.yaml#/components/schemas/UserRef' }, { type: 'null' } ] }
+        customer: { $ref: 'common.yaml#/components/schemas/UserRef' }
+        tags: { type: array, items: { $ref: 'common.yaml#/components/schemas/TagRef' } }
+        sla: { $ref: '#/components/schemas/SlaSummary' }
+        lastCustomerMessageAt: { type: [string, 'null'], format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    Ticket:
+      allOf:
+        - $ref: '#/components/schemas/TicketSummary'
+        - type: object
+          required: [allowedActions]
+          properties:
+            pendingUntil: { type: [string, 'null'], format: date-time }
+            autoCloseAt: { type: [string, 'null'], format: date-time }
+            resolvedAt: { type: [string, 'null'], format: date-time }
+            closedAt: { type: [string, 'null'], format: date-time }
+            lastAgentReplyAt: { type: [string, 'null'], format: date-time }
+            origin: { type: string, enum: [customer_message, staff_started, split, follow_up] }
+            mergedInto: { type: [string, 'null'], format: uuid }
+            links: { type: array, items: { $ref: '#/components/schemas/TicketLink' } }
+            csat: { type: [object, 'null'], properties: { score: { type: integer }, comment: { type: string } } }
+            allowedActions:
+              type: array
+              description: What the caller may do now (drives UI; server re-checks)
+              items: { type: string, enum: [reply, note, edit, change_group, assign, delete, merge, split, move_message] }
+    TicketLink:
+      type: object
+      required: [id, kind]
+      properties:
+        id: { type: string, format: uuid }
+        kind: { type: string, enum: [follow_up_of, related, duplicate_of, merged_into, split_from] }
+        direction: { type: string, enum: [outgoing, incoming] }
+        ticket:
+          description: null when the linked ticket was removed by retention or is not visible to the caller
+          oneOf:
+            - type: object
+              properties: { id: { type: string }, number: { type: integer }, title: { type: string }, state: { $ref: 'common.yaml#/components/schemas/TicketState' } }
+            - type: 'null'
+        removedReason: { type: [string, 'null'], enum: [retention, not_visible, null] }
+    Message:
+      type: object
+      required: [id, ticketId, authorKind, visibility, body, createdAt, attachments]
+      properties:
+        id: { type: string, format: uuid }
+        ticketId: { type: string, format: uuid }
+        author: { oneOf: [ { $ref: 'common.yaml#/components/schemas/UserRef' }, { type: 'null' } ] }
+        authorKind: { type: string, enum: [customer, staff, system, automation] }
+        visibility: { type: string, enum: [public, internal] }
+        body: { type: string }
+        mentions: { type: array, items: { $ref: 'common.yaml#/components/schemas/UserRef' } }
+        attachments: { type: array, items: { $ref: 'common.yaml#/components/schemas/AttachmentSummary' } }
+        clientMessageId: { type: string }
+        deliveredAt: { type: [string, 'null'], format: date-time }
+        readAt: { type: [string, 'null'], format: date-time }
+        movedFromTicketId: { type: [string, 'null'], format: uuid }
+        createdAt: { type: string, format: date-time }
+    ViewInput:
+      type: object
+      required: [name, visibility, conditions, sort, columns]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        description: { type: string, maxLength: 300 }
+        visibility: { type: string, enum: [personal, all_staff, roles, groups] }
+        sharedRoleIds: { type: array, items: { type: string, format: uuid } }
+        sharedGroupIds: { type: array, items: { type: string, format: uuid } }
+        conditions: { $ref: 'common.yaml#/components/schemas/ConditionGroup' }
+        sort:
+          type: array
+          maxItems: 3
+          items:
+            type: object
+            required: [field, direction]
+            properties:
+              field: { type: string, enum: [updated_at, created_at, priority, last_customer_message_at, sla_due_at, number] }
+              direction: { type: string, enum: [asc, desc] }
+        columns:
+          type: array
+          items: { type: string, enum: [number, title, customer, state, priority, group, owner, tags, waiting_on, sla, updated_at, created_at, last_customer_message_at] }
+    View:
+      allOf:
+        - $ref: '#/components/schemas/ViewInput'
+        - type: object
+          required: [id, count, system, position, hidden, editable]
+          properties:
+            id: { type: string, format: uuid }
+            system: { type: [string, 'null'], description: 'Default view key, e.g. needs_triage' }
+            count: { type: integer }
+            position: { type: integer }
+            hidden: { type: boolean }
+            editable: { type: boolean }
+    MacroInput:
+      type: object
+      required: [name, body]
+      additionalProperties: false
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        body: { type: string, maxLength: 10000 }
+        actions:
+          type: object
+          properties:
+            state: { $ref: 'common.yaml#/components/schemas/TicketState' }
+            pendingInHours: { type: integer, minimum: 1 }
+            priority: { $ref: 'common.yaml#/components/schemas/Priority' }
+            addTagIds: { type: array, items: { type: string, format: uuid } }
+            assignToMe: { type: boolean }
+        visibility: { type: string, enum: [all_staff, roles, groups], default: all_staff }
+        sharedRoleIds: { type: array, items: { type: string, format: uuid } }
+        sharedGroupIds: { type: array, items: { type: string, format: uuid } }
+    Macro:
+      allOf:
+        - $ref: '#/components/schemas/MacroInput'
+        - type: object
+          required: [id]
+          properties:
+            id: { type: string, format: uuid }
+    CustomerProfile:
+      type: object
+      required: [id, name, email, status, tags, openTickets, closedTickets]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        email: { type: string, format: email }
+        status: { $ref: 'common.yaml#/components/schemas/UserStatus' }
+        phone: { type: [string, 'null'] }
+        company: { type: [string, 'null'] }
+        tags: { type: array, items: { $ref: 'common.yaml#/components/schemas/TagRef' } }
+        createdAt: { type: string, format: date-time }
+        lastMessageAt: { type: [string, 'null'], format: date-time }
+        openTickets: { type: array, items: { $ref: '#/components/schemas/TicketSummary' } }
+        closedTickets: { type: array, items: { $ref: '#/components/schemas/TicketSummary' } }
