@@ -79,6 +79,8 @@ COPY --from=build /out/package.json ./package.json
 COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /repo/apps/api/dist ./dist
 COPY --from=build /repo/apps/api/dist-migrations ./migrations
+# FILES_DIR for local uploads; a fresh named volume mounted here copies this ownership.
+RUN mkdir -p /data/files && chown node:node /data/files
 USER node
 EXPOSE 3000
 CMD ["node", "dist/main.api.js"]
