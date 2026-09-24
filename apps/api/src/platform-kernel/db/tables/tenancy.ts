@@ -1,4 +1,4 @@
-import type { ColumnType, Generated, JsonValue, Timestamp } from './column-types.js';
+import type { ColumnType, Generated, GeneratedTimestamp, JsonValue, Timestamp } from './column-types.js';
 
 /** Global (no RLS). Migration 0002_tenancy. */
 export interface TenantsTable {
@@ -9,8 +9,8 @@ export interface TenantsTable {
   /** bigint: pg returns it as a string. */
   access_version: Generated<string>;
   suspended_at: Timestamp | null;
-  created_at: Generated<Timestamp>;
-  updated_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
+  updated_at: GeneratedTimestamp;
 }
 
 export interface TenantSettingsTable {
@@ -27,8 +27,8 @@ export interface TenantSettingsTable {
   retention_period: Generated<string>;
   audit_retention: Generated<string>;
   notification_defaults: Generated<JsonValue>;
-  created_at: Generated<Timestamp>;
-  updated_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
+  updated_at: GeneratedTimestamp;
 }
 
 export interface TenantCountersTable {

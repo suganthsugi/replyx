@@ -1,4 +1,4 @@
-import type { ColumnType, Generated, JsonValue, Timestamp } from './column-types.js';
+import type { ColumnType, Generated, GeneratedTimestamp, JsonValue } from './column-types.js';
 
 /**
  * Migration 0005_outbox_audit. Tenant-scoped for the app role (append, replay); the relay reads
@@ -13,7 +13,7 @@ export interface OutboxEventsTable {
   customer_payload: JsonValue | null;
   streams: string[];
   cause: JsonValue | null;
-  created_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
   /** bigint, assigned by the relay: pg returns it as a string. */
   seq: ColumnType<string | null, never, string | number>;
   published_at: ColumnType<Date | null, never, Date | string>;
@@ -22,7 +22,7 @@ export interface OutboxEventsTable {
 export interface ProcessedEventsTable {
   consumer: string;
   event_id: string;
-  processed_at: Generated<Timestamp>;
+  processed_at: GeneratedTimestamp;
 }
 
 export type AuditActorKind = 'user' | 'operator' | 'system' | 'automation';
@@ -30,7 +30,7 @@ export type AuditActorKind = 'user' | 'operator' | 'system' | 'automation';
 export interface AuditLogsTable {
   id: Generated<string>;
   tenant_id: string;
-  occurred_at: Generated<Timestamp>;
+  occurred_at: GeneratedTimestamp;
   actor_id: string | null;
   actor_kind: AuditActorKind;
   action: string;

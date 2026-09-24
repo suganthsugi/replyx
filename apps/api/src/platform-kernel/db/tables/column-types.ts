@@ -12,3 +12,9 @@ export type JsonValue =
   | null
   | JsonValue[]
   | { [key: string]: JsonValue };
+
+/**
+ * timestamptz with a database default. Use this, not `Generated<Timestamp>`: Kysely does not
+ * unwrap a ColumnType nested inside another.
+ */
+export type GeneratedTimestamp = ColumnType<Date, Date | string | undefined, Date | string>;

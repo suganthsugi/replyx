@@ -1,4 +1,4 @@
-import type { Generated, JsonValue, Timestamp } from './column-types.js';
+import type { Generated, GeneratedTimestamp, JsonValue, Timestamp } from './column-types.js';
 
 /** Global (no RLS, `replyx_platform` only). Migration 0003_identity. */
 export interface PlatformOperatorsTable {
@@ -8,8 +8,8 @@ export interface PlatformOperatorsTable {
   password_hash: string;
   status: Generated<'active' | 'deactivated'>;
   last_sign_in_at: Timestamp | null;
-  created_at: Generated<Timestamp>;
-  updated_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
+  updated_at: GeneratedTimestamp;
 }
 
 /** Global (no RLS, `replyx_platform` only). `token_hash` is the SHA-256 of the cookie token. */
@@ -17,11 +17,11 @@ export interface OperatorSessionsTable {
   id: Generated<string>;
   operator_id: string;
   token_hash: Buffer;
-  last_seen_at: Generated<Timestamp>;
+  last_seen_at: GeneratedTimestamp;
   expires_at: Timestamp;
   ip: string | null;
   user_agent: string | null;
-  created_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
 }
 
 export type UserStatus = 'invited' | 'active' | 'deactivated';
@@ -43,8 +43,8 @@ export interface UsersTable {
   locked_until: Timestamp | null;
   last_sign_in_at: Timestamp | null;
   erased_at: Timestamp | null;
-  created_at: Generated<Timestamp>;
-  updated_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
+  updated_at: GeneratedTimestamp;
 }
 
 /** `token_hash` is the SHA-256 of the `rx_session` cookie token (research D5). */
@@ -55,11 +55,11 @@ export interface SessionsTable {
   token_hash: Buffer;
   kind: UserKind;
   trusted_device: Generated<boolean>;
-  last_seen_at: Generated<Timestamp>;
+  last_seen_at: GeneratedTimestamp;
   expires_at: Timestamp;
   ip: string | null;
   user_agent: string | null;
-  created_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
 }
 
 export interface IdentityTables {

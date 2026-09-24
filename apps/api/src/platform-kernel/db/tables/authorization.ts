@@ -1,4 +1,4 @@
-import type { Generated, Timestamp } from './column-types.js';
+import type { Generated, GeneratedTimestamp } from './column-types.js';
 
 /** Global (no RLS). Synced from code by the permission registry. Migration 0004_authorization. */
 export interface PermissionDefinitionsTable {
@@ -7,7 +7,7 @@ export interface PermissionDefinitionsTable {
   action: string;
   module: string;
   description: string;
-  introduced_at: Generated<Timestamp>;
+  introduced_at: GeneratedTimestamp;
 }
 
 export type SystemRoleKey = 'customer' | 'agent' | 'manager' | 'admin';
@@ -18,8 +18,8 @@ export interface RolesTable {
   name: string;
   description: string | null;
   system_key: SystemRoleKey | null;
-  created_at: Generated<Timestamp>;
-  updated_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
+  updated_at: GeneratedTimestamp;
 }
 
 export interface RolePermissionsTable {
@@ -27,14 +27,14 @@ export interface RolePermissionsTable {
   role_id: string;
   permission_key: string;
   scope: Generated<'tenant'>;
-  created_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
 }
 
 export interface UserRolesTable {
   tenant_id: string;
   user_id: string;
   role_id: string;
-  created_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
 }
 
 export interface GroupsTable {
@@ -43,8 +43,8 @@ export interface GroupsTable {
   name: string;
   description: string | null;
   status: Generated<'active' | 'inactive'>;
-  created_at: Generated<Timestamp>;
-  updated_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
+  updated_at: GeneratedTimestamp;
 }
 
 /** `group_id: null` is the built-in Ungrouped entry. */
@@ -57,8 +57,8 @@ export interface RoleGroupAccessTable {
   can_edit: Generated<boolean>;
   can_delete: Generated<boolean>;
   scope: Generated<'group'>;
-  created_at: Generated<Timestamp>;
-  updated_at: Generated<Timestamp>;
+  created_at: GeneratedTimestamp;
+  updated_at: GeneratedTimestamp;
 }
 
 export interface AuthorizationTables {
