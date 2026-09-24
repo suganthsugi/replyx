@@ -9,5 +9,5 @@
     "composite": true,
     "outDir": "dist"
   },
-  "include": ["src", "test", "vite.config.ts", "vitest.config.ts", "orval.config.ts"]
+  "include": ["src", "test", "e2e", "vite.config.ts", "vitest.config.ts", "orval.config.ts", "playwright.config.ts"]
 }

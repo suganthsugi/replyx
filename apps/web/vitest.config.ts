@@ -8,7 +8,8 @@ export default mergeConfig(
     test: {
       environment: 'jsdom',
       globals: true,
-      // T055 adds ./test/setup.ts (RTL/MSW setup) and sets setupFiles here.
+      // RTL matchers, MSW server and expectNoAxeViolations().
+      setupFiles: ['./test/setup.ts'],
       css: true,
       include: ['test/**/*.{test,spec}.{ts,tsx}', 'src/**/*.{test,spec}.{ts,tsx}'],
       exclude: ['e2e/**', 'node_modules/**'],
