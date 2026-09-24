@@ -25,6 +25,7 @@ import {
   isStreamKey,
   type DomainEventType,
   type EventActor,
+  type StreamKey,
 } from './event-types.js';
 
 import type { JsonValue } from '../db/tables/column-types.js';
@@ -103,27 +104,46 @@ export function roomFor(tenantId: string, stream: string): string {
   return `t:${tenantId}:${stream}`;
 }
 
+/**
+ * The envelope for one event on one of its streams, or undefined when the stream is not a room
+ * (`tenant`) or is a customer stream without a projection. Shared by the relay and `sync`.
+ */
+export function envelopeFor(event: RelayEvent, stream: string): Envelope | undefined {
+  // `tenant` is a control stream for the gateways, never a room.
+  if (!isStreamKey(stream) || stream === 'tenant') return undefined;
+  if (!isCustomerStream(stream)) {
+    return {
+      id: event.id,
+      seq: event.seq,
+      stream: clientStream(stream),
+      type: event.type,
+      occurredAt: event.occurredAt.toISOString(),
+      actor: event.actor,
+      data: event.payload,
+    };
+  }
+  if (!isCustomerProjection(event.customerPayload)) return undefined;
+  return {
+    id: event.id,
+    seq: event.seq,
+    stream: clientStream(stream),
+    type: event.customerPayload.type,
+    occurredAt: event.occurredAt.toISOString(),
+    actor: { kind: event.actor.kind },
+    data: event.customerPayload.data,
+  };
+}
+
 /** What publishing one event means, without doing it. */
 export function planDelivery(event: RelayEvent, routes: readonly EventRoute[]): DeliveryPlan {
   const emits: DeliveryPlan['emits'] = [];
   for (const stream of event.streams) {
-    // `tenant` is a control stream for the gateways, never a room.
-    if (!isStreamKey(stream) || stream === 'tenant') continue;
-    const customer = isCustomerStream(stream);
-    if (customer && !isCustomerProjection(event.customerPayload)) continue;
-    const projection = customer && isCustomerProjection(event.customerPayload) ? event.customerPayload : undefined;
+    const envelope = envelopeFor(event, stream);
+    if (envelope === undefined) continue;
     emits.push({
-      namespace: customer ? CUSTOMER_NAMESPACE : STAFF_NAMESPACE,
+      namespace: isCustomerStream(stream as StreamKey) ? CUSTOMER_NAMESPACE : STAFF_NAMESPACE,
       room: roomFor(event.tenantId, stream),
-      envelope: {
-        id: event.id,
-        seq: event.seq,
-        stream: clientStream(stream),
-        type: projection?.type ?? event.type,
-        occurredAt: event.occurredAt.toISOString(),
-        actor: projection === undefined ? event.actor : { kind: event.actor.kind },
-        data: projection?.data ?? event.payload,
-      },
+      envelope,
     });
   }
   const control = CONTROL_EVENT_TYPES.has(event.type as DomainEventType)

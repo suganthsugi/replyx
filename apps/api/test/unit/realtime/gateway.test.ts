@@ -1,15 +1,14 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { AppError } from '../../../src/platform-kernel/http/app-error.js';
+import { CustomerGateway, RealtimeAuth, StaffGateway } from '../../../src/platform-kernel/realtime/gateway.js';
 import {
-  CustomerGateway,
   errorAck,
-  RealtimeAuth,
   sessionRoom,
-  StaffGateway,
   tenantRoom,
   type RealtimeSocket,
-} from '../../../src/platform-kernel/realtime/gateway.js';
+} from '../../../src/platform-kernel/realtime/socket-context.js';
+import { StreamAccess } from '../../../src/platform-kernel/realtime/stream-access.js';
 
 import type { EffectiveAccess, GroupFlags } from '../../../src/authorization/policy.service.js';
 
@@ -75,7 +74,8 @@ function access(groups: [string | null, Partial<GroupFlags>][]): EffectiveAccess
 function staffGateway(groupOf?: (id: string) => Promise<string | null | undefined>, groups: [string | null, Partial<GroupFlags>][] = []) {
   const policy = { effectiveAccess: vi.fn(() => Promise.resolve(access(groups))) };
   const tickets = groupOf === undefined ? undefined : { groupOf: vi.fn((_ctx: unknown, id: string) => groupOf(id)) };
-  return new StaffGateway({} as never, policy as never, {} as never, { wsConnections: { add: vi.fn() } } as never, tickets);
+  const streams = new StreamAccess(policy as never, tickets);
+  return new StaffGateway({} as never, policy as never, {} as never, { wsConnections: { add: vi.fn() } } as never, streams, {} as never);
 }
 
 function socket(kind: 'staff' | 'customer' = 'staff') {
@@ -128,7 +128,7 @@ describe('StaffGateway', () => {
 
 describe('CustomerGateway', () => {
   it('joins only the own conversation and refuses other streams', async () => {
-    const gateway = new CustomerGateway({} as never, { wsConnections: { add: vi.fn() } } as never);
+    const gateway = new CustomerGateway({} as never, { wsConnections: { add: vi.fn() } } as never, {} as never);
     const { socket: s, joined } = socket('customer');
     await gateway.handleConnection(s);
     expect(joined).toEqual([tenantRoom(TENANT), sessionRoom(TENANT, 's1'), `t:${TENANT}:conversation:${USER}`]);

@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, Module, Optional } from '@nestjs/common';
+import { Injectable, Logger, Module } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -9,11 +9,9 @@ import {
   WebSocketGateway,
 } from '@nestjs/websockets';
 
-import { decide, grantedGroups, PolicyService } from '../../authorization/policy.service.js';
+import { grantedGroups, PolicyService } from '../../authorization/policy.service.js';
 import { IdentityModule } from '../../identity/identity.module.js';
 import { SessionService, type SessionKind } from '../../identity/session.service.js';
-import { TenantContext } from '../db/tenant-context.js';
-import { AppError } from '../http/app-error.js';
 import { parseCookies, SESSION_COOKIE } from '../http/cookies.js';
 import { HttpKernelModule } from '../http/http-kernel.module.js';
 import { TenantResolver } from '../http/tenant-resolver.middleware.js';
@@ -22,8 +20,21 @@ import { isStreamKey, type DomainEventPayload } from '../outbox/event-types.js';
 import { CONTROL_EVENT, CUSTOMER_NAMESPACE, roomFor, STAFF_NAMESPACE, type ControlMessage } from '../outbox/relay.js';
 
 import { REALTIME_PATH } from './redis-io.adapter.js';
+import {
+  CLOSING_EVENT,
+  errorAck,
+  notFoundAck,
+  sessionRoom,
+  socketContext,
+  tenantRoom,
+  type Ack,
+  type RealtimeSocket,
+  type RealtimeSocketData,
+} from './socket-context.js';
+import { StreamAccess } from './stream-access.js';
+import { SyncHandler } from './sync.handler.js';
 
-import type { Namespace, Server, Socket } from 'socket.io';
+import type { Namespace, Server } from 'socket.io';
 
 /**
  * The real-time gateway (research D8, contracts/realtime-events.md): Socket.IO on `/rt`, staff on
@@ -37,48 +48,10 @@ import type { Namespace, Server, Socket } from 'socket.io';
  *   joins `t:{tenantId}:tenant` and `t:{tenantId}:session:{sessionId}` so control events can
  *   reach it; clients never subscribe to those.
  * - `subscribe`/`unsubscribe` answer with acks; anything the caller may not see is `NOT_FOUND`.
+ *   `sync` replays missed events (sync.handler.ts).
  * - Control events from the relay (`session.revoked`, `tenant.suspended`) send `closing { code }`
  *   and disconnect the affected sockets on this process.
  */
-
-export interface RealtimeSocketData {
-  tenantId: string;
-  userId: string;
-  sessionId: string;
-  kind: SessionKind;
-}
-
-export type RealtimeSocket = Socket<Record<string, never>, Record<string, never>, Record<string, never>, RealtimeSocketData>;
-
-export type Ack<T extends object = object> = ({ ok: true } & T) | { ok: false; error: { code: string; message: string } };
-
-/** Emitted just before a server-initiated disconnect (Socket.IO has no custom disconnect reasons). */
-export const CLOSING_EVENT = 'closing';
-
-/**
- * Finds a ticket's group for `ticket:{id}` subscriptions: `null` = Ungrouped, `undefined` = no
- * such ticket in the context's tenant. Provided by the Tickets module (US6); until then every
- * ticket subscription is `NOT_FOUND`.
- */
-export interface TicketGroupLookup {
-  groupOf(ctx: TenantContext, ticketId: string): Promise<string | null | undefined>;
-}
-export const TICKET_GROUP_LOOKUP = Symbol('TICKET_GROUP_LOOKUP');
-
-export function notFoundAck(): Ack {
-  return { ok: false, error: { code: 'NOT_FOUND', message: 'Not found' } };
-}
-
-export function socketContext(socket: RealtimeSocket): TenantContext {
-  return TenantContext.create({
-    tenantId: socket.data.tenantId,
-    actor: { kind: 'user', id: socket.data.userId },
-    requestId: `socket:${socket.id}`.slice(0, 128),
-  });
-}
-
-export const tenantRoom = (tenantId: string) => roomFor(tenantId, 'tenant');
-export const sessionRoom = (tenantId: string, sessionId: string) => roomFor(tenantId, `session:${sessionId}`);
 
 class HandshakeError extends Error {
   readonly data: { code: string };
@@ -147,7 +120,8 @@ export class StaffGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     private readonly policy: PolicyService,
     private readonly sessions: SessionService,
     private readonly metrics: MetricsService,
-    @Optional() @Inject(TICKET_GROUP_LOOKUP) private readonly tickets?: TicketGroupLookup,
+    private readonly access: StreamAccess,
+    private readonly syncHandler: SyncHandler,
   ) {}
 
   /** For the root namespace Nest passes the `Server` itself. */
@@ -189,13 +163,16 @@ export class StaffGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     if (stream === 'user' || stream === 'views') return { ok: true };
     if (stream === undefined || !stream.startsWith('ticket:') || !isStreamKey(stream)) return notFoundAck();
 
-    const ctx = socketContext(socket);
-    const groupId = await this.tickets?.groupOf(ctx, stream.slice('ticket:'.length));
-    if (groupId === undefined) return notFoundAck();
-    const access = await this.policy.effectiveAccess(ctx, socket.data.userId);
-    if (decide(access, 'ticket.view', { type: 'ticket', groupId }) !== 'allow') return notFoundAck();
+    if (!(await this.access.canSeeTicket(socketContext(socket), stream.slice('ticket:'.length)))) {
+      return notFoundAck();
+    }
     await socket.join(roomFor(socket.data.tenantId, stream));
     return { ok: true };
+  }
+
+  @SubscribeMessage('sync')
+  sync(@ConnectedSocket() socket: RealtimeSocket, @MessageBody() body: unknown): Promise<Ack> {
+    return this.syncHandler.sync(socket, body).catch(errorAck);
   }
 
   @SubscribeMessage('unsubscribe')
@@ -246,6 +223,7 @@ export class CustomerGateway implements OnGatewayInit, OnGatewayConnection, OnGa
   constructor(
     private readonly auth: RealtimeAuth,
     private readonly metrics: MetricsService,
+    private readonly syncHandler: SyncHandler,
   ) {}
 
   afterInit(namespace: Namespace): void {
@@ -272,22 +250,21 @@ export class CustomerGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     return parseStream(body) === 'conversation' ? { ok: true } : notFoundAck();
   }
 
+  @SubscribeMessage('sync')
+  sync(@ConnectedSocket() socket: RealtimeSocket, @MessageBody() body: unknown): Promise<Ack> {
+    return this.syncHandler.sync(socket, body).catch(errorAck);
+  }
+
   @SubscribeMessage('unsubscribe')
   unsubscribe(): Ack {
     return { ok: true };
   }
 }
 
-/** For ack errors from handlers that throw AppError (sync, typing, ...). */
-export function errorAck(error: unknown): Ack {
-  if (error instanceof AppError) return { ok: false, error: { code: error.code, message: error.message } };
-  return { ok: false, error: { code: 'INTERNAL', message: 'Something went wrong' } };
-}
-
 /** Real-time gateway (api process only). */
 @Module({
   imports: [HttpKernelModule, IdentityModule],
-  providers: [RealtimeAuth, StaffGateway, CustomerGateway],
+  providers: [RealtimeAuth, StreamAccess, SyncHandler, StaffGateway, CustomerGateway],
   exports: [StaffGateway],
 })
 export class RealtimeModule {}
