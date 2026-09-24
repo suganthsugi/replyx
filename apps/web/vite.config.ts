@@ -8,14 +8,16 @@ export default defineConfig({
     host: true,
     port: 5173,
     proxy: {
+      // changeOrigin stays false: the API resolves the tenant from the incoming
+      // Host header (e.g. acme.localhost), so it must be forwarded as-is (research D2).
       '/api': {
         target: 'http://api:3000',
-        changeOrigin: true,
+        changeOrigin: false,
         ws: true,
       },
       '/rt': {
         target: 'http://api:3000',
-        changeOrigin: true,
+        changeOrigin: false,
         ws: true,
       },
     },
