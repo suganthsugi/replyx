@@ -8,7 +8,11 @@
     "build": "turbo run build"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import-x": "^4.17.1",
+    "globals": "^17.12.0",
     "prettier": "^3",
     "turbo": "^2.11.3",
     "typescript": "^5.9.3",
