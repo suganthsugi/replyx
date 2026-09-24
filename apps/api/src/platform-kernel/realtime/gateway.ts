@@ -20,6 +20,7 @@ import { isStreamKey, type DomainEventPayload } from '../outbox/event-types.js';
 import { CONTROL_EVENT, CUSTOMER_NAMESPACE, roomFor, STAFF_NAMESPACE, type ControlMessage } from '../outbox/relay.js';
 
 import { AccessChangeHandler } from './access-change.handler.js';
+import { PresenceService } from './presence.service.js';
 import { REALTIME_PATH } from './redis-io.adapter.js';
 import {
   CLOSING_EVENT,
@@ -269,7 +270,7 @@ export class CustomerGateway implements OnGatewayInit, OnGatewayConnection, OnGa
 /** Real-time gateway (api process only). */
 @Module({
   imports: [HttpKernelModule, IdentityModule],
-  providers: [RealtimeAuth, StreamAccess, SyncHandler, AccessChangeHandler, StaffGateway, CustomerGateway],
-  exports: [StaffGateway],
+  providers: [RealtimeAuth, StreamAccess, SyncHandler, AccessChangeHandler, PresenceService, StaffGateway, CustomerGateway],
+  exports: [StaffGateway, StreamAccess, PresenceService],
 })
 export class RealtimeModule {}
