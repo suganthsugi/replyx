@@ -19,6 +19,9 @@ export default defineConfig({
     include: ['test/**/*.test.ts'],
     globalSetup: existsSync(globalSetupFile) ? [globalSetupFile] : [],
     setupFiles: existsSync(envSetupFile) ? [envSetupFile] : [],
+    // Files share one database: the outbox relay's leader lock and the global `seq` would let one
+    // file's worker publish another file's events mid-test. Run files one at a time.
+    fileParallelism: false,
     passWithNoTests: true,
     testTimeout: 30_000,
     hookTimeout: 120_000,

@@ -182,9 +182,15 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
   ) {}
 
   onApplicationBootstrap(): void {
+    this.start();
+    void this.tryLead();
+  }
+
+  /** Connects the Socket.IO emitter (idempotent). Publishing needs it; leading also calls it. */
+  start(): void {
+    if (this.emitter !== undefined) return;
     this.redis = createRedis(redisUrl(), 'emitter');
     this.emitter = new Emitter(this.redis);
-    void this.tryLead();
   }
 
   isLeader(): boolean {
