@@ -61,7 +61,7 @@ describe('PasswordService', () => {
 
 describe('LockoutService', () => {
   const NOW = Date.parse('2026-09-24T12:00:00Z');
-  const lockout = new LockoutService(new FixedClock(NOW), {} as never);
+  const lockout = new LockoutService(new FixedClock(NOW), {} as never, {} as never);
 
   it('treats only a future locked_until as locked', () => {
     expect(lockout.isLocked({ locked_until: null })).toBe(false);

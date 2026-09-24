@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Redis } from 'ioredis';
 
+import { AuditService } from '../audit/audit.service.js';
 import { Clock } from '../platform-kernel/clock.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { tenantScopeOf, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
@@ -43,6 +44,7 @@ export class LockoutService {
   constructor(
     private readonly clock: Clock,
     @Inject(REDIS) private readonly redis: Redis,
+    private readonly audit: AuditService,
   ) {}
 
   isLocked(user: { locked_until: Date | null }): boolean {
@@ -53,7 +55,7 @@ export class LockoutService {
    * Call after a wrong password for an existing user, inside the sign-in transaction. Sign-in
    * checks `isLocked` first and answers `accountLocked()` without verifying the password.
    */
-  async recordFailure(tx: TenantTransaction, userId: string, meta: { ip?: string | null } = {}): Promise<FailureResult> {
+  async recordFailure(tx: TenantTransaction, userId: string): Promise<FailureResult> {
     const ctx = requireScope(tx);
     const repo = new LockoutRepository(ctx);
     const now = this.clock.nowMs();
@@ -74,7 +76,13 @@ export class LockoutService {
     // Only the request that actually sets the lock writes the audit entry.
     const lockedNow = await repo.lock(tx, userId, failures, lockedUntil, new Date(now));
     if (lockedNow) {
-      await repo.auditLocked(tx, userId, { failures, lockedUntil, ip: meta.ip ?? null });
+      // Actor, IP and request id come from the sign-in transaction's context.
+      await this.audit.record(tx, {
+        action: 'auth.locked',
+        resourceType: 'user',
+        resourceId: userId,
+        details: { failedAttempts: failures, lockedUntil: lockedUntil.toISOString() },
+      });
     }
     await this.clearWindow(ctx.tenantId, userId);
     return { locked: true, lockedUntil };
@@ -152,25 +160,6 @@ class LockoutRepository extends TenantRepository {
       .where('id', '=', userId)
       .where((eb) => eb.or([eb('failed_sign_ins', '>', 0), eb('locked_until', 'is not', null)]))
       .execute();
-  }
-
-  // TODO(T042): write through AuditService.record once it exists.
-  async auditLocked(
-    tx: TenantTransaction,
-    userId: string,
-    input: { failures: number; lockedUntil: Date; ip: string | null },
-  ): Promise<void> {
-    const actor = this.ctx.actor;
-    await this.insertInto(tx, 'audit_logs', {
-      actor_kind: actor.kind,
-      actor_id: actor.kind === 'system' ? null : actor.id,
-      action: 'auth.locked',
-      resource_type: 'user',
-      resource_id: userId,
-      details: JSON.stringify({ failedAttempts: input.failures, lockedUntil: input.lockedUntil.toISOString() }),
-      ip: input.ip,
-      request_id: this.ctx.requestId,
-    }).execute();
   }
 }
 

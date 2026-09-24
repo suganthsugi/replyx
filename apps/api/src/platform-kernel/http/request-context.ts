@@ -57,6 +57,7 @@ export function tenantContextOf(req: Request): TenantContext {
     tenantId: req.tenant.id,
     actor: { kind: 'user', id: req.actor.userId },
     requestId: requestIdOf(req),
+    ip: req.ip ?? null,
   });
 }
 

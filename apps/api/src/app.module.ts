@@ -1,6 +1,7 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 
 import { ApiPipelineModule } from './api-pipeline.module.js';
+import { AuditModule } from './audit/audit.module.js';
 import { AuthorizationModule } from './authorization/authorization.module.js';
 import { ClockModule } from './platform-kernel/clock.js';
 import { DatabaseModule } from './platform-kernel/db/database.js';
@@ -37,6 +38,7 @@ export class AppModule {
       // The api process syncs the permission registry on start-up; the worker only reads it.
       AuthorizationModule.forRoot({ syncOnBootstrap: options.role === 'api' }),
       TenancyModule,
+      AuditModule,
     ];
     // HTTP controllers, guards and the Socket.IO gateway (api only).
     const apiOnly: ModuleImports = [ApiPipelineModule, HealthModule, RealtimeModule];

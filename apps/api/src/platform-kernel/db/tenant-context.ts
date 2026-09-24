@@ -17,15 +17,19 @@ export interface TenantContextInit {
   tenantId: string;
   actor: Actor;
   requestId: string;
+  /** Client IP for audit entries (HTTP requests only). */
+  ip?: string | null;
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MAX_REQUEST_ID_LENGTH = 128;
+const MAX_IP_LENGTH = 64;
 
 export class TenantContext {
   readonly tenantId: string;
   readonly actor: Actor;
   readonly requestId: string;
+  readonly ip: string | null;
 
   // A private field makes the class nominal: an object literal is not a TenantContext.
   readonly #brand = true;
@@ -34,20 +38,24 @@ export class TenantContext {
     this.tenantId = init.tenantId.toLowerCase();
     this.actor = Object.freeze({ ...init.actor });
     this.requestId = init.requestId;
+    this.ip = init.ip ?? null;
     Object.freeze(this);
   }
 
   /** Throws (a programming error, not a client error) when any part is missing or malformed. */
   static create(init: TenantContextInit): TenantContext {
-    const { tenantId, actor, requestId } = init as Partial<TenantContextInit>;
+    const { tenantId, actor, requestId, ip } = init as Partial<TenantContextInit>;
     if (typeof tenantId !== 'string' || !UUID_PATTERN.test(tenantId)) {
       throw new TypeError('TenantContext requires a tenantId (uuid)');
     }
     if (typeof requestId !== 'string' || requestId.length === 0 || requestId.length > MAX_REQUEST_ID_LENGTH) {
       throw new TypeError('TenantContext requires a requestId');
     }
+    if (ip !== undefined && ip !== null && (typeof ip !== 'string' || ip.length > MAX_IP_LENGTH)) {
+      throw new TypeError('TenantContext ip must be a short string');
+    }
     assertActor(actor);
-    return new TenantContext({ tenantId, actor, requestId });
+    return new TenantContext({ tenantId, actor, requestId, ip });
   }
 
   static isTenantContext(value: unknown): value is TenantContext {
