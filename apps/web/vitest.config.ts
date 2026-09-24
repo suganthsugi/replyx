@@ -12,6 +12,7 @@ export default mergeConfig(
       css: true,
       include: ['test/**/*.{test,spec}.{ts,tsx}', 'src/**/*.{test,spec}.{ts,tsx}'],
       exclude: ['e2e/**', 'node_modules/**'],
+      passWithNoTests: true,
     },
   }),
 );
