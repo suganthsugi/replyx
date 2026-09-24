@@ -9,6 +9,7 @@ import { LoggingModule } from './platform-kernel/observability/logger.js';
 import { MetricsModule } from './platform-kernel/observability/metrics.js';
 import { OutboxModule } from './platform-kernel/outbox/outbox.service.js';
 import { RedisModule } from './platform-kernel/redis/redis.module.js';
+import { TenancyModule } from './tenancy/tenant-provisioning.service.js';
 
 /**
  * The same codebase runs as two processes (research D1):
@@ -32,6 +33,7 @@ export class AppModule {
       OutboxModule,
       // The api process syncs the permission registry on start-up; the worker only reads it.
       AuthorizationModule.forRoot({ syncOnBootstrap: options.role === 'api' }),
+      TenancyModule,
     ];
     // HTTP controllers, guards and the Socket.IO gateway (api only).
     const apiOnly: ModuleImports = [ApiPipelineModule, HealthModule];
