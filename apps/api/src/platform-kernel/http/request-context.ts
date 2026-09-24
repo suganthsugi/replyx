@@ -1,3 +1,7 @@
+import { TenantContext } from '../db/tenant-context.js';
+
+import type { Request } from 'express';
+
 /**
  * What the HTTP pipeline attaches to each request, in pipeline order (constitution II, C1):
  * tenant from the host (tenant-resolver.middleware.ts) → session and actor (identity/auth.guard.ts)
@@ -20,6 +24,12 @@ export interface RequestActor {
   readonly sessionId: string;
 }
 
+/** A platform operator on the console host, set by the operator auth guard (T081). */
+export interface RequestOperator {
+  readonly operatorId: string;
+  readonly sessionId: string;
+}
+
 // @types/express merges the global Express.Request into its Request type.
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace -- the only augmentation point
@@ -29,6 +39,29 @@ declare global {
       /** Set for every request on a tenant host; never on the console host. */
       tenant?: ResolvedTenant;
       actor?: RequestActor;
+      operator?: RequestOperator;
     }
   }
+}
+
+/**
+ * The unit-of-work context for an authenticated tenant request: tenant from the host, actor from
+ * the session, request id from the request logger. Throws (programming error) when called on a
+ * route that is not tenant-authenticated.
+ */
+export function tenantContextOf(req: Request): TenantContext {
+  if (req.tenant === undefined || req.actor === undefined) {
+    throw new Error('tenantContextOf needs a resolved tenant and an authenticated actor');
+  }
+  return TenantContext.create({
+    tenantId: req.tenant.id,
+    actor: { kind: 'user', id: req.actor.userId },
+    requestId: requestIdOf(req),
+  });
+}
+
+/** pino-http's request id (`X-Request-Id`), always set by the logger middleware. */
+export function requestIdOf(req: Request): string {
+  const id = (req as Request & { id?: unknown }).id;
+  return typeof id === 'string' && id !== '' ? id : 'unknown';
 }

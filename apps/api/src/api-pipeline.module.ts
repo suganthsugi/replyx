@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 
+import { PermissionGuard } from './authorization/permission.guard.js';
 import { AuthGuard } from './identity/auth.guard.js';
 import { IdentityModule } from './identity/identity.module.js';
 import { CsrfGuard } from './platform-kernel/http/csrf.guard.js';
@@ -13,7 +14,7 @@ import { TenantStatusGuard } from './platform-kernel/http/tenant-resolver.middle
  * middleware (HttpKernelModule) runs first; global guards then run in the order listed here,
  * which is why they are all registered in this one module.
  *
- *   resolve tenant (middleware) → tenant status → CSRF → authenticate → rate limit → [permission, T031]
+ *   resolve tenant (middleware) → tenant status → CSRF → authenticate → rate limit → permission
  *   → handler
  *
  * CSRF runs before authentication: it needs no database work, so forged requests stop early.
@@ -25,6 +26,7 @@ import { TenantStatusGuard } from './platform-kernel/http/tenant-resolver.middle
     { provide: APP_GUARD, useClass: CsrfGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: RateLimitGuard },
+    { provide: APP_GUARD, useClass: PermissionGuard },
   ],
 })
 export class ApiPipelineModule {}
