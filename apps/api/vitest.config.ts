@@ -4,9 +4,10 @@ import { fileURLToPath } from 'node:url';
 import swc from 'unplugin-swc';
 import { defineConfig } from 'vitest/config';
 
-// Testcontainers setup (PostgreSQL + Valkey, init.sql, migrations) is added by T045.
-// It is wired only once the file exists so the empty suite still runs.
+// Testcontainers (PostgreSQL + Valkey, init.sql, migrations) for the whole run, and a per-file
+// setup that points the app at them (test/support/).
 const globalSetupFile = fileURLToPath(new URL('./test/support/global-setup.ts', import.meta.url));
+const envSetupFile = fileURLToPath(new URL('./test/support/env.ts', import.meta.url));
 
 export default defineConfig({
   // esbuild does not emit decorator metadata, which Nest's DI needs; SWC does.
@@ -17,6 +18,7 @@ export default defineConfig({
     env: { NODE_ENV: 'test' },
     include: ['test/**/*.test.ts'],
     globalSetup: existsSync(globalSetupFile) ? [globalSetupFile] : [],
+    setupFiles: existsSync(envSetupFile) ? [envSetupFile] : [],
     passWithNoTests: true,
     testTimeout: 30_000,
     hookTimeout: 120_000,
