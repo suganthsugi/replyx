@@ -201,7 +201,8 @@ function actorUserId(ctx: TenantContext): string {
   return ctx.actor.id;
 }
 
-class AccessRepository extends TenantRepository {
+/** Reads grants for the policy service; exported for tests. */
+export class AccessRepository extends TenantRepository {
   async accessVersion(tx: TenantTransaction): Promise<string> {
     // `tenants` is global (no RLS); the app role may read it. Read in the same transaction as
     // the grants so the version and the grants match.
