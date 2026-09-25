@@ -4,9 +4,11 @@ import { bumpAccessVersion } from '../../src/authorization/access-version.js';
 import { PasswordService } from '../../src/identity/password.service.js';
 import { SessionService } from '../../src/identity/session.service.js';
 import { TenantContext } from '../../src/platform-kernel/db/tenant-context.js';
-import { TenantRepository } from '../../src/platform-kernel/db/tenant-repository.js';
+import { TenantRepository, type TenantInsert } from '../../src/platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../../src/platform-kernel/db/unit-of-work.js';
+import { uuidv7 } from '../../src/platform-kernel/ids.js';
 import { TenantProvisioningService } from '../../src/tenancy/tenant-provisioning.service.js';
+import { TicketNumberService } from '../../src/tickets/ticket-number.service.js';
 
 import { service } from './app.js';
 
@@ -167,7 +169,76 @@ export async function setGroupAccess(tenant: TestTenant, role: RoleRef, group: s
   });
 }
 
+export interface TestTicket {
+  id: string;
+  number: number;
+  tenant: TestTenant;
+}
+
+type TicketStateName = 'new' | 'open' | 'pending_reminder' | 'pending_close' | 'resolved' | 'closed';
+
+/**
+ * A ticket inserted directly (no routing, no events), with the timer columns its state needs.
+ * `messages` are public customer messages unless `staff` is given. Use the API when the test is
+ * about how tickets come to exist.
+ */
+export async function createTicket(
+  tenant: TestTenant,
+  options: {
+    customer: TestUser;
+    group?: string | null;
+    owner?: string | null;
+    state?: TicketStateName;
+    title?: string;
+    /** Resolved tickets close this long after `now` (default 72 h). */
+    autoCloseAt?: Date;
+    now?: Date;
+    messages?: { body: string; staff?: TestUser; visibility?: 'public' | 'internal' }[];
+  },
+): Promise<TestTicket> {
+  const state = options.state ?? 'new';
+  const now = options.now ?? new Date();
+  const later = new Date(now.getTime() + 72 * 3_600_000);
+  const numbers = await service(TicketNumberService);
+  return inTenant(tenant, async (tx, repo) => {
+    const number = await numbers.next(tx);
+    const id = await repo.insertTicket(tx, {
+      number,
+      title: options.title ?? `Ticket ${number}`,
+      customer_id: options.customer.id,
+      group_id: options.group ?? null,
+      owner_id: options.owner ?? null,
+      state,
+      origin: 'customer_message',
+      pending_until: state === 'pending_reminder' || state === 'pending_close' ? later : null,
+      resolved_at: state === 'resolved' || state === 'closed' ? now : null,
+      auto_close_at: state === 'resolved' ? (options.autoCloseAt ?? later) : null,
+      closed_at: state === 'closed' ? now : null,
+      created_at: now,
+    });
+    for (const message of options.messages ?? []) {
+      await repo.insertMessage(tx, {
+        ticket_id: id,
+        author_id: message.staff?.id ?? options.customer.id,
+        author_kind: message.staff === undefined ? 'customer' : 'staff',
+        visibility: message.visibility ?? 'public',
+        body: message.body,
+      });
+    }
+    return { id, number, tenant };
+  });
+}
+
 class FactoryRepository extends TenantRepository {
+  async insertTicket(tx: TenantTransaction, values: TenantInsert<'tickets'>): Promise<string> {
+    const row = await this.insertInto(tx, 'tickets', values).returning('id').executeTakeFirstOrThrow();
+    return row.id;
+  }
+
+  async insertMessage(tx: TenantTransaction, values: TenantInsert<'ticket_messages'>): Promise<void> {
+    await this.insertInto(tx, 'ticket_messages', { ...values, id: uuidv7() }).execute();
+  }
+
   async insertUser(
     tx: TenantTransaction,
     user: { email: string; name: string; kind: 'staff' | 'customer'; status: 'invited' | 'active' | 'deactivated'; passwordHash: string | null },
