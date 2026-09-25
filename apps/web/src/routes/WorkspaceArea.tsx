@@ -1,15 +1,14 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
-import { useCallback } from 'react';
+import { lazy, Suspense, useCallback } from 'react';
 import { Route, Routes, useNavigate } from 'react-router';
 
+import { Skeleton } from '../components/foundations/Skeleton';
 import { useToast } from '../components/shell/Toast';
 import { useAccessChanges, useAccessRevoked } from '../data/access';
 import { useKnownMe } from '../data/auth';
 import { RealtimeProvider, useRealtime, useSessionEnded } from '../data/realtime';
-import SupportAccessPage from '../pages/admin/support-access/SupportAccessPage';
-import UsersPage from '../pages/admin/users/UsersPage';
 import AcceptInvitationPage from '../pages/desk/auth/AcceptInvitationPage';
 import ForgotPasswordPage from '../pages/desk/auth/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/desk/auth/ResetPasswordPage';
@@ -21,9 +20,17 @@ import { AreaShell, NotFoundPage } from './AreaShell';
 
 import type { ReactNode } from 'react';
 
+// The admin area is its own chunk: most workspace users never open it.
+const AdminLayout = lazy(() => import('../pages/admin/AdminLayout'));
+const UsersPage = lazy(() => import('../pages/admin/users/UsersPage'));
+const RolesPage = lazy(() => import('../pages/admin/roles/RolesPage'));
+const RoleEditorPage = lazy(() => import('../pages/admin/roles/RoleEditorPage'));
+const GroupsPage = lazy(() => import('../pages/admin/groups/GroupsPage'));
+const SupportAccessPage = lazy(() => import('../pages/admin/support-access/SupportAccessPage'));
+
 /**
  * The agent/admin workspace (`/desk/*` on a tenant host), loaded lazily. Paths here are relative
- * to `/desk`. Admin sections live under `/desk/admin` (T067, T069).
+ * to `/desk`. Admin sections live under `/desk/admin` in `AdminLayout` (T100).
  */
 export default function WorkspaceArea() {
   return (
@@ -36,8 +43,20 @@ export default function WorkspaceArea() {
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
           <Route path="me" element={<ProfilePage />} />
-          <Route path="admin/users" element={<UsersPage />} />
-          <Route path="admin/support-access" element={<SupportAccessPage />} />
+          <Route
+            path="admin"
+            element={
+              <Suspense fallback={<Skeleton variant="block" label="admin area" />}>
+                <AdminLayout />
+              </Suspense>
+            }
+          >
+            <Route path="users" element={<UsersPage />} />
+            <Route path="roles" element={<RolesPage />} />
+            <Route path="roles/:id" element={<RoleEditorPage />} />
+            <Route path="groups" element={<GroupsPage />} />
+            <Route path="support-access" element={<SupportAccessPage />} />
+          </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </StaffRealtime>
