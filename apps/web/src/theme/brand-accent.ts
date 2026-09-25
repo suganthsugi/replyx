@@ -245,9 +245,11 @@ export function resolveBrandAccent(
   tenantColor: string | null | undefined,
   mode: 'light' | 'dark' = 'light',
   surfaces: BrandAccentSurfaces = defaultSurfacesForMode(mode),
+  /** The built-in accent to start from without a usable tenant color (the design system's teal). */
+  fallbackColor: string = colorTokens.primary.main,
 ): ResolvedBrandAccent {
   const usedFallback = !isValidHexColor(tenantColor);
-  const startingColor = usedFallback ? colorTokens.primary.main : tenantColor;
+  const startingColor = usedFallback ? fallbackColor : tenantColor;
 
   const shadeForFill = nearestAACompliantShade(
     startingColor,

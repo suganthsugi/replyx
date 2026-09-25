@@ -6,8 +6,14 @@
 
 import { createTheme, type Theme, type ThemeOptions } from '@mui/material/styles';
 
-import { defaultSurfacesForMode, resolveBrandAccent } from './brand-accent';
-import { colorTokens, elevationTokens, radiusTokens, spacingTokens, typeScaleTokens } from './tokens';
+import {
+  AA_NORMAL_TEXT_CONTRAST,
+  CONTRAST_SAFETY_MARGIN,
+  defaultSurfacesForMode,
+  nearestAACompliantShade,
+  resolveBrandAccent,
+} from './brand-accent';
+import { colorTokens, designSystemTokens, elevationTokens, radiusTokens, spacingTokens, typeScaleTokens } from './tokens';
 
 export type ColorMode = 'light' | 'dark';
 
@@ -227,3 +233,103 @@ export function createAppTheme(mode: ColorMode, tenantColor?: string | null): Th
 
 export const lightTheme = createAppTheme('light');
 export const darkTheme = createAppTheme('dark');
+
+/**
+ * The design-system variant of `createAppTheme` for screens built from Phase 5 on
+ * (docs/design-system/README.md, ui-components rule 9). Same contract: the tenant accent goes
+ * through `resolveBrandAccent`, starting from the design system's teal, so button text and
+ * links reach AA even where the mock's white-on-teal would not. Apply it with
+ * `DesignSystemScope`, never globally.
+ */
+export function createDesignSystemTheme(mode: ColorMode, tenantColor?: string | null): Theme {
+  const c = designSystemTokens.color[mode];
+  const type = designSystemTokens.type;
+  const radius = designSystemTokens.radius;
+  const surfaces = { surface: c.surface, onAccentText: c.primaryContrast };
+  const { color: resolved } = resolveBrandAccent(tenantColor, mode, surfaces, c.primary);
+  // Links and text buttons sit on the page background too, not only on white panes.
+  const primaryMain = nearestAACompliantShade(resolved, c.pageBg, AA_NORMAL_TEXT_CONTRAST + CONTRAST_SAFETY_MARGIN);
+  const focusRing = { outline: `2px solid ${primaryMain}`, outlineOffset: 2 };
+  const heading = { fontFamily: type.heading, fontWeight: 600, lineHeight: 1.3 };
+
+  return createTheme({
+    palette: {
+      mode,
+      contrastThreshold: 4.5,
+      primary: { main: primaryMain, contrastText: c.primaryContrast, light: c.primarySoft },
+      success: { main: c.successText, light: c.successSoft, contrastText: c.surface },
+      warning: { main: c.warningText, light: c.warningSoft, contrastText: c.surface },
+      error: { main: c.errorText, light: c.errorSoft, contrastText: c.surface },
+      background: { default: c.pageBg, paper: c.surface },
+      text: { primary: c.textPrimary, secondary: c.textSecondary },
+      divider: c.border,
+      action: { hover: c.surface2, selected: c.primarySoft },
+    },
+
+    typography: {
+      fontFamily: type.base,
+      fontSize: 13,
+      h1: { ...heading, fontSize: type.size.pageTitle, fontWeight: 700 },
+      h2: { ...heading, fontSize: type.size.title },
+      h3: { ...heading, fontSize: type.size.paneTitle },
+      h4: { ...heading, fontSize: type.size.pageTitle, fontWeight: 700 },
+      h5: { ...heading, fontSize: type.size.cardTitle },
+      h6: { ...heading, fontSize: type.size.paneTitle },
+      subtitle1: { fontSize: type.size.title, fontWeight: 600 },
+      subtitle2: { fontSize: type.size.body, fontWeight: 600 },
+      body1: { fontSize: type.size.bodyChat, lineHeight: 1.55 },
+      body2: { fontSize: type.size.body, lineHeight: 1.5 },
+      caption: { fontSize: type.size.meta, lineHeight: 1.4 },
+      overline: {
+        fontSize: type.sectionLabel.size,
+        fontWeight: type.sectionLabel.weight,
+        letterSpacing: type.sectionLabel.letterSpacing,
+        lineHeight: 1.4,
+        textTransform: 'uppercase',
+      },
+      button: { fontWeight: 600, textTransform: 'none' },
+    },
+
+    spacing: spacingTokens.unit,
+    shape: { borderRadius: radius.control },
+    // Borders separate; only the outer shell casts a shadow (`shadows[1]`).
+    shadows: ['none', designSystemTokens.elevation.shell, ...Array<string>(23).fill(designSystemTokens.elevation.shell)] as Theme['shadows'],
+
+    components: {
+      MuiButtonBase: { styleOverrides: { root: { '&.Mui-focusVisible': focusRing } } },
+      MuiLink: { styleOverrides: { root: { '&:focus-visible': focusRing } } },
+      MuiButton: {
+        defaultProps: { disableElevation: true },
+        styleOverrides: { root: { borderRadius: radius.pill, paddingInline: 16 } },
+      },
+      MuiChip: {
+        styleOverrides: {
+          root: { borderRadius: radius.pill, fontWeight: 600 },
+          filled: { backgroundColor: c.surface2, color: c.textPrimary },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: radius.control,
+            backgroundColor: c.surface,
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: primaryMain, borderWidth: 2 },
+          },
+          notchedOutline: { borderColor: c.border },
+        },
+      },
+      MuiPaper: {
+        defaultProps: { elevation: 0 },
+        styleOverrides: { root: { backgroundImage: 'none' }, outlined: { borderColor: c.border, borderRadius: radius.card } },
+      },
+      MuiTableCell: {
+        styleOverrides: {
+          root: { borderColor: c.border },
+          head: { fontSize: type.sectionLabel.size, fontWeight: 600, letterSpacing: type.sectionLabel.letterSpacing, textTransform: 'uppercase', color: c.textSecondary },
+        },
+      },
+      MuiDialog: { styleOverrides: { paper: { borderRadius: radius.shell } } },
+      MuiTooltip: { defaultProps: { arrow: true } },
+    },
+  });
+}
