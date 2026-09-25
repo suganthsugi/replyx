@@ -1,4 +1,4 @@
-import { Injectable, Logger, Module } from '@nestjs/common';
+import { Injectable, Logger, Module, type OnModuleDestroy } from '@nestjs/common';
 import {
   ConnectedSocket,
   MessageBody,
@@ -20,7 +20,7 @@ import { isStreamKey, type DomainEventPayload } from '../outbox/event-types.js';
 import { CONTROL_EVENT, CUSTOMER_NAMESPACE, roomFor, STAFF_NAMESPACE, type ControlMessage } from '../outbox/relay.js';
 
 import { AccessChangeHandler } from './access-change.handler.js';
-import { PresenceService } from './presence.service.js';
+import { CONNECTION_REFRESH_MS, PresenceService } from './presence.service.js';
 import { REALTIME_PATH } from './redis-io.adapter.js';
 import { SessionExpirySweeper } from './session-expiry.js';
 import {
@@ -233,19 +233,34 @@ export class StaffGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
 
 @Injectable()
 @WebSocketGateway({ path: REALTIME_PATH, namespace: CUSTOMER_NAMESPACE })
-export class CustomerGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect {
+export class CustomerGateway implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect, OnModuleDestroy {
   private readonly logger = new Logger('CustomerGateway');
+  private refresh?: NodeJS.Timeout;
 
   constructor(
     private readonly auth: RealtimeAuth,
     private readonly metrics: MetricsService,
     private readonly syncHandler: SyncHandler,
     private readonly expiry: SessionExpirySweeper,
+    private readonly presence: PresenceService,
   ) {}
 
   afterInit(namespace: Namespace): void {
     namespace.use(handshakeMiddleware(this.auth, 'customer', this.logger) as Parameters<Namespace['use']>[0]);
     this.expiry.watch(namespace);
+    // Keeps this process's customer sockets marked as connected (offline reply emails, FR-055).
+    this.refresh = setInterval(() => {
+      const sockets = [...(namespace.sockets as Map<string, RealtimeSocket>).values()].map((socket) => ({
+        tenantId: socket.data.tenantId,
+        userId: socket.data.userId,
+        socketId: socket.id,
+      }));
+      void this.presence.refreshConnections(sockets);
+    }, CONNECTION_REFRESH_MS).unref();
+  }
+
+  onModuleDestroy(): void {
+    clearInterval(this.refresh);
   }
 
   async handleConnection(socket: RealtimeSocket): Promise<void> {
@@ -256,10 +271,14 @@ export class CustomerGateway implements OnGatewayInit, OnGatewayConnection, OnGa
       sessionRoom(tenantId, sessionId),
       roomFor(tenantId, `conversation:${userId}`),
     ]);
+    await this.presence.setConnected(tenantId, userId, socket.id, true);
   }
 
-  handleDisconnect(): void {
+  handleDisconnect(socket: RealtimeSocket): void {
     this.metrics.wsConnections.add(-1, { namespace: CUSTOMER_NAMESPACE });
+    // Sockets refused at the handshake never had data.
+    const { tenantId, userId } = socket.data as Partial<RealtimeSocketData>;
+    if (tenantId !== undefined && userId !== undefined) void this.presence.setConnected(tenantId, userId, socket.id, false);
   }
 
   /** Customers are joined to their conversation on connect and can subscribe to nothing else. */

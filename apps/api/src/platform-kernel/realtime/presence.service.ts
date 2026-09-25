@@ -16,6 +16,9 @@ import { REDIS } from '../redis/redis.module.js';
  */
 
 export const PRESENCE_TTL_MS = 30_000;
+/** Open sockets are refreshed every 20 s and count as gone 60 s after the last refresh. */
+export const CONNECTION_REFRESH_MS = 20_000;
+export const CONNECTION_TTL_MS = 60_000;
 
 export type Availability = 'online' | 'away' | 'offline';
 export type PresenceKind = 'viewing' | 'typing';
@@ -30,6 +33,10 @@ export interface TicketPresence {
 
 function ticketKey(tenantId: string, ticketId: string, kind: PresenceKind): string {
   return `presence:${tenantId}:ticket:${ticketId}:${kind}`;
+}
+
+function connectionsKey(tenantId: string, userId: string): string {
+  return `presence:${tenantId}:connections:${userId}`;
 }
 
 function availabilityKey(tenantId: string, userId: string): string {
@@ -96,11 +103,47 @@ export class PresenceService {
     return result;
   }
 
-  private async touch(key: string, member: PresenceMember, present: boolean): Promise<void> {
+  /**
+   * Which users have a socket open (any api process), for "only when offline" notifications
+   * (FR-055). The gateway adds a socket on connect, removes it on disconnect and refreshes its
+   * own sockets every `CONNECTION_REFRESH_MS`; a process that dies stops refreshing, so its
+   * sockets drop out after `CONNECTION_TTL_MS`.
+   */
+  async setConnected(tenantId: string, userId: string, socketId: string, connected: boolean): Promise<void> {
+    await this.touch(connectionsKey(tenantId, userId), socketId, connected, CONNECTION_TTL_MS);
+  }
+
+  async refreshConnections(sockets: readonly { tenantId: string; userId: string; socketId: string }[]): Promise<void> {
+    if (sockets.length === 0) return;
     const now = this.clock.nowMs();
     try {
-      const multi = this.redis.multi().zremrangebyscore(key, '-inf', now - PRESENCE_TTL_MS);
-      if (present) multi.zadd(key, now, member).pexpire(key, PRESENCE_TTL_MS);
+      const multi = this.redis.multi();
+      for (const { tenantId, userId, socketId } of sockets) {
+        const key = connectionsKey(tenantId, userId);
+        multi.zadd(key, now, socketId).pexpire(key, CONNECTION_TTL_MS);
+      }
+      await multi.exec();
+    } catch (error) {
+      this.warn(error);
+    }
+  }
+
+  /** False when Redis can't tell: a spare email beats a missed reply. */
+  async isConnected(tenantId: string, userId: string): Promise<boolean> {
+    try {
+      const count = await this.redis.zcount(connectionsKey(tenantId, userId), `(${this.clock.nowMs() - CONNECTION_TTL_MS}`, '+inf');
+      return count > 0;
+    } catch (error) {
+      this.warn(error);
+      return false;
+    }
+  }
+
+  private async touch(key: string, member: PresenceMember, present: boolean, ttlMs = PRESENCE_TTL_MS): Promise<void> {
+    const now = this.clock.nowMs();
+    try {
+      const multi = this.redis.multi().zremrangebyscore(key, '-inf', now - ttlMs);
+      if (present) multi.zadd(key, now, member).pexpire(key, ttlMs);
       else multi.zrem(key, member);
       await multi.exec();
     } catch (error) {
