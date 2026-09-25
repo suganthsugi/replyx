@@ -63,7 +63,7 @@ export function deliveryOf(row: Pick<MessageRow, 'delivered_at' | 'read_at'>): D
   return row.delivered_at !== null ? 'delivered' : 'sent';
 }
 
-function customerAttachment(row: AttachmentRow): CustomerAttachment {
+export function customerAttachment(row: AttachmentRow): CustomerAttachment {
   return {
     id: row.id,
     fileName: row.file_name,
@@ -118,6 +118,10 @@ export const customerEvents = {
   },
   delivery(messageId: string, delivery: 'delivered' | 'read'): CustomerProjection {
     return { type: 'conversation.delivery', data: { messageId, delivery } };
+  },
+  /** A scan finished: `messageId` is null while the upload hasn't been sent yet. */
+  attachment(messageId: string | null, attachment: CustomerAttachment): CustomerProjection {
+    return { type: 'conversation.attachment', data: { messageId, attachment } };
   },
   status(code: FriendlyStatusCode): CustomerProjection {
     return { type: 'conversation.status', data: friendlyStatus(code) };
