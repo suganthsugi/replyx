@@ -62,9 +62,61 @@ export interface SessionsTable {
   created_at: GeneratedTimestamp;
 }
 
+/** Migration 0006_identity_flows. One pending invitation per `(tenant_id, email)`. */
+export interface UserInvitationsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  user_id: string;
+  email: string;
+  role_ids: string[];
+  invited_by: string | null;
+  token_hash: Buffer;
+  expires_at: Timestamp;
+  accepted_at: Timestamp | null;
+  created_at: GeneratedTimestamp;
+}
+
+/** Customer sign-in links (FR-012): single use, 15 minutes, superseded by a newer link. */
+export interface SignInLinksTable {
+  id: Generated<string>;
+  tenant_id: string;
+  user_id: string;
+  token_hash: Buffer;
+  expires_at: Timestamp;
+  used_at: Timestamp | null;
+  superseded_at: Timestamp | null;
+  created_at: GeneratedTimestamp;
+}
+
+export interface PasswordResetsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  user_id: string;
+  token_hash: Buffer;
+  expires_at: Timestamp;
+  used_at: Timestamp | null;
+  created_at: GeneratedTimestamp;
+}
+
+/** Customers only; `notes` is staff-only. */
+export interface CustomerProfilesTable {
+  user_id: string;
+  tenant_id: string;
+  phone: string | null;
+  company: string | null;
+  notes: string | null;
+  last_message_at: Timestamp | null;
+  created_at: GeneratedTimestamp;
+  updated_at: GeneratedTimestamp;
+}
+
 export interface IdentityTables {
   platform_operators: PlatformOperatorsTable;
   operator_sessions: OperatorSessionsTable;
   users: UsersTable;
   sessions: SessionsTable;
+  user_invitations: UserInvitationsTable;
+  sign_in_links: SignInLinksTable;
+  password_resets: PasswordResetsTable;
+  customer_profiles: CustomerProfilesTable;
 }
