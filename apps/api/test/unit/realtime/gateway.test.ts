@@ -129,10 +129,13 @@ describe('StaffGateway', () => {
 
 describe('CustomerGateway', () => {
   it('joins only the own conversation and refuses other streams', async () => {
-    const gateway = new CustomerGateway({} as never, { wsConnections: { add: vi.fn() } } as never, {} as never, {} as never);
+    const presence = { setConnected: vi.fn(() => Promise.resolve()) };
+    const gateway = new CustomerGateway({} as never, { wsConnections: { add: vi.fn() } } as never, {} as never, {} as never, presence as never);
     const { socket: s, joined } = socket('customer');
     await gateway.handleConnection(s);
     expect(joined).toEqual([tenantRoom(TENANT), sessionRoom(TENANT, 's1'), `t:${TENANT}:conversation:${USER}`]);
+    // Marked connected, so offline reply emails skip this customer (FR-055).
+    expect(presence.setConnected).toHaveBeenCalledWith(TENANT, USER, s.id, true);
     expect(gateway.subscribe({ stream: 'conversation' })).toEqual({ ok: true });
     expect(gateway.subscribe({ stream: `ticket:${TICKET}` })).toMatchObject({ ok: false, error: { code: 'NOT_FOUND' } });
   });
