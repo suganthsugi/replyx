@@ -23,6 +23,9 @@ describe('resolveArea', () => {
   });
 });
 
+// The first import of a lazy area is transformed on demand; allow for a cold, busy runner.
+const LAZY = { timeout: 10_000 };
+
 function renderAt(hostname: string, path: string) {
   return render(
     <ThemeProvider theme={lightTheme}>
@@ -37,24 +40,24 @@ function renderAt(hostname: string, path: string) {
 describe('AreaRoutes', () => {
   it('shows the customer area on a tenant host', async () => {
     const { container } = renderAt('acme.localhost', '/');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Support' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Support' }, LAZY)).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 
   it('shows the workspace under /desk', async () => {
     renderAt('acme.localhost', '/desk');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Inbox' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Inbox' }, LAZY)).toBeInTheDocument();
   });
 
   it('shows the console on the console host, whatever the path', async () => {
     renderAt('console.localhost', '/desk');
-    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Page not found' }, LAZY)).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Inbox' })).not.toBeInTheDocument();
   });
 
   it('answers unknown paths inside an area with a not-found page', async () => {
     const { container } = renderAt('acme.localhost', '/desk/nowhere');
-    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Page not found' }, LAZY)).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 });
