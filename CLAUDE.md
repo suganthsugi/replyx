@@ -19,3 +19,8 @@ Status: planned = not yet written; ready = in `.claude/skills/<name>/SKILL.md`.
 | conventional-commit | ready | Commit one Spec Kit task as `type(scope): Txxx Summary`, staging only the task's files | committer |
 | writing-skills | ready | How to write or update a skill in `.claude/skills/` | skill-writer |
 | speckit-* | ready | Spec Kit workflow: specify, clarify, plan, tasks, analyze, checklist, converge, implement, constitution, taskstoissues | orchestrator |
+| jira-tracking | ready | Track work in Jira project RX (board 67): just-in-time creation (never bulk), Story/Task/Sub-task hierarchy only, screenshots and details on completion | orchestrator |
+
+## Jira tracking
+
+All tracked implementation work (Spec Kit user stories, phases, tasks) must be tracked in Jira project `RX` (board: https://ontodi.atlassian.net/jira/software/projects/RX/boards/67), following `.claude/skills/jira-tracking/SKILL.md`. Never bulk-create issues; create each one when work on it starts. Use only the Story/Task/Sub-task hierarchy. Attach a screenshot of completed work and record details on each issue before marking it done.
