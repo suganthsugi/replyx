@@ -1,14 +1,12 @@
-import { Global, Module } from '@nestjs/common';
-import { afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it } from 'vitest';
 
 import { definePermissions, type ModulePermissions } from '../../../src/authorization/registry/module-permissions.js';
 import { PermissionRegistry } from '../../../src/authorization/registry/registry.service.js';
-import { GROUP_TICKET_STATS, type GroupTicketStats } from '../../../src/groups/groups.service.js';
 import { TenantContext } from '../../../src/platform-kernel/db/tenant-context.js';
 import { TenantRepository } from '../../../src/platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../../../src/platform-kernel/db/unit-of-work.js';
 import { getTestApp, service } from '../../support/app.js';
-import { createGroup, createRole, createTenant, createUser, type TestTenant, type TestUser } from '../../support/factories.js';
+import { createGroup, createRole, createTenant, createTicket, createUser, type TestTenant, type TestUser } from '../../support/factories.js';
 import { asUser } from '../../support/http.js';
 
 import type { Test } from 'supertest';
@@ -52,19 +50,6 @@ const items = <T>(response: { body: unknown }) => (response.body as { items: T[]
 const failure = (response: { body: unknown }) =>
   response.body as { error: { code: string; details?: { path: string; issue: string }[] } };
 
-/** The tickets module's stats (US6), switched per test; registered in this file's single app. */
-const stats = { hasTickets: false, openByGroup: new Map<string, number>(), openByOwner: new Map<string, number>() };
-
-const ticketStats: GroupTicketStats = {
-  openTicketCounts: (_tx, groupIds) => Promise.resolve(new Map(groupIds.filter((id) => stats.openByGroup.has(id)).map((id) => [id, stats.openByGroup.get(id) ?? 0]))),
-  openTicketCountsByOwner: (_tx, userIds) =>
-    Promise.resolve(new Map(userIds.filter((id) => stats.openByOwner.has(id)).map((id) => [id, stats.openByOwner.get(id) ?? 0]))),
-  hasTickets: () => Promise.resolve(stats.hasTickets),
-};
-
-@Global()
-@Module({ providers: [{ provide: GROUP_TICKET_STATS, useValue: ticketStats }], exports: [GROUP_TICKET_STATS] })
-class TicketStatsModule {}
 
 class Inspect extends TenantRepository {
   audit(tx: TenantTransaction, resourceId: string) {
@@ -108,7 +93,7 @@ let agentA: TestUser;
 let adminB: TestUser;
 
 beforeAll(async () => {
-  await getTestApp({ imports: [TicketStatsModule] });
+  await getTestApp();
   [a, b] = await Promise.all([createTenant(), createTenant()]);
   [adminA, agentA, adminB] = await Promise.all([
     createUser(a, { roles: ['admin'] }),
@@ -117,11 +102,6 @@ beforeAll(async () => {
   ]);
 });
 
-afterEach(() => {
-  stats.hasTickets = false;
-  stats.openByGroup.clear();
-  stats.openByOwner.clear();
-});
 
 describe('GET /permissions', () => {
   it('lists the registry sorted by module, marking ticket.* as group scoped', async () => {
@@ -302,7 +282,8 @@ describe('groups', () => {
     const zeta = await createGroup(tenant, { name: 'Zeta' });
     const alpha = await createGroup(tenant, { name: 'Alpha', status: 'inactive' });
     const foreign = await createGroup(b);
-    stats.openByGroup.set(zeta.id, 3);
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    for (const state of ['new', 'open', 'resolved', 'closed'] as const) await createTicket(tenant, { customer, group: zeta.id, state });
 
     const all = await asUser(admin).get('/groups');
     expect(all.status).toBe(200);
@@ -382,13 +363,14 @@ describe('groups', () => {
   });
 
   it('DELETE /groups/{id} is refused while tickets reference it (FR-030), then removes its access rows', async () => {
-    const group = await createGroup(a, { access: [{ role: 'agent', flags: { view: true } }] });
-    stats.hasTickets = true;
-    const refused = await asUser(adminA).delete(`/groups/${group.id}`);
+    const busy = await createGroup(a);
+    // Closed tickets count too: any ticket referencing the group blocks the delete.
+    await createTicket(a, { customer: await createUser(a, { roles: ['customer'] }), group: busy.id, state: 'closed' });
+    const refused = await asUser(adminA).delete(`/groups/${busy.id}`);
     expect(refused.status).toBe(409);
     expect(failure(refused).error.code).toBe('GROUP_HAS_TICKETS');
 
-    stats.hasTickets = false;
+    const group = await createGroup(a, { access: [{ role: 'agent', flags: { view: true } }] });
     expect((await asUser(agentA).delete(`/groups/${group.id}`)).status).toBe(403);
     await expectCrossTenant404((id) => asUser(adminB).delete(`/groups/${id}`), group.id);
     expect((await asUser(adminA).delete(`/groups/${group.id}`)).status).toBe(204);
@@ -411,7 +393,8 @@ describe('groups', () => {
     const onlyViews = await createUser(tenant, { roles: [{ id: viewer.id }], name: 'Cy Viewer' });
     await createUser(tenant, { roles: [{ id: editor.id }], name: 'Dee Deactivated', status: 'deactivated', session: false });
     const outsider = await createUser(tenant, { roles: ['agent'] });
-    stats.openByOwner.set(owner.id, 2);
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    for (const state of ['open', 'pending_reminder', 'closed'] as const) await createTicket(tenant, { customer, group: group.id, owner: owner.id, state });
 
     const response = await asUser(owner).get(`/groups/${group.id}/eligible-owners`);
     expect(response.status).toBe(200);
