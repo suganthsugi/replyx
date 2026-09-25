@@ -25,13 +25,13 @@ import { ConfirmationDialog } from '../../../components/shell/ConfirmationDialog
 import { Form, FormError, FormField, SubmitButton } from '../../../components/shell/Form';
 import { Modal } from '../../../components/shell/Modal';
 import { useToast } from '../../../components/shell/Toast';
+import { useRoles } from '../../../data/roles';
 import {
   useDeactivateUser,
   useDeleteUser,
   useEraseUser,
   useInviteUser,
   useReactivateUser,
-  useRoles,
   useUsers,
   type UserFilters,
 } from '../../../data/users';
