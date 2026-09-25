@@ -1,6 +1,7 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 
 import { ApiPipelineModule } from './api-pipeline.module.js';
+import { AttachmentsHttpModule, FileStorageModule } from './attachments/attachments.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthorizationModule } from './authorization/authorization.module.js';
 import { RolesHttpModule } from './authorization/roles.controller.js';
@@ -52,6 +53,7 @@ export class AppModule {
       AuditModule,
       TicketsModule,
       MessagingModule,
+      FileStorageModule,
     ];
     // HTTP controllers, guards and the Socket.IO gateway (api only).
     const apiOnly: ModuleImports = [
@@ -62,6 +64,7 @@ export class AppModule {
       GroupsHttpModule,
       TenancyHttpModule,
       MessagingHttpModule,
+      AttachmentsHttpModule,
     ];
     // Outbox relay, queue consumers and sweepers (worker only).
     const workerOnly: ModuleImports = [JobsModule, OutboxRelayModule, IdentityJobsModule, MessagingJobsModule];

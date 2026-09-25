@@ -66,6 +66,10 @@ export interface DomainEventMap {
   'message.read': { ticketId: string; upToMessageId: string; readAt: string };
   /** A customer message's receipt changed: shown as ✓✓ in the chat (FR-053). */
   'message.delivery_updated': { ticketId: string; messageId: string; delivery: 'delivered' | 'read' };
+  /** A file was uploaded to quarantine; the attachments consumer scans it (FR-047). */
+  'attachment.uploaded': { attachmentId: string };
+  /** The scan finished: clean files can be downloaded, blocked ones are gone (FR-047). */
+  'attachment.scanned': { attachmentId: string; messageId: string | null; scanStatus: 'clean' | 'blocked' };
   /** The customer's friendly status changed (FR-052); customer stream only. */
   'conversation.status_changed': { customerId: string; status: FriendlyStatusCode };
 }
