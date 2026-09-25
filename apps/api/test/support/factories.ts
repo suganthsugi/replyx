@@ -10,7 +10,7 @@ import { uuidv7 } from '../../src/platform-kernel/ids.js';
 import { TenantProvisioningService } from '../../src/tenancy/tenant-provisioning.service.js';
 import { TicketNumberService } from '../../src/tickets/ticket-number.service.js';
 
-import { service } from './app.js';
+import { getTestApp, service } from './app.js';
 
 import type { ProvisionedTenant } from '../../src/tenancy/provisioning-contributor.js';
 
@@ -197,8 +197,11 @@ export async function createTicket(
   },
 ): Promise<TestTicket> {
   const state = options.state ?? 'new';
-  const now = options.now ?? new Date();
+  // The app's clock, so rows line up with what the API writes during the test.
+  const now = options.now ?? (await getTestApp()).clock.now();
   const later = new Date(now.getTime() + 72 * 3_600_000);
+  // Resolved and closed after its messages (one per millisecond from now).
+  const ended = new Date(now.getTime() + (options.messages?.length ?? 0));
   const numbers = await service(TicketNumberService);
   return inTenant(tenant, async (tx, repo) => {
     const number = await numbers.next(tx);
@@ -211,13 +214,14 @@ export async function createTicket(
       state,
       origin: 'customer_message',
       pending_until: state === 'pending_reminder' || state === 'pending_close' ? later : null,
-      resolved_at: state === 'resolved' || state === 'closed' ? now : null,
+      resolved_at: state === 'resolved' || state === 'closed' ? ended : null,
       auto_close_at: state === 'resolved' ? (options.autoCloseAt ?? later) : null,
-      closed_at: state === 'closed' ? now : null,
+      closed_at: state === 'closed' ? ended : null,
       created_at: now,
     });
-    for (const message of options.messages ?? []) {
+    for (const [index, message] of (options.messages ?? []).entries()) {
       await repo.insertMessage(tx, {
+        created_at: new Date(now.getTime() + index),
         ticket_id: id,
         author_id: message.staff?.id ?? options.customer.id,
         author_kind: message.staff === undefined ? 'customer' : 'staff',
