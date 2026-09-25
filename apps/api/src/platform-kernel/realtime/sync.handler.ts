@@ -2,7 +2,8 @@ import { Inject, Injectable } from '@nestjs/common';
 import { sql, type Kysely } from 'kysely';
 
 import { PLATFORM_DB, type Database } from '../db/database.js';
-import { UnitOfWork } from '../db/unit-of-work.js';
+import { TenantRepository } from '../db/tenant-repository.js';
+import { UnitOfWork, type TenantTransaction } from '../db/unit-of-work.js';
 import { validationFailed } from '../http/app-error.js';
 import { ENVELOPE_EVENT, envelopeFor, type Envelope } from '../outbox/relay.js';
 
@@ -88,15 +89,7 @@ export class SyncHandler {
           resync.push(stream);
           continue;
         }
-        const rows = await tx
-          .selectFrom('outbox_events')
-          .select(['id', 'tenant_id', 'type', 'actor', 'payload', 'customer_payload', 'streams', 'created_at', 'seq'])
-          .where('seq', '>', String(afterSeq))
-          .where('seq', '<=', String(maxSeq))
-          .where(sql<boolean>`streams && ${sql.val(keys)}::text[]`)
-          .orderBy('seq')
-          .limit(MAX_REPLAY + 1)
-          .execute();
+        const rows = await new ReplayRepository(ctx).published(tx, keys, afterSeq, maxSeq);
         if (rows.length > MAX_REPLAY) {
           resync.push(stream);
           continue;
@@ -127,5 +120,21 @@ export class SyncHandler {
     envelopes.sort((a, b) => a.seq - b.seq);
     for (const envelope of envelopes) socket.emit(ENVELOPE_EVENT, envelope);
     return { ok: true, upToSeq, resyncRequired };
+  }
+}
+
+/** Published events of this tenant on `keys` in `(afterSeq, upToSeq]`, oldest first. */
+class ReplayRepository extends TenantRepository {
+  published(tx: TenantTransaction, keys: readonly StreamKey[], afterSeq: number, upToSeq: number) {
+    // Stream keys like `tickets:group:ungrouped` repeat across tenants; the tenant filter (on top
+    // of RLS) keeps the replay to this tenant.
+    return this.selectFrom(tx, 'outbox_events')
+      .select(['id', 'tenant_id', 'type', 'actor', 'payload', 'customer_payload', 'streams', 'created_at', 'seq'])
+      .where('seq', '>', String(afterSeq))
+      .where('seq', '<=', String(upToSeq))
+      .where(sql<boolean>`streams && ${sql.val(keys)}::text[]`)
+      .orderBy('seq')
+      .limit(MAX_REPLAY + 1)
+      .execute();
   }
 }
