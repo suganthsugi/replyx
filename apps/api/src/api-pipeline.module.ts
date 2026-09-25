@@ -8,23 +8,26 @@ import { CsrfGuard } from './platform-kernel/http/csrf.guard.js';
 import { HttpKernelModule } from './platform-kernel/http/http-kernel.module.js';
 import { RateLimitGuard } from './platform-kernel/http/rate-limit.js';
 import { TenantStatusGuard } from './platform-kernel/http/tenant-resolver.middleware.js';
+import { OperatorAuthGuard } from './tenancy/platform/operator-auth.guard.js';
+import { PlatformModule } from './tenancy/platform/platform.module.js';
 
 /**
  * The request pipeline of the `api` process, in constitution II order. The tenant resolver
  * middleware (HttpKernelModule) runs first; global guards then run in the order listed here,
  * which is why they are all registered in this one module.
  *
- *   resolve tenant (middleware) → tenant status → CSRF → authenticate → rate limit → permission
- *   → handler
+ *   resolve tenant (middleware) → tenant status → CSRF → authenticate (tenant session, then
+ *   operator session on the console host) → rate limit → permission → handler
  *
  * CSRF runs before authentication: it needs no database work, so forged requests stop early.
  */
 @Module({
-  imports: [HttpKernelModule, IdentityModule],
+  imports: [HttpKernelModule, IdentityModule, PlatformModule],
   providers: [
     { provide: APP_GUARD, useClass: TenantStatusGuard },
     { provide: APP_GUARD, useClass: CsrfGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
+    { provide: APP_GUARD, useClass: OperatorAuthGuard },
     { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: APP_GUARD, useClass: PermissionGuard },
   ],
