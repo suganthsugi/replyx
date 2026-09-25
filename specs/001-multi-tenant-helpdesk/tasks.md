@@ -296,7 +296,7 @@ reply as staff through the API, and confirm the customer sees it live with no ti
 - [ ] T123 [P] [US1] Integration tests `apps/api/test/integration/messaging/staff-messages.test.ts`: reply and note with success / 403 (view only) / 404 (other group, other tenant); first public reply moves `new` → `open`; internal note produces no customer event and no email
 - [ ] T124 [P] [US1] Integration tests `apps/api/test/integration/attachments/attachments.test.ts`: 30 MB → 413; `.exe` renamed to `.png` → 415; pending until scanned; blocked when the scanner flags; download token expires after 15 minutes; token used on another tenant's host → 404; customer can't download an attachment on an internal note
 - [X] T125 [P] [US1] Real-time tests `apps/api/test/integration/realtime/conversation.test.ts`: two customer sockets both receive the echo; staff typing reaches the customer as `conversation.typing`; customer projection payloads contain no internal fields; customer sockets can't subscribe to any other stream
-- [ ] T126 [US1] Add `ticket`, `message` and `attachment` fixtures to `apps/api/test/cross-tenant/fixtures.ts` (ticket and attachment download paths included)
+- [X] T126 [US1] Add `ticket`, `message` and `attachment` fixtures to `apps/api/test/cross-tenant/fixtures.ts` (ticket and attachment download paths included)
 
 ### Implementation (frontend)
 
