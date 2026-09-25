@@ -1,125 +1,134 @@
 ---
 name: api-conventions
-description: AppError and error format, zod validation, cursor pagination, route decorators, openapi.yaml operationIds/tags, customer vs staff APIs, CSRF, rate limits. Use when adding or reviewing API endpoints.
+description: AppError envelope, zod .strict() validation and issue codes, cursor pagination, access decorators, guard order, CSRF, rate limits, openapi.yaml rules. Use when adding or reviewing API endpoints.
 ---
 
 # api-conventions
 
-HTTP API rules for `apps/api`. Loaded by backend-agent, frontend-connector and reviewer.
-Real today: `apps/api/openapi.yaml` (shared components, tags). Kernel code (T022–T031) does not
-exist yet; TS examples are target shapes from `specs/001-multi-tenant-helpdesk/contracts/README.md`
-and tasks.md.
+HTTP API rules for `apps/api`. Loaded by backend-agent, frontend-connector and reviewer. Kernel:
+`apps/api/src/platform-kernel/http/`, `apps/api/src/authorization/`. The probe controller in
+`apps/api/test/integration/http/kernel.test.ts` is the reference endpoint.
 
 ## Rules
 
-1. **Throw `AppError`, never Nest HTTP exceptions or raw objects.** `AppError(code, httpStatus,
-   message, details?)` plus helpers `notFound(resource)`, `permissionDenied()`, `conflict(code)`
-   in `platform-kernel/http/app-error.ts`. Codes are `^[A-Z][A-Z0-9_]+$`.
-   ```ts
-   // target shape (tasks.md T022)
-   if (!ticket) throw notFound('ticket');           // 404 TICKET_NOT_FOUND
-   if (ticket.triagedAt) throw conflict('ALREADY_TRIAGED'); // 409
-   ```
+1. **Throw `AppError` or its helpers** from `platform-kernel/http/app-error.ts`, never Nest HTTP
+   exceptions: `notFound(resource)` (404 `<RESOURCE>_NOT_FOUND`, e.g. `notFound('ticket')` →
+   `TICKET_NOT_FOUND` / "Ticket not found"), `permissionDenied()` (403 `PERMISSION_DENIED`),
+   `conflict(code, message?)` (409), `unauthenticated()`, `validationFailed(details)`,
+   `rateLimited(seconds)`. Other statuses: `new AppError(CODE, status, message)`, code matching
+   `^[A-Z][A-Z0-9_]+$` (e.g. `accountLocked()` 423 in `identity/lockout.service.ts`).
    Wrong: `throw new NotFoundException()` / `res.status(404).json({ message })`
 
-2. **Error body is always** `{ "error": { "code", "message", "details"? } }` (`ErrorResponse` in
-   `apps/api/openapi.yaml`). `error.filter.ts` maps unknown errors to 500 `INTERNAL` with a
-   generic message: no stack, SQL, or class names. `details` only for validation;
-   `retryAfter` only for `RATE_LIMITED`.
+2. **Error body is always** `{ "error": { "code", "message", "details"?, "retryAfter"? } }`.
+   `ErrorFilter` (`error.filter.ts`) maps non-`AppError` 4xx by status (unknown route → 404
+   `NOT_FOUND` / "Not found") and everything else to 500 `INTERNAL` "Something went wrong"; the
+   stack goes to the log only. `retryAfter` also sets the `Retry-After` header.
 
-3. **Status map** (contracts/README.md): 400 `VALIDATION_FAILED`, 401 `UNAUTHENTICATED`,
-   403 `PERMISSION_DENIED` / `CSRF_FAILED`, 404 `*_NOT_FOUND`, 409 state conflicts, 413/415
-   attachments, 423 `ACCOUNT_LOCKED`, 429 `RATE_LIMITED`, 503 `TENANT_SUSPENDED`.
-   **403 vs 404**: if the caller cannot *see* the resource (other tenant, or ticket outside their
-   group access, i.e. policy `can()` returns `not_found`) answer 404 identical to a missing id.
-   403 only when visible but the action is not allowed.
+3. **Status map**: 400 `VALIDATION_FAILED`, 401 `UNAUTHENTICATED`, 403 `PERMISSION_DENIED` /
+   `CSRF_FAILED`, 404 `*_NOT_FOUND` (unknown tenant host: `TENANT_NOT_FOUND`), 409 conflicts,
+   413/415 attachments, 423 `ACCOUNT_LOCKED`, 429 `RATE_LIMITED`, 503 `TENANT_SUSPENDED`.
+   **403 vs 404**: another tenant's, or invisible (policy decision `not_found`), is 404 identical
+   to a missing id; 403 only when visible but the action is denied.
    Wrong: 403 for a ticket in a group the agent cannot view
 
-4. **Validate every body/query/param with a zod schema; unknown fields are rejected.** Use
-   `.strict()` objects; the validation pipe returns 400 `VALIDATION_FAILED` with
-   `details: [{ path, issue }]` (`path` dot-joined, e.g. `"title"`, `"items.0.id"`; `issue` a
-   snake_case reason such as `too_long`, `required`, `unrecognized_key`).
+4. **Validate every body/query/params with a zod `.strict()` object through `ZodValidationPipe`**
+   (`validation.pipe.ts`). Failures: 400 with `details: [{ path, issue }]`, `path` dot-joined
+   (`items.0.id`). Issue codes (clients rely on them): `required`, `invalid_type`,
+   `unrecognized_key`, `too_long`/`too_short` (strings), `too_many`/`too_few` (arrays),
+   `too_large`/`too_small` (numbers), `invalid_format`, `invalid_value`, `invalid`,
+   `invalid_cursor`. Use the parsed value only (coerced, whitelisted).
    ```ts
-   // target shape (tasks.md T022, contracts/README.md)
-   const CreateGroupBody = z.object({ name: z.string().trim().min(1).max(120) }).strict();
-   @Post() @RequirePermission('group.create')
-   create(@Body(new ZodValidationPipe(CreateGroupBody)) body: z.infer<typeof CreateGroupBody>) {}
+   // from apps/api/test/integration/http/kernel.test.ts
+   const CreateItem = z.object({ name: z.string().min(1).max(5) }).strict();
+
+   @Controller('probe')
+   class ProbeController {
+     @Post('items')
+     @RequirePermission('group.create')
+     create(@Body(new ZodValidationPipe(CreateItem)) body: z.infer<typeof CreateItem>) {
+       return { name: body.name };
+     }
+   }
    ```
-   Wrong: `@Body() body: any` / `z.object({...}).passthrough()` / accepting `tenantId` in a body
+   Wrong: `@Body() body: CreateDto` / `z.object({...})` without `.strict()` / `.passthrough()` /
+   accepting `tenantId` in any input
 
-5. **Explicit response DTOs.** Map rows to the response schema; never return a Kysely row
-   (no `tenant_id`, `password_hash`, `token_hash`, internal flags). camelCase JSON, UUID ids,
-   ISO 8601 UTC timestamps.
-   Wrong: `return tx.selectFrom('users').selectAll().execute()`
+5. **Explicit response DTOs.** Map rows to the contract schema; never return a Kysely row (no
+   `tenant_id`, `password_hash`, `token_hash`). camelCase JSON, UUID ids, ISO 8601 UTC timestamps.
+   Wrong: `return this.selectFrom(tx, 'users').selectAll().execute()`
 
-6. **Lists are cursor-paginated.** Query `limit` (1–100, default 25) and opaque `cursor`;
-   response `{ items: [...], nextCursor: string | null }`. Use `platform-kernel/http/pagination.ts`
-   to encode/decode; order by a stable key plus `id`; fetch `limit + 1` to compute `nextCursor`.
-   Invalid cursor → 400 `VALIDATION_FAILED`.
-   Wrong: `?page=2&pageSize=20`, `offset`, a bare array response, or a `total` computed per page
+6. **Lists are cursor-paginated** with `pagination.ts`: spread `paginationQuery` into the query
+   schema (`limit` 1–100 default 25, `cursor`), order by a stable key plus `id`, fetch `limit + 1`,
+   and return `toPage(rows, limit, positionOf, toItem)` → `{ items, nextCursor }`. Decode with
+   `decodeCursor(cursor, PositionSchema)` (bad cursor → 400 `invalid_cursor`).
+   ```ts
+   // target shape (pagination.ts API)
+   const ListQuery = z.object({ ...paginationQuery, state: TicketState.optional() }).strict();
+   ```
+   Wrong: `?page=2`, `offset`, a bare array, or a `total` count
 
-7. **Every route has exactly one access decorator** (T029/T031, enforced by
-   `authorization/registry/route-audit.ts` at start-up):
-   - `@RequirePermission('resource.action')` staff route, checked by the global permission guard
-     through the policy service (constitution II); key must exist in a `ModulePermissions`
-     declaration.
-   - `@Public()` no session (sign-in, branding, health).
-   - `@CustomerApi()` routes under `/customer/*`; authorization is by ownership of the caller's
-     own conversation.
-   - `@OperatorApi()` platform console routes under `/platform/*` on `CONSOLE_HOST` only.
-   `@AllowSuspended()` is an additional marker letting a route answer while the tenant is
-   suspended (otherwise 503 `TENANT_SUSPENDED`).
-   Wrong: a controller route with no decorator; `if (user.role === 'admin')` in a handler
+7. **Exactly one access decorator per route** (handler, or controller-level), from
+   `authorization/registry/module-permissions.ts`; `route-audit.ts` fails api start-up otherwise:
+   - `@RequirePermission('resource.action')`: staff only; the key must be declared with
+     `definePermissions()` (today: `registry/initial-permissions.ts`) and registered via
+     `permissionsProvider()`.
+   - `@StaffApi()`: any signed-in staff user, no permission key; only for the caller's own
+     account (sign-out, `/me`). Customers get 404.
+   - `@Public()`: no session (sign-in, branding, health). Exempt from CSRF.
+   - `@CustomerApi()`: must live under `customer/`, and only customer routes may.
+   - `@OperatorApi()`: must live under `platform/`; console host + `req.operator` only.
+   `@AllowSuspended()` (`tenant-resolver.middleware.ts`) is an extra marker; without it a suspended
+   tenant gets 503. `@RateLimit(name)` is also extra.
+   Wrong: no decorator; `@Public()` + `@RequirePermission()`; `if (user.role === 'admin')`
 
-8. **Customer vs staff surfaces are separate.** Customer API (`/api/v1/customer`) never exposes
-   tickets, ticket numbers, states, groups, owners, priorities, SLA or internal notes
-   (customer.yaml, research D9). A customer session on a staff route, or a staff session on
-   `/customer/*`, gets 404 (not 403). Customer DTOs live beside customer controllers; do not reuse
-   staff DTOs.
-   Wrong: `CustomerMessage` containing `ticketId` or `state`
+8. **Global guard order** (`src/api-pipeline.module.ts`): `TenantStatusGuard` → `CsrfGuard` →
+   `AuthGuard` → `RateLimitGuard` → `PermissionGuard`. `PermissionGuard` answers `NOT_FOUND`
+   "Not found" (same as an unknown route) for cross-audience calls: customer on a staff route,
+   staff on `/customer/*`, operator route off the console host. For resource visibility, services
+   call `PolicyService.can(ctx, key, { type: 'ticket', groupId })` (`'allow'|'deny'|'not_found'`)
+   or `await policy.ticketAccessFilter(ctx, action, 'tickets.group_id')` for list queries.
+   Build `ctx` with `tenantContextOf(req)`.
+   Wrong: `if (decision !== 'allow') throw permissionDenied()` (drops the `not_found` case)
 
-9. **CSRF.** Every non-GET request needs header `X-CSRF-Token` equal to the `rx_csrf` cookie, else
-   403 `CSRF_FAILED` (`platform-kernel/http/csrf.guard.ts`, T026). Session cookie is `rx_session`
-   (`rx_op_session` on the console), `HttpOnly; Secure; SameSite=Lax`, host-only.
+9. **Access changes bump the version**: every change to roles, role permissions, group access,
+   user roles or user status calls `bumpAccessVersion(tx, tenantId, reason)`
+   (`authorization/access-version.ts`) in the same transaction (appends `access.changed`).
 
-10. **Rate limits** (`platform-kernel/http/rate-limit.ts`, T028, research D19): named policies
-    `sign-in` 10/min/IP, `sign-in-link` 5/h/email, `customer-message` 20/min/customer,
-    `api` 600/min/session. Exceeding → 429 `RATE_LIMITED`, `Retry-After` header (seconds) and
-    `error.retryAfter` in the body. Declare the 429 with `$ref: '#/components/responses/RateLimited'`.
+10. **Customer vs staff surfaces are separate.** `/api/v1/customer/*` never exposes tickets,
+    ticket numbers, states, groups, owners, priorities, SLA or internal notes. Customer DTOs live
+    beside customer controllers; don't reuse staff DTOs.
+    Wrong: a customer message DTO containing `ticketId` or `state`
 
-11. **Idempotency.** Message sends carry a client `clientMessageId` (UUID); other creating POSTs
-    accept optional `Idempotency-Key` (`$ref: '#/components/parameters/IdempotencyKey'`, 24 h).
+11. **Cookies and CSRF** (`cookies.ts`, `csrf.guard.ts`): `rx_session` (HttpOnly) and `rx_csrf`
+    (readable), both `Secure; SameSite=Lax; Path=/`, host-only (never set `Domain`). Non-GET/HEAD/
+    OPTIONS on non-`@Public()` routes (including `@OperatorApi()`) need `X-CSRF-Token` equal to
+    `rx_csrf`, else 403 `CSRF_FAILED`. Sign-in calls `issueCsrfCookie(res, maxAge)` next to
+    `SessionService.setCookie`; sign-out calls `clearCsrfCookie`.
 
-12. **`apps/api/openapi.yaml` is the single source of truth** (orval generates the web client
-    from it). When merging an endpoint from `contracts/*.yaml`:
-    - camelCase `operationId` (`listTickets`, `triageTicket`, `getCustomerConversation`);
-    - exactly one tag from `identity`, `access`, `tickets`, `operations`, `customer`, `platform`
-      (the `platform` tag is not declared yet; add it to `tags:` when merging platform.yaml);
-    - reuse `components/parameters` (`Limit`, `Cursor`, `IdPath`, `IdempotencyKey`) and
-      `components/responses` (`ValidationFailed`, `Unauthenticated`, `PermissionDenied`,
-      `NotFound`, `Conflict`, `RateLimited`) instead of inline copies;
-    - `additionalProperties: false` on request bodies; `security: []` only on `@Public()` routes.
-    ```yaml
-    # target shape (contracts/README.md "operationId")
-    /groups:
-      get:
-        operationId: listGroups
-        tags: [access]
-        parameters: [{ $ref: '#/components/parameters/Limit' }, { $ref: '#/components/parameters/Cursor' }]
-        responses:
-          '200': { description: Page of groups, content: { application/json: { schema: { $ref: '#/components/schemas/GroupPage' } } } }
-          '401': { $ref: '#/components/responses/Unauthenticated' }
-          '403': { $ref: '#/components/responses/PermissionDenied' }
-    ```
-    Wrong: `operationId: list_groups` / `GetGroups`, two tags, or no tag
-    After editing, regenerate the client (`scripts/generate-api-client.sh`); CI checks freshness.
+12. **Rate limits** (`rate-limit.ts`): `@RateLimit('sign-in' | 'sign-in-link' | 'customer-message')`
+    on the route (10/min/IP, 5/h/email, 20/min/customer); `api` (600/min/session) runs for every
+    request with a session. Non-HTTP code calls `RateLimiter.consume(policy, tenantId, subject)`.
+    Redis down = allowed (logged). Sign-in checks `LockoutService.isLocked` before verifying.
+
+13. **Routes live under `/api/v1`** (`API_PREFIX` in `app.setup.ts`); only `health/live` and
+    `health/ready` are unprefixed and skip tenant resolution.
+
+14. **`apps/api/openapi.yaml` is the single source of truth** (orval builds the web client).
+    Per operation: camelCase `operationId` (`listGroups`), exactly one tag from `identity`,
+    `access`, `tickets`, `operations`, `customer` (`platform` is added with T081), shared
+    `$ref`s (`parameters`: `Limit`, `Cursor`, `IdPath`, `IdempotencyKey`; `responses`:
+    `ValidationFailed`, `Unauthenticated`, `PermissionDenied`, `NotFound`, `Conflict`,
+    `RateLimited`), `additionalProperties: false` on request bodies, `security: []` only for
+    `@Public()` routes. Then run `scripts/generate-api-client.sh` and commit the output (CI checks
+    freshness). Creating POSTs accept optional `Idempotency-Key`; message sends carry
+    `clientMessageId`.
+    Wrong: `operationId: list_groups`, two tags, inline copies of shared responses
 
 ## Checklist (before reporting done)
-- [ ] Errors thrown as `AppError`/helpers; body matches `ErrorResponse`; 500s leak nothing
-- [ ] Invisible or other-tenant resources return 404, not 403
-- [ ] zod `.strict()` schema on every input; 400 `VALIDATION_FAILED` with `details[{path, issue}]`
-- [ ] Response is an explicit DTO; lists return `{ items, nextCursor }` with `limit` 1–100 default 25
-- [ ] Exactly one of `@RequirePermission`/`@Public`/`@CustomerApi`/`@OperatorApi` per route
-- [ ] Customer endpoints expose no ticket concepts; cross-surface calls return 404
-- [ ] Non-GET routes are CSRF-guarded; rate-limited routes document 429 + `Retry-After`
-- [ ] openapi.yaml: camelCase `operationId`, one allowed tag, shared `$ref`s; client regenerated
+- [ ] Errors are `AppError`/helpers; invisible or other-tenant resources return 404, not 403
+- [ ] Every input goes through `ZodValidationPipe` with a `.strict()` schema
+- [ ] Response is an explicit DTO; lists use `paginationQuery` + `toPage`
+- [ ] Exactly one of `@RequirePermission`/`@StaffApi`/`@Public`/`@CustomerApi`/`@OperatorApi`; path prefix matches
+- [ ] New permission keys declared with `definePermissions`; access changes call `bumpAccessVersion`
+- [ ] Customer endpoints expose no ticket concepts
+- [ ] openapi.yaml: camelCase `operationId`, one tag, shared `$ref`s; client regenerated

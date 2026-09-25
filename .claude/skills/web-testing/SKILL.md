@@ -1,93 +1,91 @@
 ---
 name: web-testing
-description: RTL role queries, typed MSW handlers, axe checks, and Playwright projects for apps/web, all run in Docker. Use when writing or running tests under apps/web/test or apps/web/e2e.
+description: apps/web tests - renderWithProviders, role queries, typed MSW, axe checks, live-region asserts, Playwright projects and axe fixture, in Docker. Use when writing or running tests under apps/web/test or apps/web/e2e.
 ---
 
 # web-testing
 
-Scope: `apps/web/test` (Vitest + RTL + MSW) and `apps/web/e2e` (Playwright). Loaded by
-frontend-automator. Ties to task T055, `apps/web/vitest.config.ts`, `apps/web/package.json`,
-and `research.md` D26 (all test commands run inside containers).
+Scope: `apps/web/test` (Vitest + jsdom + RTL + MSW) and `apps/web/e2e` (Playwright). Loaded by
+frontend-automator. Harness: `test/setup.ts`, `test/render.tsx`, `test/msw/handlers.ts`,
+`e2e/fixtures.ts`, `playwright.config.ts`. Reference tests: `test/components/*.test.tsx`,
+`test/routes/areas.test.tsx`, `test/data/socket.test.ts`.
 
 ## Rules
 
-1. **Run web tests through Docker Compose, not a bare local `pnpm test`.** The `compose.yaml`
-   dev stack owns Node 24, the `api`/`worker` services for MSW-bypassed integration checks, and
-   Mailpit; Playwright's `playwright` service runs against the compose `web` service on
-   `http://acme.localhost:5173`. Use `docker compose run --rm web pnpm test` and
-   `docker compose run --rm playwright pnpm test:e2e` (or the equivalent `docker compose exec`
-   during an already-running stack), matching how CI invokes them.
-   Wrong: running `pnpm --filter web test:e2e` on the host with no compose network — the
-   `acme.localhost` tenant host and the api/mailpit services won't resolve.
+1. **Run in Docker.** Unit/component: `docker compose run --rm -T tools pnpm --filter web test`
+   (or the turbo line from testing-conventions). E2E: seed first
+   (`docker compose run --rm tools pnpm --filter api seed:dev`), then
+   `docker compose run --rm playwright pnpm --filter web test:e2e` (shares the `web` network, so
+   `acme.localhost:5173` and `mailpit` resolve).
+   Wrong: `pnpm --filter web test:e2e` on the host
 
-2. **Query by role and accessible name, not by test id or CSS class.** This doubles as the axe
-   coverage check: if a query needs `getByRole('button', { name: 'Send' })` to pass, the button
-   already has an accessible name.
+2. **Render with `renderWithProviders(ui)`** (`test/render.tsx`): theme + `CssBaseline` +
+   `LiveRegionProvider` + `ToastProvider`, like every area. Anything using `useAnnounce`/`useToast`
+   needs it. Route tests render `AreaRoutes hostname=…` inside `MemoryRouter` (see
+   `areas.test.tsx`); pass `{ timeout: 10_000 }` to `findBy*` for lazy areas (cold transforms).
+   Hooks using TanStack Query need a `QueryClientProvider` with `createQueryClient()`.
+   Wrong: bare `render(<Toast…/>)` (throws outside `LiveRegionProvider`)
+
+3. **Query by role and accessible name**; interact with `userEvent`; assert names/descriptions.
    ```tsx
-   // apps/web/test/... (target shape, matches T053 components)
-   render(<MessageComposer onSend={onSend} />);
-   await userEvent.type(screen.getByRole('textbox', { name: 'Write a message' }), 'Hi');
-   await userEvent.click(screen.getByRole('button', { name: 'Send' }));
+   // from apps/web/test/components/shell.test.tsx
+   await userEvent.click(screen.getByRole('button', { name: 'Send invitation' }));
+   const field = await screen.findByRole('textbox', { name: 'Email' });
+   await waitFor(() => expect(field).toHaveAccessibleDescription('Enter a valid email address'));
+   expect(field).toHaveAttribute('aria-invalid', 'true');
    ```
-   Wrong: `container.querySelector('.composer-input')`.
+   Wrong: `container.querySelector('.composer-input')`, `getByTestId`
 
-3. **MSW handlers are typed from the generated client, not hand-typed response objects.** Import
-   the response/request types from `src/api/generated/model` so a contract change breaks the test
-   at compile time instead of silently passing against a stale shape.
+4. **Live announcements**: the regions have no role (plain `aria-live`), so assert them by
+   attribute, not `getByRole('status')`:
+   ```tsx
+   // from apps/web/test/components/shell.test.tsx
+   expect(container.ownerDocument.querySelector('[aria-live="polite"]')).toHaveTextContent('Saved');
+   expect(container.ownerDocument.querySelector('[aria-live="assertive"]')).toHaveTextContent('Could not save');
+   ```
+   (`getByRole('status')` is for `Skeleton`'s loading status only.)
+
+5. **MSW**: one server in `setup.ts` (`onUnhandledRequest: 'error'`, reset after each test). Default
+   handlers in `test/msw/handlers.ts` answer any `/api/v1/*` with a 404 `NOT_FOUND` envelope; stories
+   add their endpoint defaults there, tests override with `server.use(...)` (`import { server }
+   from '../setup'`). Bodies are typed with generated models; errors use `errorResponse(status,
+   code, message?)`.
    ```ts
-   // apps/web/test/setup.ts (target shape, tasks.md T055)
-   import { http, HttpResponse } from 'msw';
-   import type { Ticket } from '../src/api/generated/model';
-
-   export const handlers = [
-     http.get('/api/tickets/:id', ({ params }) =>
-       HttpResponse.json<Ticket>({ id: params.id as string, subject: 'Order missing', /* ... */ })),
-   ];
-   export const server = setupServer(...handlers);
+   // target shape (test/msw/handlers.ts, with a generated model)
+   http.get(`${API}/groups/:id`, ({ params }) =>
+     HttpResponse.json<Group>({ id: params.id as string, name: 'Support', /* ... */ })),
    ```
-   Wrong: `HttpResponse.json({ id: '1', subject: 'x' })` with no `Ticket` type — a renamed or
-   removed field in the OpenAPI spec won't be caught.
+   Wrong: `HttpResponse.json({ id: '1' })` untyped; paths without `/api/v1`; `server.listen()` per file
 
-4. **Every component test that renders a page-level or interactive component calls
-   `expectNoAxeViolations()`** (the helper set up in `apps/web/test/setup.ts`, wrapping
-   `axe-core`), in addition to the RTL assertions — not as a separate, skippable test.
-   ```ts
-   const { container } = render(<TicketRow ticket={ticket} />);
-   await expectNoAxeViolations(container);
-   ```
-   Wrong: one axe smoke test for the whole app instead of one per component that ships new markup.
+6. **API errors in component tests**: reject with the real `HttpError` from `src/data/http.ts`
+   (e.g. `new HttpError(400, { code: 'VALIDATION_FAILED', message, details: [{ path, issue }] })`)
+   so `mapError` runs as in production. Use issue codes the API emits (api-conventions rule 4).
 
-5. **Vitest setup is wired through `vitest.config.ts`'s `test.setupFiles`**, pointing at
-   `apps/web/test/setup.ts` (starts the MSW `server`, registers `@testing-library/jest-dom`
-   matchers, defines `expectNoAxeViolations`). Don't start MSW per-test-file; `beforeAll`/`afterEach`
-   /`afterAll` in `setup.ts` handles `server.listen()`, `server.resetHandlers()`, `server.close()`.
+7. **Accessibility**: every test of a component/page that ships markup calls
+   `await expectNoAxeViolations(container)` (from `test/setup.ts`; WCAG 2.2 AA tags;
+   `color-contrast` and `region` disabled in jsdom). Contrast is covered by `test/theme/theme.test.ts`
+   and Playwright.
+   Wrong: one app-wide axe smoke test instead of per-component checks
 
-6. **Playwright projects cover desktop and mobile against the customer chat and the workspace**,
-   with `baseURL` set from the tenant host (`http://acme.localhost:5173`) so cookies and CSRF
-   behave exactly as in production (research D2, D21). An axe fixture runs on the primary flows
-   (customer chat, triage, ticket reply — constitution VII, SC-013a). Use Mailpit's HTTP API
-   (`http://mailpit:8025/api/v1/...` inside compose) to read sign-in and magic-link emails instead
-   of parsing SMTP logs.
-   ```ts
-   // apps/web/playwright.config.ts (target shape, tasks.md T055)
-   export default defineConfig({
-     use: { baseURL: 'http://acme.localhost:5173' },
-     projects: [
-       { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
-       { name: 'mobile', use: { ...devices['iPhone 14'] } },
-     ],
-   });
-   ```
-   Wrong: hard-coding `localhost:5173` without the tenant subdomain — the API can't resolve a
-   tenant and every request 404s.
+8. **Socket code** is tested with a fake passed as `createSocket` to `RealtimeClient`
+   (`test/data/socket.test.ts`): emit `event`/`closing`, answer `emitWithAck` for `subscribe`/`sync`.
+   Never open a real socket in unit tests.
 
-7. **Cross-tenant and permission scenarios stay in `apps/api`'s cross-tenant suite** (see
-   `testing-conventions`); web e2e tests assert UI behavior (what renders, what's reachable by
-   keyboard) for a single, already-authorized session — don't duplicate 403/404 matrices here.
+9. **Playwright** (`playwright.config.ts`): `baseURL` = `E2E_BASE_URL` or
+   `http://acme.localhost:5173` (tenant host, so cookies/CSRF are real); projects `desktop`
+   (Desktop Chrome) and `mobile` (Pixel 7); console specs use `http://console.localhost:5173`.
+   Specs import `test`/`expect` from `e2e/fixtures.ts` and call `await axe.check()` (or
+   `{ selector }`) on each primary screen (customer chat, triage, ticket reply). Read sign-in and
+   magic-link mail through Mailpit's HTTP API (`http://mailpit:8025/api/v1/...`) in a shared helper
+   in `e2e/` (target: not written yet).
+   Wrong: `baseURL: 'http://localhost:5173'` (no tenant); importing from `@playwright/test` in specs
+
+10. **Cross-tenant and 403/404 matrices stay in apps/api** (testing-conventions). Web tests assert
+    what renders and what is reachable by keyboard for one authorized session.
 
 ## Checklist (before reporting done)
-- [ ] Tests were run via the compose `web` / `playwright` service, not the bare host toolchain
-- [ ] New RTL queries use role/name, not test ids or CSS selectors
-- [ ] New MSW handlers import response types from `src/api/generated/model`
-- [ ] New interactive component/page has an `expectNoAxeViolations()` assertion
-- [ ] New Playwright specs use the tenant-host `baseURL` and run on both configured projects
+- [ ] Tests ran via the compose `tools` / `playwright` services and passed
+- [ ] Components rendered with `renderWithProviders`; queries by role/name
+- [ ] Live-region assertions use `[aria-live=...]`; axe check on new markup
+- [ ] MSW handlers typed with generated models; errors as `HttpError`/`errorResponse`
+- [ ] E2E specs use `e2e/fixtures.ts`, the tenant `baseURL`, both projects, and `axe.check()`
