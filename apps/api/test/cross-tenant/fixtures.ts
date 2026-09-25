@@ -1,4 +1,9 @@
+import { TenantContext } from '../../src/platform-kernel/db/tenant-context.js';
+import { TenantRepository } from '../../src/platform-kernel/db/tenant-repository.js';
+import { UnitOfWork, type TenantTransaction } from '../../src/platform-kernel/db/unit-of-work.js';
+import { service } from '../support/app.js';
 import { createRole, createUser, type RoleRef, type TestTenant, type TestUser } from '../support/factories.js';
+import { connectResult } from '../support/socket.js';
 
 /**
  * Cross-tenant fixtures (research D25, SC-010, testing-conventions rule 7). Every registry
@@ -47,6 +52,19 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       'UsersController.erase': () => ({ confirm: 'ERASE' }),
     },
   },
+  support_access: {
+    async create(tenant) {
+      const admin = await createUser(tenant, { roles: ['admin'] });
+      const id = await insertSupportGrant(tenant, admin.id);
+      return { params: { id }, ids: [id] };
+    },
+  },
+  // Settings have no routes yet (US2 covers the table); the fixture is ready for them (T085).
+  tenant_settings: {
+    async create(tenant) {
+      return Promise.resolve({ params: {}, ids: [tenant.id] });
+    },
+  },
   'customer:me': {
     async create(tenant) {
       const customer = await createUser(tenant, { roles: ['customer'] });
@@ -61,11 +79,36 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
   },
 };
 
+/** A support-access grant for the fixture, written directly: the route needs an admin session. */
+async function insertSupportGrant(tenant: TestTenant, grantedBy: string): Promise<string> {
+  const unitOfWork = await service(UnitOfWork);
+  const ctx = TenantContext.create({ tenantId: tenant.id, actor: { kind: 'system' }, requestId: 'cross-tenant-fixture' });
+  return unitOfWork.withTenant(ctx, (tx) => new GrantFixtureRepository(ctx).insert(tx, grantedBy));
+}
+
+class GrantFixtureRepository extends TenantRepository {
+  async insert(tx: TenantTransaction, grantedBy: string): Promise<string> {
+    const row = await this.insertInto(tx, 'support_access_grants', {
+      granted_by: grantedBy,
+      expires_at: new Date(Date.now() + 24 * 3_600_000),
+    })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    return row.id;
+  }
+}
+
 /**
  * Extra cross-tenant checks added by later stories: real-time subscriptions (a tenant B socket
  * subscribing to a tenant A stream acks NOT_FOUND) and attachment downloads.
  */
 export type CrossTenantCheck = (a: TestTenant, b: TestTenant, callerB: TestUser) => Promise<void>;
 
-export const REALTIME_CHECKS: Record<string, CrossTenantCheck> = {};
+export const REALTIME_CHECKS: Record<string, CrossTenantCheck> = {
+  /** A tenant B user handshaking on tenant A's host is refused: the session is not A's (T085). */
+  'socket handshake on another tenant host': async (a, _b, callerB) => {
+    const { expect } = await import('vitest');
+    expect(await connectResult(callerB, { host: a.host })).toBe('UNAUTHENTICATED');
+  },
+};
 export const ATTACHMENT_CHECKS: Record<string, CrossTenantCheck> = {};
