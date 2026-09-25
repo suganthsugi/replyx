@@ -14,8 +14,9 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query';
  *   Until the sync is answered, every envelope (replayed or live) is buffered and then applied in
  *   `seq` order against the cursors sent, so a live event can't push the cursor past a replay;
  * - re-subscribes `ticket:{id}` streams after a reconnect (rooms don't survive one);
- * - on `closing { code }` (session revoked, tenant suspended) stops reconnecting and tells
- *   listeners, so the app can return to sign-in.
+ * - on `closing { code }` (session revoked or expired, tenant suspended), or a refused handshake
+ *   (`connect_error` with `data.code`), stops reconnecting and tells listeners, so the app can
+ *   return to sign-in.
  *
  * Feature hooks register how a stream maps to query keys (`registerStreamKeys`) and listen for
  * event types (`onEvent`) to patch the cache; components never open sockets.
@@ -56,13 +57,14 @@ export const REALTIME_PATH = '/rt';
 const ACK_TIMEOUT_MS = 10_000;
 const MAX_APPLIED_IDS = 1_000;
 
-function storageKey(namespace: Namespace): string {
-  return `rx:rt:cursors:${namespace}`;
+/** Per user, so someone else signing in on the same tab never inherits these cursors. */
+function storageKey(namespace: Namespace, userId: string): string {
+  return `rx:rt:cursors:${namespace}:${userId}`;
 }
 
-function loadCursors(namespace: Namespace): Map<string, number> {
+function loadCursors(key: string): Map<string, number> {
   try {
-    const raw = sessionStorage.getItem(storageKey(namespace));
+    const raw = sessionStorage.getItem(key);
     if (raw === null) return new Map();
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     return new Map(Object.entries(parsed).filter((entry): entry is [string, number] => typeof entry[1] === 'number'));
@@ -73,6 +75,8 @@ function loadCursors(namespace: Namespace): Map<string, number> {
 
 export interface RealtimeOptions {
   namespace: Namespace;
+  /** The signed-in user (from `/me`); cursors are stored per user. */
+  userId: string;
   queryClient: QueryClient;
   /** Injected in tests; defaults to a real socket.io-client connection. */
   createSocket?: (namespace: Namespace) => RealtimeSocket;
@@ -83,6 +87,7 @@ export class RealtimeClient {
   private readonly queryClient: QueryClient;
   private readonly socket: RealtimeSocket;
   private readonly cursors: Map<string, number>;
+  private readonly storageKey: string;
   private readonly applied = new Set<string>();
   private readonly subscriptions = new Set<string>();
   private readonly listeners = new Map<string, Set<EventListener>>();
@@ -95,11 +100,17 @@ export class RealtimeClient {
   constructor(options: RealtimeOptions) {
     this.namespace = options.namespace;
     this.queryClient = options.queryClient;
-    this.cursors = loadCursors(options.namespace);
+    this.storageKey = storageKey(options.namespace, options.userId);
+    this.cursors = loadCursors(this.storageKey);
     this.socket = (options.createSocket ?? defaultSocket)(options.namespace);
     this.socket.on('connect', () => void this.onConnect());
     this.socket.on('event', (envelope: Envelope) => this.onEnvelope(envelope));
     this.socket.on('closing', (body: { code?: string }) => this.handleClosing(body.code ?? 'UNAUTHENTICATED'));
+    // A handshake the server refuses is final (Socket.IO does not retry middleware errors).
+    this.socket.on('connect_error', (error: { data?: { code?: unknown } }) => {
+      const code = error.data?.code;
+      if (typeof code === 'string') this.handleClosing(code);
+    });
   }
 
   /** Called with every newly applied envelope of `type` (`*` for all). Returns an unsubscribe. */
@@ -244,7 +255,7 @@ export class RealtimeClient {
   private setCursor(stream: string, seq: number): void {
     this.cursors.set(stream, seq);
     try {
-      sessionStorage.setItem(storageKey(this.namespace), JSON.stringify(Object.fromEntries(this.cursors)));
+      sessionStorage.setItem(this.storageKey, JSON.stringify(Object.fromEntries(this.cursors)));
     } catch {
       // Private mode or quota: memory still works for this page.
     }

@@ -51,7 +51,7 @@ const envelope = (id: string, seq: number, stream = 'user', type = 'notification
 function setup() {
   const socket = new FakeSocket();
   const queryClient = new QueryClient();
-  const client = new RealtimeClient({ namespace: '/', queryClient, createSocket: () => socket });
+  const client = new RealtimeClient({ namespace: '/', userId: 'u1', queryClient, createSocket: () => socket });
   return { socket, queryClient, client };
 }
 
@@ -68,7 +68,7 @@ describe('RealtimeClient', () => {
     socket.fire('event', envelope('c', 6));
     expect(seen).toEqual(['a', 'c']);
     expect(client.cursor('user')).toBe(6);
-    expect(JSON.parse(sessionStorage.getItem('rx:rt:cursors:/') ?? '{}')).toEqual({ user: 6 });
+    expect(JSON.parse(sessionStorage.getItem('rx:rt:cursors:/:u1') ?? '{}')).toEqual({ user: 6 });
   });
 
   it('dispatches by type', () => {
@@ -126,7 +126,7 @@ describe('RealtimeClient', () => {
   });
 
   it('restores cursors from sessionStorage', async () => {
-    sessionStorage.setItem('rx:rt:cursors:/', JSON.stringify({ views: 9 }));
+    sessionStorage.setItem('rx:rt:cursors:/:u1', JSON.stringify({ views: 9 }));
     const { socket } = setup();
     await socket.open();
     expect(socket.emitted).toContainEqual(['sync', { streams: [{ stream: 'views', afterSeq: 9 }] }]);
@@ -143,6 +143,23 @@ describe('RealtimeClient', () => {
     socket.emitted = [];
     await socket.open();
     expect(socket.emitted).toEqual([['subscribe', { stream: 'ticket:t1' }]]);
+  });
+
+  it('keeps cursors per user', async () => {
+    sessionStorage.setItem('rx:rt:cursors:/:someone-else', JSON.stringify({ user: 50 }));
+    const { socket, client } = setup();
+    expect(client.cursor('user')).toBeUndefined();
+    await socket.open();
+    expect(socket.emitted.some(([event]) => event === 'sync')).toBe(false);
+  });
+
+  it('stops for good when the handshake is refused', () => {
+    const { socket, client } = setup();
+    const closing = vi.fn();
+    client.onClosing(closing);
+    socket.fire('connect_error', Object.assign(new Error('Sign in to continue'), { data: { code: 'UNAUTHENTICATED' } }));
+    expect(closing).toHaveBeenCalledWith('UNAUTHENTICATED');
+    expect(socket.disconnect).toHaveBeenCalled();
   });
 
   it('stops for good when the server closes the session', () => {

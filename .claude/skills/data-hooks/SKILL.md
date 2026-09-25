@@ -79,7 +79,7 @@ that imports `apps/web/src/api/generated`. Loaded by frontend-connector. Feature
    `/`, customers `/customer`, path `/rt`, same origin. It listens to the **`event`** envelope
    (`{ id, seq, stream, type, occurredAt, actor, data }`), drops duplicates (seen `id` or `seq` ≤
    the stream cursor), keeps cursors per client stream (`user`, `views`, `tickets`,
-   `ticket:{id}`, `conversation`) in memory + `sessionStorage` (`rx:rt:cursors:{ns}`), on each
+   `ticket:{id}`, `conversation`) in memory + `sessionStorage` (`rx:rt:cursors:{ns}:{userId}`, `userId` option), on each
    (re)connect re-subscribes `ticket:*` streams then sends `sync` (envelopes arriving before the
    ack are buffered and applied in `seq` order), and invalidates keys for streams in
    `resyncRequired`. On `closing { code }` (`SESSION_REVOKED`, `SESSION_EXPIRED`,
