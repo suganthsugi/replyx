@@ -8,6 +8,7 @@ import { OutboxService } from '../platform-kernel/outbox/outbox.service.js';
 
 import { bumpAccessVersion } from './access-version.js';
 import { PermissionRegistry } from './registry/registry.service.js';
+import { diffGroupAccess, reducesAccess } from './role-access.js';
 
 import type { SystemRoleKey } from '../platform-kernel/db/tables/authorization.js';
 import type { JsonValue } from '../platform-kernel/db/tables/column-types.js';
@@ -162,13 +163,14 @@ export class RolesService {
       await this.assertGroupsExist(tx, repo, input.groupAccess);
 
       const currentPermissions = new Set((await repo.permissionsOf(tx, roleId)).map((p) => p.permission_key));
-      const currentAccess = await repo.groupAccessOf(tx, roleId);
-      const currentAccessByGroup = new Map(currentAccess.map((a): [string | null, GroupAccessRow] => [a.group_id, a]));
+      const currentAccess = (await repo.groupAccessOf(tx, roleId)).map(toEntry);
       const nextPermissions = new Set(input.permissions);
-      const nextAccessByGroup = new Map(input.groupAccess.map((a): [string | null, GroupAccessEntryDto] => [a.groupId, a]));
 
-      if (role.system_key === 'admin') {
-        this.assertAdminAccessNotReduced(currentPermissions, nextPermissions, currentAccessByGroup, nextAccessByGroup);
+      if (
+        role.system_key === 'admin' &&
+        reducesAccess({ permissions: currentPermissions, groupAccess: currentAccess }, { permissions: nextPermissions, groupAccess: input.groupAccess })
+      ) {
+        throw adminAccessFixed();
       }
 
       try {
@@ -180,22 +182,7 @@ export class RolesService {
       await repo.setPermissions(tx, roleId, input.permissions);
       await repo.setGroupAccess(tx, roleId, input.groupAccess);
 
-      const groupIds = new Set([...currentAccessByGroup.keys(), ...nextAccessByGroup.keys()]);
-      const groupsLostEdit: (string | null)[] = [];
-      let accessChanged = false;
-      for (const groupId of groupIds) {
-        const current = currentAccessByGroup.get(groupId);
-        const next = nextAccessByGroup.get(groupId);
-        if (
-          (current?.can_view ?? false) !== (next?.view ?? false) ||
-          (current?.can_create ?? false) !== (next?.create ?? false) ||
-          (current?.can_edit ?? false) !== (next?.edit ?? false) ||
-          (current?.can_delete ?? false) !== (next?.delete ?? false)
-        ) {
-          accessChanged = true;
-        }
-        if ((current?.can_edit ?? false) && !(next?.edit ?? false)) groupsLostEdit.push(groupId);
-      }
+      const { changed: accessChanged, lostEdit: groupsLostEdit } = diffGroupAccess(currentAccess, input.groupAccess);
       const permissionsChanged = !setsEqual(currentPermissions, nextPermissions);
 
       await bumpAccessVersion(tx, ctx.tenantId, 'role.updated', this.outbox);
@@ -256,7 +243,7 @@ export class RolesService {
       ...(role.description === null ? {} : { description: role.description }),
       system: role.system_key,
       permissions: permissions.map((p) => p.permission_key).sort(),
-      groupAccess: access.map((a) => ({ groupId: a.group_id, view: a.can_view, create: a.can_create, edit: a.can_edit, delete: a.can_delete })),
+      groupAccess: access.map(toEntry),
       userCount,
     };
   }
@@ -293,32 +280,13 @@ export class RolesService {
     });
     if (details.length > 0) throw validationFailed(details);
   }
-
-  /** FR-019: Admin's registered permissions and group-access flags can only ever grow. */
-  private assertAdminAccessNotReduced(
-    currentPermissions: ReadonlySet<string>,
-    nextPermissions: ReadonlySet<string>,
-    currentAccessByGroup: ReadonlyMap<string | null, GroupAccessRow>,
-    nextAccessByGroup: ReadonlyMap<string | null, GroupAccessEntryDto>,
-  ): void {
-    for (const key of currentPermissions) {
-      if (!nextPermissions.has(key)) throw adminAccessFixed();
-    }
-    for (const [groupId, current] of currentAccessByGroup) {
-      const next = nextAccessByGroup.get(groupId);
-      if (
-        next === undefined ||
-        (current.can_view && !next.view) ||
-        (current.can_create && !next.create) ||
-        (current.can_edit && !next.edit) ||
-        (current.can_delete && !next.delete)
-      ) {
-        throw adminAccessFixed();
-      }
-    }
-  }
 }
 
+function toEntry(row: GroupAccessRow): GroupAccessEntryDto {
+  return { groupId: row.group_id, view: row.can_view, create: row.can_create, edit: row.can_edit, delete: row.can_delete };
+}
+
+/** FR-019: Admin's registered permissions and group-access flags can only ever grow. */
 function adminAccessFixed(): AppError {
   return new AppError('ADMIN_ACCESS_FIXED', 400, "The Admin role's access cannot be reduced");
 }
