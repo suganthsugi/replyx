@@ -506,6 +506,36 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Role"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    post:
+      operationId: createRole
+      tags:
+        - access
+      summary: Create a custom role (role.create)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "409":
+          description: ROLE_NAME_TAKEN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /users:
     get:
       operationId: listUsers
@@ -1049,6 +1079,257 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Branding"
+  /permissions:
+    get:
+      operationId: listPermissions
+      tags:
+        - access
+      summary: The permission registry, grouped by module (role.view)
+      responses:
+        "200":
+          description: All registered permissions, sorted by module then key
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Permission"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+  /roles/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: getRole
+      tags:
+        - access
+      summary: Get a role with its permissions and group-access matrix (role.view)
+      responses:
+        "200":
+          description: Role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: updateRole
+      tags:
+        - access
+      summary: Replace a role's name, permissions and group access (role.edit)
+      description: "System roles keep their name (409 SYSTEM_ROLE). Admin: permissions and group access can only grow (400
+        ADMIN_ACCESS_FIXED if reduced). Owners who lose edit on a group are unassigned (FR-026). Takes effect
+        immediately for connected users."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Role"
+        "400":
+          description: VALIDATION_FAILED or ADMIN_ACCESS_FIXED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: ROLE_NAME_TAKEN or SYSTEM_ROLE
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteRole
+      tags:
+        - access
+      summary: Delete a custom role (role.delete)
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: ROLE_IN_USE or SYSTEM_ROLE
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /groups:
+    get:
+      operationId: listGroups
+      tags:
+        - access
+      summary: List groups by name (group.view); Ungrouped is not a group and is not listed
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum:
+              - active
+              - inactive
+      responses:
+        "200":
+          description: Groups
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    post:
+      operationId: createGroup
+      tags:
+        - access
+      summary: Create a group (group.create); only Admin gets access (FR-029)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupCreateInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "409":
+          description: GROUP_NAME_TAKEN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /groups/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: getGroup
+      tags:
+        - access
+      summary: Get a group (group.view)
+      responses:
+        "200":
+          description: Group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateGroup
+      tags:
+        - access
+      summary: Edit name, description or status (group.edit); an empty description clears it
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GroupInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Group"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: GROUP_NAME_TAKEN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteGroup
+      tags:
+        - access
+      summary: Delete a group (group.delete)
+      responses:
+        "204":
+          description: Deleted
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "GROUP_HAS_TICKETS: move its tickets to another group or to Ungrouped first (FR-030)"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /groups/{id}/eligible-owners:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: listEligibleOwners
+      tags:
+        - access
+      summary: Active staff whose roles grant edit on this group (FR-040, FR-062)
+      description: "Needs ticket.edit and edit on the group: a group the caller cannot view is 404, view without edit is 403."
+      responses:
+        "200":
+          description: Eligible owners by name
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/EligibleOwner"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   securitySchemes:
     session:
@@ -1688,3 +1969,120 @@ components:
         available:
           type: boolean
           description: False when the tenant is suspended
+    Permission:
+      type: object
+      required:
+        - key
+        - resource
+        - action
+        - module
+        - description
+        - groupScoped
+      properties:
+        key:
+          type: string
+          examples:
+            - ticket.merge
+        resource:
+          type: string
+        action:
+          type: string
+        module:
+          type: string
+        description:
+          type: string
+        groupScoped:
+          type: boolean
+          description: True for ticket.* (also needs group access)
+    RoleInput:
+      type: object
+      required:
+        - name
+        - permissions
+        - groupAccess
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 60
+        description:
+          type: string
+          maxLength: 300
+        permissions:
+          type: array
+          items:
+            type: string
+        groupAccess:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupAccessEntry"
+          description: At most one entry per group (and one for Ungrouped); groups without an entry get no access
+    GroupCreateInput:
+      type: object
+      required:
+        - name
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        description:
+          type: string
+          maxLength: 300
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+    GroupInput:
+      type: object
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        description:
+          type: string
+          maxLength: 300
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+    Group:
+      type: object
+      required:
+        - id
+        - name
+        - status
+        - openTicketCount
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+            - active
+            - inactive
+        openTicketCount:
+          type: integer
+    EligibleOwner:
+      allOf:
+        - $ref: "#/components/schemas/UserRef"
+        - type: object
+          required:
+            - availability
+            - openTicketCount
+          properties:
+            availability:
+              $ref: "#/components/schemas/Availability"
+            openTicketCount:
+              type: integer
