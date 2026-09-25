@@ -63,6 +63,14 @@ beforeAll(async () => {
   await getTestWorker();
   tenant = await createTenant();
   admin = await createUser(tenant, { roles: ['admin'] });
+
+  // Files without a worker leave their outbox events unpublished; this file's relay publishes
+  // that backlog first. Wait until it has caught up, so the 2 s budget below measures only the
+  // revocation itself.
+  const warmUp = await createGroup(tenant);
+  const socket = await connect(admin);
+  const probe = await probeGroupStream(warmUp.id);
+  await envelope(socket, (e) => e.id === probe, 90_000);
 });
 
 afterAll(() => {
