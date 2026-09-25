@@ -37,6 +37,11 @@ export interface DomainEventMap {
   'access.changed': { accessVersion: string; reason: string };
   /** Sent to a user's stream after their rooms were recomputed (FR-025). */
   'access.revoked': { ticketIds?: string[]; groupIds?: (string | null)[] };
+  /**
+   * A role's permissions or group access changed (FR-022–FR-026). `groupsLostEdit` (`null` =
+   * Ungrouped) is consumed by the tickets module (T142) to unassign owners who lost edit on it.
+   */
+  'role.updated': { roleId: string; groupsLostEdit: (string | null)[] };
   /** The tenant was suspended; every socket of the tenant disconnects. */
   'tenant.suspended': Record<string, never>;
   /** Deactivated by an admin (FR-008): tickets consumers unassign the user's open tickets. */
