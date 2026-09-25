@@ -8,6 +8,7 @@ import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-o
 import { REDIS } from '../platform-kernel/redis/redis.module.js';
 
 import type { PermissionKey } from './registry/module-permissions.js';
+import type { Availability } from '../platform-kernel/db/tables/identity.js';
 
 /**
  * The only place that decides staff access (research D6, constitution II, FR-021–FR-023).
@@ -125,6 +126,7 @@ interface CachedAccess {
 export interface EligibleOwner {
   id: string;
   name: string;
+  availability: Availability;
 }
 
 @Injectable()
@@ -263,7 +265,7 @@ export class AccessRepository extends TenantRepository {
 
   eligibleOwners(tx: TenantTransaction, groupId: string | null): Promise<EligibleOwner[]> {
     return this.selectFrom(tx, 'users')
-      .select(['users.id', 'users.name'])
+      .select(['users.id', 'users.name', 'users.availability'])
       .where('users.status', '=', 'active')
       .where('users.kind', '=', 'staff')
       .where((eb) =>
