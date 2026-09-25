@@ -55,9 +55,12 @@ export function auditRoutes(routes: readonly RouteInfo[], knownPermission: (key:
     if (access.kind === 'staff' && !STAFF_API_SEGMENTS.has(segment)) {
       problems.push(`${label}: @StaffApi() routes may only live under /auth or /me`);
     }
+    // Each audience lives under its prefix; the prefix also holds that audience's public routes
+    // (customer sign-in links, operator sign-in) and nothing else.
     for (const [kind, prefix] of Object.entries(AUDIENCE_PREFIX)) {
-      if ((access.kind === kind) !== (segment === prefix)) {
-        problems.push(`${label}: only ${kind} routes may live under /${prefix}, and they must`);
+      const inside = segment === prefix;
+      if ((access.kind === kind && !inside) || (inside && access.kind !== kind && access.kind !== 'public')) {
+        problems.push(`${label}: only ${kind} (or public) routes may live under /${prefix}, and ${kind} routes must`);
       }
     }
   }

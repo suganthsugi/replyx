@@ -148,8 +148,11 @@ describe('RouteAudit', () => {
     @Get()
     list() {}
     @Post(':id')
-    @Public()
+    @StaffApi()
     act() {}
+    @Post('public')
+    @Public()
+    open() {}
     helper() {}
   }
 
@@ -175,7 +178,8 @@ describe('RouteAudit', () => {
     const routes = (await audit()).routes();
     expect(routes.map((r) => [r.name, r.path, r.access.map((a) => a.kind)])).toEqual([
       ['CustomerThings.list', '/customer/things', ['customer']],
-      ['CustomerThings.act', '/customer/things/:id', ['public']],
+      ['CustomerThings.act', '/customer/things/:id', ['staff']],
+      ['CustomerThings.open', '/customer/things/public', ['public']],
       ['Groups.create', '/groups', ['permission']],
       ['Groups.list', '/groups', []],
     ]);
@@ -190,7 +194,8 @@ describe('RouteAudit', () => {
       message = (error as Error).message;
     }
     expect(message).toMatch(/^Route access audit failed:/);
-    expect(message).toContain('CustomerThings.act (/customer/things/:id): only customer routes may live under /customer');
+    expect(message).toContain('CustomerThings.act (/customer/things/:id): only customer (or public) routes may live under /customer');
     expect(message).toContain('Groups.list (/groups) has no access decorator');
+    expect(message).not.toContain('CustomerThings.open');
   });
 });
