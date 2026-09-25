@@ -135,7 +135,7 @@ export class CustomerConversationService {
       const upTo = await new ConversationRepository(ctx).publicMessage(tx, customerId, upToMessageId);
       if (upTo === undefined) throw notFound('message');
       const now = this.clock.now();
-      const read = await new MessagesRepository(ctx).markSupportRepliesRead(tx, customerId, { createdAt: upTo.created_at, id: upTo.id }, now);
+      const read = await new MessagesRepository(ctx).markSupportRepliesRead(tx, customerId, upTo.id, now);
       const latestByTicket = new Map<string, string>();
       // Rows come back in no particular order; ids are UUIDv7, so the largest is the latest.
       for (const row of read) {

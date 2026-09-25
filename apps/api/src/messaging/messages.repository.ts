@@ -98,18 +98,18 @@ export class MessagesRepository extends TenantRepository {
    * Support's public replies to a customer, up to and including `upTo`, that the customer has not
    * read yet; marks them read. Returns the ids with their tickets.
    */
-  async markSupportRepliesRead(
-    tx: TenantTransaction,
-    customerId: string,
-    upTo: { createdAt: Date; id: string },
-    at: Date,
-  ): Promise<{ id: string; ticket_id: string }[]> {
+  async markSupportRepliesRead(tx: TenantTransaction, customerId: string, upToId: string, at: Date): Promise<{ id: string; ticket_id: string }[]> {
+    // Compared with the stored row, so timestamp precision can't drop the last message.
+    const upTo = sql<boolean>`(ticket_messages.created_at, ticket_messages.id) <= (
+      SELECT upto.created_at, upto.id FROM ticket_messages upto
+      WHERE upto.tenant_id = ${this.ctx.tenantId} AND upto.id = ${upToId}
+    )`;
     return this.updateTable(tx, 'ticket_messages')
       .set({ read_at: at, delivered_at: sql`COALESCE(delivered_at, ${at})` })
       .where('ticket_messages.visibility', '=', 'public')
       .where('ticket_messages.author_kind', 'in', ['staff', 'system', 'automation'])
       .where('ticket_messages.read_at', 'is', null)
-      .where(sql<boolean>`(ticket_messages.created_at, ticket_messages.id) <= (${upTo.createdAt}, ${upTo.id}::uuid)`)
+      .where(upTo)
       .where((eb) =>
         eb.exists(
           eb
