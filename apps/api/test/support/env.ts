@@ -26,6 +26,8 @@ Object.assign(process.env, {
   SMTP_FROM: 'support@example.test',
   OPERATOR_BOOTSTRAP_EMAIL: 'operator@example.test',
   OPERATOR_BOOTSTRAP_PASSWORD: 'operator-password',
+  // Signs operator support tokens; tests must not depend on the developer's own .env.
+  SESSION_SECRET: 'test-session-secret',
 });
 
 afterAll(closeTestApps);
