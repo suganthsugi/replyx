@@ -12,6 +12,10 @@ export default defineConfig({
   forbidOnly: process.env.CI !== undefined,
   retries: process.env.CI === undefined ? 0 : 2,
   reporter: [['list'], ['html', { open: 'never' }]],
+  // The specs run against the Vite dev server with both projects in parallel, and each one
+  // follows real email: allow for a loaded machine rather than fail on first-load latency.
+  timeout: 60_000,
+  expect: { timeout: 10_000 },
   use: {
     baseURL: process.env.E2E_BASE_URL ?? 'http://acme.localhost:5173',
     trace: 'retain-on-failure',
