@@ -5,6 +5,7 @@ import {
   useAcceptInvitation as useAcceptInvitationMutation,
   useChangePassword as useChangePasswordMutation,
   useConfirmPasswordReset as useConfirmPasswordResetMutation,
+  getMe,
   useGetInvitation,
   useGetMe,
   useRequestPasswordReset as useRequestPasswordResetMutation,
@@ -44,7 +45,9 @@ export function useMe() {
  * `/me`), without fetching: the workspace area uses it to decide whether to open a socket.
  */
 export function useKnownMe(): Me | undefined {
-  return useQuery<Me>({ queryKey: meKeys.all, enabled: false }).data;
+  // The queryFn is never called here (disabled), but the query keeps the options of its latest
+  // observer, so it has to be the real one for other observers' refetches.
+  return useQuery({ queryKey: meKeys.all, queryFn: ({ signal }) => getMe({ signal }), enabled: false }).data;
 }
 
 export function useSignIn() {
