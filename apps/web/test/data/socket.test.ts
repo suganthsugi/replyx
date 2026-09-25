@@ -103,6 +103,28 @@ describe('RealtimeClient', () => {
     expect(client.cursor('tickets')).toBe(20);
   });
 
+  it('keeps replayed events when a live event arrives before the replay', async () => {
+    const { socket, client } = setup();
+    const seen: number[] = [];
+    client.onEvent('*', (event) => seen.push(event.seq));
+    socket.fire('event', envelope('a', 10));
+    socket.acks.sync = () => {
+      // The server joined the rooms on connect: a live event beats the replay.
+      socket.fire('event', envelope('live', 20));
+      socket.fire('event', envelope('r11', 11));
+      socket.fire('event', envelope('r19', 19));
+      return { ok: true, upToSeq: 19, resyncRequired: [] };
+    };
+
+    await socket.open();
+    expect(seen).toEqual([10, 11, 19, 20]);
+    expect(client.cursor('user')).toBe(20);
+
+    socket.fire('event', envelope('r11', 11)); // already applied
+    socket.fire('event', envelope('next', 21));
+    expect(seen).toEqual([10, 11, 19, 20, 21]);
+  });
+
   it('restores cursors from sessionStorage', async () => {
     sessionStorage.setItem('rx:rt:cursors:/', JSON.stringify({ views: 9 }));
     const { socket } = setup();

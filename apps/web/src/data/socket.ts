@@ -10,7 +10,9 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query';
  * data }`. The client keeps the last applied `seq` per stream (memory + sessionStorage) and:
  * - drops envelopes it has already applied (same `id`, or `seq` at or below the cursor);
  * - on every (re)connect sends `sync { streams: [{ stream, afterSeq }] }`, which replays what it
- *   missed; streams the server lists in `resyncRequired` have their queries invalidated instead;
+ *   missed; streams the server lists in `resyncRequired` have their queries invalidated instead.
+ *   Until the sync is answered, every envelope (replayed or live) is buffered and then applied in
+ *   `seq` order against the cursors sent, so a live event can't push the cursor past a replay;
  * - re-subscribes `ticket:{id}` streams after a reconnect (rooms don't survive one);
  * - on `closing { code }` (session revoked, tenant suspended) stops reconnecting and tells
  *   listeners, so the app can return to sign-in.
@@ -87,6 +89,8 @@ export class RealtimeClient {
   private readonly closingListeners = new Set<ClosingListener>();
   private readonly streamKeys = new Map<string, (stream: string) => QueryKey[]>();
   private closed = false;
+  /** Envelopes received while a `sync` is in flight; applied once it is answered. */
+  private buffered: Envelope[] | undefined;
 
   constructor(options: RealtimeOptions) {
     this.namespace = options.namespace;
@@ -147,14 +151,26 @@ export class RealtimeClient {
 
   private async onConnect(): Promise<void> {
     if (this.closed) return;
+    // The server joins this socket's rooms on connect, so live events can arrive before the
+    // replay: hold everything until the sync is answered.
+    const syncFrom = new Map(this.cursors);
+    if (syncFrom.size > 0) this.buffered = [];
+    try {
+      await this.resubscribeAndSync(syncFrom);
+    } finally {
+      this.flush(syncFrom);
+    }
+  }
+
+  private async resubscribeAndSync(syncFrom: ReadonlyMap<string, number>): Promise<void> {
     for (const stream of this.subscriptions) {
       await this.socket
         .timeout(ACK_TIMEOUT_MS)
         .emitWithAck('subscribe', { stream })
         .catch(() => undefined);
     }
-    if (this.cursors.size === 0) return;
-    const streams = [...this.cursors].map(([stream, afterSeq]) => ({ stream, afterSeq }));
+    if (syncFrom.size === 0) return;
+    const streams = [...syncFrom].map(([stream, afterSeq]) => ({ stream, afterSeq }));
     let ack: SyncAck;
     try {
       ack = (await this.socket.timeout(ACK_TIMEOUT_MS).emitWithAck('sync', { streams })) as SyncAck;
@@ -174,6 +190,14 @@ export class RealtimeClient {
     }
   }
 
+  /** Applies the envelopes held during a sync, oldest first, against the cursors that were sent. */
+  private flush(syncFrom: ReadonlyMap<string, number>): void {
+    const held = this.buffered ?? [];
+    this.buffered = undefined;
+    held.sort((a, b) => a.seq - b.seq);
+    for (const envelope of held) this.apply(envelope, syncFrom.get(envelope.stream));
+  }
+
   private handleClosing(code: string): void {
     // The server is about to disconnect this session for good: don't reconnect.
     this.closed = true;
@@ -182,11 +206,19 @@ export class RealtimeClient {
   }
 
   private onEnvelope(envelope: Envelope): void {
+    if (this.buffered !== undefined) {
+      this.buffered.push(envelope);
+      return;
+    }
+    this.apply(envelope, this.cursors.get(envelope.stream));
+  }
+
+  /** Applies an envelope unless it was already applied or is at or below `floor`. */
+  private apply(envelope: Envelope, floor: number | undefined): void {
     if (this.applied.has(envelope.id)) return;
-    const cursor = this.cursors.get(envelope.stream);
-    if (cursor !== undefined && envelope.seq <= cursor) return;
+    if (floor !== undefined && envelope.seq <= floor) return;
     this.markApplied(envelope.id);
-    this.setCursor(envelope.stream, envelope.seq);
+    this.setCursor(envelope.stream, Math.max(this.cursors.get(envelope.stream) ?? 0, envelope.seq));
     for (const type of [envelope.type, '*']) {
       for (const listener of this.listeners.get(type) ?? []) listener(envelope, this.queryClient);
     }
