@@ -1,6 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 
+import { createQueryClient } from './data/query-client';
+import { App } from './routes';
+
 const rootElement = document.getElementById('root');
 
 if (!rootElement) {
@@ -9,6 +12,6 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <div>ReplyX</div>
+    <App queryClient={createQueryClient()} />
   </StrictMode>,
 );
