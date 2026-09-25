@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { IdentityModule } from '../../identity/identity.module.js';
-import { SuspensionService } from '../suspension.service.js';
+import { TenancyHttpModule } from '../tenancy-http.module.js';
 import { TenancyModule } from '../tenant-provisioning.service.js';
 
 import { OperatorAuthController } from './operator-auth.controller.js';
@@ -16,9 +16,9 @@ import { TenantsService } from './tenants.service.js';
  * here is tenant-scoped; the guard is registered by the api pipeline beside the tenant one.
  */
 @Module({
-  imports: [IdentityModule, TenancyModule],
+  imports: [IdentityModule, TenancyModule, TenancyHttpModule],
   controllers: [OperatorAuthController, TenantsController],
-  providers: [OperatorSessionService, OperatorAuthGuard, OperatorBootstrap, TenantsService, SuspensionService],
-  exports: [OperatorSessionService, OperatorAuthGuard, TenantsService, SuspensionService],
+  providers: [OperatorSessionService, OperatorAuthGuard, OperatorBootstrap, TenantsService],
+  exports: [OperatorSessionService, OperatorAuthGuard, TenantsService],
 })
 export class PlatformModule {}

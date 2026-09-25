@@ -201,6 +201,7 @@ class ProvisioningRepository extends TenantRepository {
 }
 
 /** Tenant lifecycle (US2 adds suspension, deletion and the console endpoints). */
+/** Provisioning, needed by both processes (the dev seed and the console both create tenants). */
 @Module({
   imports: [DiscoveryModule],
   providers: [TenantProvisioningService],

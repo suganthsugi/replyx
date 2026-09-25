@@ -3,8 +3,10 @@ import { z } from 'zod';
 
 import { OperatorApi } from '../../authorization/registry/module-permissions.js';
 import { paginationQuery, type Page } from '../../platform-kernel/http/pagination.js';
+import { tenantUrl } from '../../platform-kernel/http/public-url.js';
 import { requestIdOf } from '../../platform-kernel/http/request-context.js';
 import { ZodValidationPipe } from '../../platform-kernel/http/validation.pipe.js';
+import { SupportAccessService } from '../support-access.service.js';
 import { SuspensionService } from '../suspension.service.js';
 
 import { TenantsService, type OperatorActor, type TenantDto } from './tenants.service.js';
@@ -39,6 +41,18 @@ const UpdateBody = z.object({ name: z.string().trim().min(1).max(120).optional()
 
 const SuspendBody = z.object({ reason: z.string().trim().min(1).max(500).optional() }).strict();
 
+export interface SupportSessionDto {
+  tenantHost: string;
+  /** Sent as `X-Support-Token` on the tenant host; read-only and bound to the grant. */
+  token: string;
+  expiresAt: string;
+}
+
+/** The host the operator opens; `tenantUrl` builds the same name for email links. */
+function tenantHostFor(slug: string): string {
+  return new URL(tenantUrl(slug, '/')).host;
+}
+
 /** Who is acting, for the tenant-side writes (the admin invitation) and their audit entries. */
 export function operatorActorOf(req: Request): OperatorActor {
   if (req.operator === undefined) throw new Error('Operator routes need an authenticated operator');
@@ -51,6 +65,7 @@ export class TenantsController {
   constructor(
     private readonly tenants: TenantsService,
     private readonly suspension: SuspensionService,
+    private readonly supportAccess: SupportAccessService,
   ) {}
 
   @Get()
@@ -100,5 +115,27 @@ export class TenantsController {
     await this.tenants.requireTenant(params.id);
     await this.suspension.reactivate(this.tenants.contextFor(params.id, actor));
     return this.tenants.get(params.id);
+  }
+
+  /**
+   * Opens a read-only support session under the tenant's active grant (FR-001a); 404
+   * `SUPPORT_ACCESS_NOT_GRANTED` without one. The token goes in `X-Support-Token` on the tenant
+   * host: the console is a different host, so a cookie could not travel, and reads need no CSRF.
+   */
+  @Post(':id/support-session')
+  @HttpCode(201)
+  async openSupportSession(
+    @Req() req: Request,
+    @Param(new ZodValidationPipe(IdParams)) params: z.infer<typeof IdParams>,
+  ): Promise<SupportSessionDto> {
+    const actor = operatorActorOf(req);
+    const tenant = await this.tenants.requireTenant(params.id);
+    const ctx = this.tenants.contextFor(params.id, actor);
+    const session = await this.supportAccess.openSession(ctx, actor.operatorId);
+    return {
+      tenantHost: tenantHostFor(tenant.slug),
+      token: session.token,
+      expiresAt: session.expiresAt.toISOString(),
+    };
   }
 }
