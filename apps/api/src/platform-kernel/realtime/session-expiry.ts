@@ -63,7 +63,8 @@ export class SessionExpirySweeper implements OnModuleDestroy {
   private async stillValid(socket: RealtimeSocket): Promise<boolean> {
     const cookie = socket.handshake.headers.cookie;
     const token = parseCookies(typeof cookie === 'string' ? cookie : undefined).get(SESSION_COOKIE);
-    const principal = await this.sessions.authenticate(socket.data.tenantId, token);
+    // Checking must not count as activity: an open socket alone doesn't keep a session alive.
+    const principal = await this.sessions.authenticate(socket.data.tenantId, token, { slide: false });
     if (principal?.sessionId !== socket.data.sessionId) return false;
     socket.data.expiresAt = principal.expiresAt;
     return true;

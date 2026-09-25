@@ -109,8 +109,15 @@ export class SessionService {
   /**
    * The session for `token` in this tenant, or undefined when it is unknown, expired, belongs to
    * another tenant (RLS: it is simply not found) or its user is no longer active.
+   *
+   * Use counts as activity and slides the idle expiry, unless `slide` is false (background
+   * checks such as the socket expiry sweep, which must not keep an idle session alive).
    */
-  async authenticate(tenantId: string, token: string | undefined): Promise<SessionPrincipal | undefined> {
+  async authenticate(
+    tenantId: string,
+    token: string | undefined,
+    options: { slide?: boolean } = {},
+  ): Promise<SessionPrincipal | undefined> {
     if (token === undefined || !TOKEN_PATTERN.test(token)) return undefined;
     const tokenHash = hashToken(token);
     const now = this.clock.nowMs();
@@ -128,7 +135,7 @@ export class SessionService {
     if (row.expires_at.getTime() <= now) return undefined;
 
     let expiresAt = row.expires_at.getTime();
-    if (now - row.last_seen_at.getTime() >= TOUCH_INTERVAL_MS) {
+    if (options.slide !== false && now - row.last_seen_at.getTime() >= TOUCH_INTERVAL_MS) {
       expiresAt = now + idleWindowMs(row.kind, row.trusted_device);
       await this.touch(tenantId, row.id, now, expiresAt);
     }
