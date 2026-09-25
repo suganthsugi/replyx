@@ -1,8 +1,11 @@
+import { issueDownloadToken } from '../../src/attachments/download.controller.js';
 import { TenantContext } from '../../src/platform-kernel/db/tenant-context.js';
 import { TenantRepository } from '../../src/platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../../src/platform-kernel/db/unit-of-work.js';
-import { service } from '../support/app.js';
-import { createGroup, createRole, createUser, type RoleRef, type TestTenant, type TestUser } from '../support/factories.js';
+import { uuidv7 } from '../../src/platform-kernel/ids.js';
+import { getTestApp, service } from '../support/app.js';
+import { createGroup, createRole, createTicket, createUser, type RoleRef, type TestTenant, type TestUser } from '../support/factories.js';
+import { asGuest, asUser } from '../support/http.js';
 import { connectResult } from '../support/socket.js';
 
 /**
@@ -98,6 +101,44 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       return { params: {}, ids: [customer.id] };
     },
   },
+  ticket: {
+    async create(tenant) {
+      const customer = await createUser(tenant, { roles: ['customer'] });
+      const ticket = await createTicket(tenant, { customer, messages: [{ body: 'Hello from tenant A' }] });
+      return { params: { id: ticket.id }, ids: [ticket.id] };
+    },
+    bodies: {
+      'StaffMessagesController.post': () => ({
+        visibility: 'public',
+        body: 'Reply from another tenant',
+        clientMessageId: uuidv7(),
+      }),
+    },
+  },
+  'customer:conversation': {
+    async create(tenant) {
+      const customer = await createUser(tenant, { roles: ['customer'] });
+      const ticket = await createTicket(tenant, { customer, messages: [{ body: 'Hello from tenant A' }] });
+      return { params: {}, ids: [customer.id, ticket.id] };
+    },
+  },
+  'customer:messages': {
+    async create(tenant) {
+      const customer = await createUser(tenant, { roles: ['customer'] });
+      return { params: {}, ids: [customer.id] };
+    },
+    bodies: {
+      'CustomerController.send': () => ({ body: 'Hello from another tenant', clientMessageId: uuidv7() }),
+      'CustomerController.read': () => ({ upToMessageId: uuidv7() }),
+    },
+  },
+  'customer:attachments': {
+    async create(tenant) {
+      const customer = await createUser(tenant, { roles: ['customer'] });
+      const id = await insertAttachment(tenant, customer.id);
+      return { params: { id }, ids: [id] };
+    },
+  },
 };
 
 /** A support-access grant for the fixture, written directly: the route needs an admin session. */
@@ -120,6 +161,34 @@ class GrantFixtureRepository extends TenantRepository {
 }
 
 /**
+ * A `clean`, unsent attachment (no message yet, visible only to its uploader) inserted directly:
+ * the download checks never reach `FILE_STORAGE` for these fixtures (they 404 on the row lookup
+ * or the tenant mismatch before a stream would start), so no bytes are written.
+ */
+async function insertAttachment(tenant: TestTenant, uploadedBy: string): Promise<string> {
+  const unitOfWork = await service(UnitOfWork);
+  const ctx = TenantContext.create({ tenantId: tenant.id, actor: { kind: 'system' }, requestId: 'cross-tenant-fixture' });
+  return unitOfWork.withTenant(ctx, (tx) => new AttachmentFixtureRepository(ctx).insert(tx, uploadedBy));
+}
+
+class AttachmentFixtureRepository extends TenantRepository {
+  async insert(tx: TenantTransaction, uploadedBy: string): Promise<string> {
+    const row = await this.insertInto(tx, 'attachments', {
+      uploaded_by: uploadedBy,
+      message_id: null,
+      file_name: 'fixture.txt',
+      content_type: 'text/plain',
+      size_bytes: 10,
+      storage_key: 'unused',
+      scan_status: 'clean',
+    })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    return row.id;
+  }
+}
+
+/**
  * Extra cross-tenant checks added by later stories: real-time subscriptions (a tenant B socket
  * subscribing to a tenant A stream acks NOT_FOUND) and attachment downloads.
  */
@@ -132,4 +201,23 @@ export const REALTIME_CHECKS: Record<string, CrossTenantCheck> = {
     expect(await connectResult(callerB, { host: a.host })).toBe('UNAUTHENTICATED');
   },
 };
-export const ATTACHMENT_CHECKS: Record<string, CrossTenantCheck> = {};
+export const ATTACHMENT_CHECKS: Record<string, CrossTenantCheck> = {
+  /** A tenant B staff user downloading a tenant A attachment is the same 404 as an unknown id. */
+  'tenant B staff downloads a tenant A attachment': async (a, _b, callerB) => {
+    const { expect } = await import('vitest');
+    const uploader = await createUser(a, { roles: ['agent'] });
+    const attachmentId = await insertAttachment(a, uploader.id);
+    const response = await asUser(callerB).get(`/attachments/${attachmentId}/download`);
+    expect(response.status).toBe(404);
+  },
+  /** A tenant A download token used on tenant B's host is the same 404: the tenant never matches. */
+  'tenant A download token used on tenant B host': async (a, b, _callerB) => {
+    const { expect } = await import('vitest');
+    const uploader = await createUser(a, { roles: ['agent'] });
+    const attachmentId = await insertAttachment(a, uploader.id);
+    const clock = (await getTestApp()).clock;
+    const token = issueDownloadToken({ t: a.id, a: attachmentId, e: clock.nowMs() + 60_000 });
+    const response = await asGuest(b.host).get(`/files/${token}`);
+    expect(response.status).toBe(404);
+  },
+};
