@@ -10,7 +10,11 @@
  * customer (a state change can be `conversation.status` or `conversation.resolved`).
  */
 
+import type { FriendlyStatusCode } from '../../messaging/customer-projection.js';
+import type { MessageDto } from '../../messaging/message-dto.js';
+import type { TicketSummaryDto } from '../../tickets/ticket-dto.js';
 import type { JsonValue } from '../db/tables/column-types.js';
+import type { TicketState } from '../db/tables/tickets.js';
 
 /** Who caused the event. Matches `TenantContext['actor']`; `name` is filled in for display. */
 export type EventActor =
@@ -48,6 +52,28 @@ export interface DomainEventMap {
   'user.deactivated': { userId: string };
   /** An admin asked for the user's data to be erased; the erasure job does it (T062). */
   'user.erasure_requested': { userId: string };
+  /** A ticket appeared (customer message, follow-up, staff start): staff list rooms. */
+  'ticket.created': { ticket: TicketSummaryDto };
+  /** Properties or state changed; `changes` lists each field once. */
+  'ticket.updated': { ticket: TicketSummaryDto; changes: TicketFieldChange[] };
+  /** Moved from resolved or closed back to open (consumers: notifications, SLA). */
+  'ticket.reopened': { ticketId: string; from: TicketState };
+  /** Entered closed (consumers: CSAT, retention, SLA). */
+  'ticket.closed': { ticketId: string };
+  /** A message or internal note was added; the staff payload is the full `Message`. */
+  'message.created': MessageDto;
+  /** The customer read support's replies up to a message (FR-053). */
+  'message.read': { ticketId: string; upToMessageId: string; readAt: string };
+  /** A customer message's receipt changed: shown as ✓✓ in the chat (FR-053). */
+  'message.delivery_updated': { ticketId: string; messageId: string; delivery: 'delivered' | 'read' };
+  /** The customer's friendly status changed (FR-052); customer stream only. */
+  'conversation.status_changed': { customerId: string; status: FriendlyStatusCode };
+}
+
+export interface TicketFieldChange {
+  field: string;
+  old: JsonValue;
+  new: JsonValue;
 }
 
 export type DomainEventType = keyof DomainEventMap;
