@@ -8,6 +8,7 @@ import type { AuthorizationTables } from './tables/authorization.js';
 import type { IdentityTables } from './tables/identity.js';
 import type { OutboxAuditTables } from './tables/outbox-audit.js';
 import type { TenancyTables } from './tables/tenancy.js';
+import type { TicketTables } from './tables/tickets.js';
 
 /**
  * Kysely table map. Each migration that adds tables also adds their row types under `tables/`
@@ -16,7 +17,8 @@ import type { TenancyTables } from './tables/tenancy.js';
 export type Database = TenancyTables &
   IdentityTables &
   AuthorizationTables &
-  OutboxAuditTables;
+  OutboxAuditTables &
+  TicketTables;
 
 export type DB = Database;
 
