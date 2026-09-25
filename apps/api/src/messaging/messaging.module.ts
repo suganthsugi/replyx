@@ -5,6 +5,8 @@ import { RealtimeModule } from '../platform-kernel/realtime/gateway.js';
 import { CustomerConversationService } from './customer-conversation.service.js';
 import { CustomerMessageRouter } from './customer-message-router.js';
 import { CustomerController } from './customer.controller.js';
+import { StaffMessagesController } from './staff-messages.controller.js';
+import { StaffMessagesService } from './staff-messages.service.js';
 import { NoRoutingRouter, TICKET_ROUTER } from './ticket-router.js';
 
 /**
@@ -20,8 +22,8 @@ export class MessagingModule {}
 /** HTTP side of messaging (api process only). */
 @Module({
   imports: [MessagingModule, RealtimeModule],
-  controllers: [CustomerController],
-  providers: [CustomerConversationService],
+  controllers: [CustomerController, StaffMessagesController],
+  providers: [CustomerConversationService, StaffMessagesService],
   exports: [CustomerConversationService],
 })
 export class MessagingHttpModule {}
