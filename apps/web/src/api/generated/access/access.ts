@@ -6,20 +6,38 @@
 
  * OpenAPI spec version: 0.1.0
  */
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
   DefinedUseQueryResult,
+  MutationFunction,
   QueryClient,
   QueryFunction,
   QueryKey,
   UndefinedInitialDataOptions,
+  UseMutationOptions,
+  UseMutationResult,
   UseQueryOptions,
   UseQueryResult,
 } from '@tanstack/react-query';
 
-import type { ListRoles200 } from '.././model';
+import type {
+  ErrorResponse,
+  Group,
+  GroupCreateInput,
+  GroupInput,
+  ListEligibleOwners200,
+  ListGroups200,
+  ListGroupsParams,
+  ListPermissions200,
+  ListRoles200,
+  NotFoundResponse,
+  PermissionDeniedResponse,
+  Role,
+  RoleInput,
+  ValidationFailedResponse,
+} from '.././model';
 
 import { http } from '../../../data/http';
 
@@ -45,7 +63,7 @@ export const getListRolesQueryKey = () => {
 
 export const getListRolesQueryOptions = <
   TData = Awaited<ReturnType<typeof listRoles>>,
-  TError = unknown,
+  TError = PermissionDeniedResponse,
 >(options?: {
   query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoles>>, TError, TData>>;
   request?: SecondParameter<typeof http>;
@@ -65,9 +83,12 @@ export const getListRolesQueryOptions = <
 };
 
 export type ListRolesQueryResult = NonNullable<Awaited<ReturnType<typeof listRoles>>>;
-export type ListRolesQueryError = unknown;
+export type ListRolesQueryError = PermissionDeniedResponse;
 
-export function useListRoles<TData = Awaited<ReturnType<typeof listRoles>>, TError = unknown>(
+export function useListRoles<
+  TData = Awaited<ReturnType<typeof listRoles>>,
+  TError = PermissionDeniedResponse,
+>(
   options: {
     query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoles>>, TError, TData>> &
       Pick<
@@ -82,7 +103,10 @@ export function useListRoles<TData = Awaited<ReturnType<typeof listRoles>>, TErr
   },
   queryClient?: QueryClient,
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListRoles<TData = Awaited<ReturnType<typeof listRoles>>, TError = unknown>(
+export function useListRoles<
+  TData = Awaited<ReturnType<typeof listRoles>>,
+  TError = PermissionDeniedResponse,
+>(
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoles>>, TError, TData>> &
       Pick<
@@ -97,7 +121,10 @@ export function useListRoles<TData = Awaited<ReturnType<typeof listRoles>>, TErr
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListRoles<TData = Awaited<ReturnType<typeof listRoles>>, TError = unknown>(
+export function useListRoles<
+  TData = Awaited<ReturnType<typeof listRoles>>,
+  TError = PermissionDeniedResponse,
+>(
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoles>>, TError, TData>>;
     request?: SecondParameter<typeof http>;
@@ -108,7 +135,10 @@ export function useListRoles<TData = Awaited<ReturnType<typeof listRoles>>, TErr
  * @summary List roles (role.view)
  */
 
-export function useListRoles<TData = Awaited<ReturnType<typeof listRoles>>, TError = unknown>(
+export function useListRoles<
+  TData = Awaited<ReturnType<typeof listRoles>>,
+  TError = PermissionDeniedResponse,
+>(
   options?: {
     query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoles>>, TError, TData>>;
     request?: SecondParameter<typeof http>;
@@ -116,6 +146,1117 @@ export function useListRoles<TData = Awaited<ReturnType<typeof listRoles>>, TErr
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getListRolesQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Create a custom role (role.create)
+ */
+export const getCreateRoleUrl = () => {
+  return `/roles`;
+};
+
+export const createRole = async (roleInput: RoleInput, options?: RequestInit): Promise<Role> => {
+  return http<Role>(getCreateRoleUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(roleInput),
+  });
+};
+
+export const getCreateRoleMutationOptions = <
+  TError = ValidationFailedResponse | PermissionDeniedResponse | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRole>>,
+    TError,
+    { data: RoleInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createRole>>,
+  TError,
+  { data: RoleInput },
+  TContext
+> => {
+  const mutationKey = ['createRole'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createRole>>,
+    { data: RoleInput }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createRole(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateRoleMutationResult = NonNullable<Awaited<ReturnType<typeof createRole>>>;
+export type CreateRoleMutationBody = RoleInput;
+export type CreateRoleMutationError =
+  ValidationFailedResponse | PermissionDeniedResponse | ErrorResponse;
+
+/**
+ * @summary Create a custom role (role.create)
+ */
+export const useCreateRole = <
+  TError = ValidationFailedResponse | PermissionDeniedResponse | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createRole>>,
+      TError,
+      { data: RoleInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createRole>>,
+  TError,
+  { data: RoleInput },
+  TContext
+> => {
+  const mutationOptions = getCreateRoleMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary The permission registry, grouped by module (role.view)
+ */
+export const getListPermissionsUrl = () => {
+  return `/permissions`;
+};
+
+export const listPermissions = async (options?: RequestInit): Promise<ListPermissions200> => {
+  return http<ListPermissions200>(getListPermissionsUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListPermissionsQueryKey = () => {
+  return [`/permissions`] as const;
+};
+
+export const getListPermissionsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listPermissions>>,
+  TError = PermissionDeniedResponse,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPermissions>>, TError, TData>>;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListPermissionsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listPermissions>>> = ({ signal }) =>
+    listPermissions({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listPermissions>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListPermissionsQueryResult = NonNullable<Awaited<ReturnType<typeof listPermissions>>>;
+export type ListPermissionsQueryError = PermissionDeniedResponse;
+
+export function useListPermissions<
+  TData = Awaited<ReturnType<typeof listPermissions>>,
+  TError = PermissionDeniedResponse,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPermissions>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPermissions>>,
+          TError,
+          Awaited<ReturnType<typeof listPermissions>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListPermissions<
+  TData = Awaited<ReturnType<typeof listPermissions>>,
+  TError = PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPermissions>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listPermissions>>,
+          TError,
+          Awaited<ReturnType<typeof listPermissions>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListPermissions<
+  TData = Awaited<ReturnType<typeof listPermissions>>,
+  TError = PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPermissions>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary The permission registry, grouped by module (role.view)
+ */
+
+export function useListPermissions<
+  TData = Awaited<ReturnType<typeof listPermissions>>,
+  TError = PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPermissions>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListPermissionsQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Get a role with its permissions and group-access matrix (role.view)
+ */
+export const getGetRoleUrl = (id: string) => {
+  return `/roles/${id}`;
+};
+
+export const getRole = async (id: string, options?: RequestInit): Promise<Role> => {
+  return http<Role>(getGetRoleUrl(id), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetRoleQueryKey = (id?: string) => {
+  return [`/roles/${id}`] as const;
+};
+
+export const getGetRoleQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRole>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRole>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRoleQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRole>>> = ({ signal }) =>
+    getRole(id, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRole>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetRoleQueryResult = NonNullable<Awaited<ReturnType<typeof getRole>>>;
+export type GetRoleQueryError = PermissionDeniedResponse | NotFoundResponse;
+
+export function useGetRole<
+  TData = Awaited<ReturnType<typeof getRole>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRole>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRole>>,
+          TError,
+          Awaited<ReturnType<typeof getRole>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetRole<
+  TData = Awaited<ReturnType<typeof getRole>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRole>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getRole>>,
+          TError,
+          Awaited<ReturnType<typeof getRole>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetRole<
+  TData = Awaited<ReturnType<typeof getRole>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRole>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get a role with its permissions and group-access matrix (role.view)
+ */
+
+export function useGetRole<
+  TData = Awaited<ReturnType<typeof getRole>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRole>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetRoleQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * System roles keep their name (409 SYSTEM_ROLE). Admin: permissions and group access can only grow (400 ADMIN_ACCESS_FIXED if reduced). Owners who lose edit on a group are unassigned (FR-026). Takes effect immediately for connected users.
+ * @summary Replace a role's name, permissions and group access (role.edit)
+ */
+export const getUpdateRoleUrl = (id: string) => {
+  return `/roles/${id}`;
+};
+
+export const updateRole = async (
+  id: string,
+  roleInput: RoleInput,
+  options?: RequestInit,
+): Promise<Role> => {
+  return http<Role>(getUpdateRoleUrl(id), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(roleInput),
+  });
+};
+
+export const getUpdateRoleMutationOptions = <
+  TError = ErrorResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRole>>,
+    TError,
+    { id: string; data: RoleInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateRole>>,
+  TError,
+  { id: string; data: RoleInput },
+  TContext
+> => {
+  const mutationKey = ['updateRole'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateRole>>,
+    { id: string; data: RoleInput }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateRole(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateRoleMutationResult = NonNullable<Awaited<ReturnType<typeof updateRole>>>;
+export type UpdateRoleMutationBody = RoleInput;
+export type UpdateRoleMutationError = ErrorResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Replace a role's name, permissions and group access (role.edit)
+ */
+export const useUpdateRole = <
+  TError = ErrorResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateRole>>,
+      TError,
+      { id: string; data: RoleInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateRole>>,
+  TError,
+  { id: string; data: RoleInput },
+  TContext
+> => {
+  const mutationOptions = getUpdateRoleMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Delete a custom role (role.delete)
+ */
+export const getDeleteRoleUrl = (id: string) => {
+  return `/roles/${id}`;
+};
+
+export const deleteRole = async (id: string, options?: RequestInit): Promise<void> => {
+  return http<void>(getDeleteRoleUrl(id), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteRoleMutationOptions = <
+  TError = PermissionDeniedResponse | NotFoundResponse | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRole>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteRole>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ['deleteRole'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteRole>>, { id: string }> = (
+    props,
+  ) => {
+    const { id } = props ?? {};
+
+    return deleteRole(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteRoleMutationResult = NonNullable<Awaited<ReturnType<typeof deleteRole>>>;
+
+export type DeleteRoleMutationError = PermissionDeniedResponse | NotFoundResponse | ErrorResponse;
+
+/**
+ * @summary Delete a custom role (role.delete)
+ */
+export const useDeleteRole = <
+  TError = PermissionDeniedResponse | NotFoundResponse | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteRole>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<Awaited<ReturnType<typeof deleteRole>>, TError, { id: string }, TContext> => {
+  const mutationOptions = getDeleteRoleMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary List groups by name (group.view); Ungrouped is not a group and is not listed
+ */
+export const getListGroupsUrl = (params?: ListGroupsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/groups?${stringifiedParams}` : `/groups`;
+};
+
+export const listGroups = async (
+  params?: ListGroupsParams,
+  options?: RequestInit,
+): Promise<ListGroups200> => {
+  return http<ListGroups200>(getListGroupsUrl(params), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListGroupsQueryKey = (params?: ListGroupsParams) => {
+  return [`/groups`, ...(params ? [params] : [])] as const;
+};
+
+export const getListGroupsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listGroups>>,
+  TError = ValidationFailedResponse | PermissionDeniedResponse,
+>(
+  params?: ListGroupsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listGroups>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListGroupsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listGroups>>> = ({ signal }) =>
+    listGroups(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listGroups>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListGroupsQueryResult = NonNullable<Awaited<ReturnType<typeof listGroups>>>;
+export type ListGroupsQueryError = ValidationFailedResponse | PermissionDeniedResponse;
+
+export function useListGroups<
+  TData = Awaited<ReturnType<typeof listGroups>>,
+  TError = ValidationFailedResponse | PermissionDeniedResponse,
+>(
+  params: undefined | ListGroupsParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listGroups>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listGroups>>,
+          TError,
+          Awaited<ReturnType<typeof listGroups>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListGroups<
+  TData = Awaited<ReturnType<typeof listGroups>>,
+  TError = ValidationFailedResponse | PermissionDeniedResponse,
+>(
+  params?: ListGroupsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listGroups>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listGroups>>,
+          TError,
+          Awaited<ReturnType<typeof listGroups>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListGroups<
+  TData = Awaited<ReturnType<typeof listGroups>>,
+  TError = ValidationFailedResponse | PermissionDeniedResponse,
+>(
+  params?: ListGroupsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listGroups>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary List groups by name (group.view); Ungrouped is not a group and is not listed
+ */
+
+export function useListGroups<
+  TData = Awaited<ReturnType<typeof listGroups>>,
+  TError = ValidationFailedResponse | PermissionDeniedResponse,
+>(
+  params?: ListGroupsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listGroups>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListGroupsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Create a group (group.create); only Admin gets access (FR-029)
+ */
+export const getCreateGroupUrl = () => {
+  return `/groups`;
+};
+
+export const createGroup = async (
+  groupCreateInput: GroupCreateInput,
+  options?: RequestInit,
+): Promise<Group> => {
+  return http<Group>(getCreateGroupUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(groupCreateInput),
+  });
+};
+
+export const getCreateGroupMutationOptions = <
+  TError = ValidationFailedResponse | PermissionDeniedResponse | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createGroup>>,
+    TError,
+    { data: GroupCreateInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createGroup>>,
+  TError,
+  { data: GroupCreateInput },
+  TContext
+> => {
+  const mutationKey = ['createGroup'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createGroup>>,
+    { data: GroupCreateInput }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createGroup(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateGroupMutationResult = NonNullable<Awaited<ReturnType<typeof createGroup>>>;
+export type CreateGroupMutationBody = GroupCreateInput;
+export type CreateGroupMutationError =
+  ValidationFailedResponse | PermissionDeniedResponse | ErrorResponse;
+
+/**
+ * @summary Create a group (group.create); only Admin gets access (FR-029)
+ */
+export const useCreateGroup = <
+  TError = ValidationFailedResponse | PermissionDeniedResponse | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createGroup>>,
+      TError,
+      { data: GroupCreateInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createGroup>>,
+  TError,
+  { data: GroupCreateInput },
+  TContext
+> => {
+  const mutationOptions = getCreateGroupMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Get a group (group.view)
+ */
+export const getGetGroupUrl = (id: string) => {
+  return `/groups/${id}`;
+};
+
+export const getGroup = async (id: string, options?: RequestInit): Promise<Group> => {
+  return http<Group>(getGetGroupUrl(id), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetGroupQueryKey = (id?: string) => {
+  return [`/groups/${id}`] as const;
+};
+
+export const getGetGroupQueryOptions = <
+  TData = Awaited<ReturnType<typeof getGroup>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getGroup>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetGroupQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getGroup>>> = ({ signal }) =>
+    getGroup(id, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getGroup>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetGroupQueryResult = NonNullable<Awaited<ReturnType<typeof getGroup>>>;
+export type GetGroupQueryError = PermissionDeniedResponse | NotFoundResponse;
+
+export function useGetGroup<
+  TData = Awaited<ReturnType<typeof getGroup>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getGroup>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getGroup>>,
+          TError,
+          Awaited<ReturnType<typeof getGroup>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetGroup<
+  TData = Awaited<ReturnType<typeof getGroup>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getGroup>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getGroup>>,
+          TError,
+          Awaited<ReturnType<typeof getGroup>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetGroup<
+  TData = Awaited<ReturnType<typeof getGroup>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getGroup>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get a group (group.view)
+ */
+
+export function useGetGroup<
+  TData = Awaited<ReturnType<typeof getGroup>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getGroup>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetGroupQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Edit name, description or status (group.edit); an empty description clears it
+ */
+export const getUpdateGroupUrl = (id: string) => {
+  return `/groups/${id}`;
+};
+
+export const updateGroup = async (
+  id: string,
+  groupInput: GroupInput,
+  options?: RequestInit,
+): Promise<Group> => {
+  return http<Group>(getUpdateGroupUrl(id), {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(groupInput),
+  });
+};
+
+export const getUpdateGroupMutationOptions = <
+  TError = ValidationFailedResponse | PermissionDeniedResponse | NotFoundResponse | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateGroup>>,
+    TError,
+    { id: string; data: GroupInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateGroup>>,
+  TError,
+  { id: string; data: GroupInput },
+  TContext
+> => {
+  const mutationKey = ['updateGroup'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateGroup>>,
+    { id: string; data: GroupInput }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateGroup(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateGroupMutationResult = NonNullable<Awaited<ReturnType<typeof updateGroup>>>;
+export type UpdateGroupMutationBody = GroupInput;
+export type UpdateGroupMutationError =
+  ValidationFailedResponse | PermissionDeniedResponse | NotFoundResponse | ErrorResponse;
+
+/**
+ * @summary Edit name, description or status (group.edit); an empty description clears it
+ */
+export const useUpdateGroup = <
+  TError = ValidationFailedResponse | PermissionDeniedResponse | NotFoundResponse | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateGroup>>,
+      TError,
+      { id: string; data: GroupInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateGroup>>,
+  TError,
+  { id: string; data: GroupInput },
+  TContext
+> => {
+  const mutationOptions = getUpdateGroupMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Delete a group (group.delete)
+ */
+export const getDeleteGroupUrl = (id: string) => {
+  return `/groups/${id}`;
+};
+
+export const deleteGroup = async (id: string, options?: RequestInit): Promise<void> => {
+  return http<void>(getDeleteGroupUrl(id), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteGroupMutationOptions = <
+  TError = PermissionDeniedResponse | NotFoundResponse | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteGroup>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteGroup>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ['deleteGroup'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteGroup>>, { id: string }> = (
+    props,
+  ) => {
+    const { id } = props ?? {};
+
+    return deleteGroup(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteGroupMutationResult = NonNullable<Awaited<ReturnType<typeof deleteGroup>>>;
+
+export type DeleteGroupMutationError = PermissionDeniedResponse | NotFoundResponse | ErrorResponse;
+
+/**
+ * @summary Delete a group (group.delete)
+ */
+export const useDeleteGroup = <
+  TError = PermissionDeniedResponse | NotFoundResponse | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteGroup>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<Awaited<ReturnType<typeof deleteGroup>>, TError, { id: string }, TContext> => {
+  const mutationOptions = getDeleteGroupMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Needs ticket.edit and edit on the group: a group the caller cannot view is 404, view without edit is 403.
+ * @summary Active staff whose roles grant edit on this group (FR-040, FR-062)
+ */
+export const getListEligibleOwnersUrl = (id: string) => {
+  return `/groups/${id}/eligible-owners`;
+};
+
+export const listEligibleOwners = async (
+  id: string,
+  options?: RequestInit,
+): Promise<ListEligibleOwners200> => {
+  return http<ListEligibleOwners200>(getListEligibleOwnersUrl(id), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListEligibleOwnersQueryKey = (id?: string) => {
+  return [`/groups/${id}/eligible-owners`] as const;
+};
+
+export const getListEligibleOwnersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listEligibleOwners>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listEligibleOwners>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListEligibleOwnersQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listEligibleOwners>>> = ({ signal }) =>
+    listEligibleOwners(id, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listEligibleOwners>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListEligibleOwnersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listEligibleOwners>>
+>;
+export type ListEligibleOwnersQueryError = PermissionDeniedResponse | NotFoundResponse;
+
+export function useListEligibleOwners<
+  TData = Awaited<ReturnType<typeof listEligibleOwners>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listEligibleOwners>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEligibleOwners>>,
+          TError,
+          Awaited<ReturnType<typeof listEligibleOwners>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListEligibleOwners<
+  TData = Awaited<ReturnType<typeof listEligibleOwners>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listEligibleOwners>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listEligibleOwners>>,
+          TError,
+          Awaited<ReturnType<typeof listEligibleOwners>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListEligibleOwners<
+  TData = Awaited<ReturnType<typeof listEligibleOwners>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listEligibleOwners>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Active staff whose roles grant edit on this group (FR-040, FR-062)
+ */
+
+export function useListEligibleOwners<
+  TData = Awaited<ReturnType<typeof listEligibleOwners>>,
+  TError = PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listEligibleOwners>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListEligibleOwnersQueryOptions(id, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
