@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { z } from 'zod';
 
 import { OperatorApi } from '../../authorization/registry/module-permissions.js';
 import { paginationQuery, type Page } from '../../platform-kernel/http/pagination.js';
 import { requestIdOf } from '../../platform-kernel/http/request-context.js';
 import { ZodValidationPipe } from '../../platform-kernel/http/validation.pipe.js';
+import { SuspensionService } from '../suspension.service.js';
 
 import { TenantsService, type OperatorActor, type TenantDto } from './tenants.service.js';
 
@@ -36,6 +37,8 @@ const CreateBody = z
 
 const UpdateBody = z.object({ name: z.string().trim().min(1).max(120).optional() }).strict();
 
+const SuspendBody = z.object({ reason: z.string().trim().min(1).max(500).optional() }).strict();
+
 /** Who is acting, for the tenant-side writes (the admin invitation) and their audit entries. */
 export function operatorActorOf(req: Request): OperatorActor {
   if (req.operator === undefined) throw new Error('Operator routes need an authenticated operator');
@@ -45,7 +48,10 @@ export function operatorActorOf(req: Request): OperatorActor {
 @Controller('platform/tenants')
 @OperatorApi()
 export class TenantsController {
-  constructor(private readonly tenants: TenantsService) {}
+  constructor(
+    private readonly tenants: TenantsService,
+    private readonly suspension: SuspensionService,
+  ) {}
 
   @Get()
   list(@Query(new ZodValidationPipe(ListQuery)) query: z.infer<typeof ListQuery>): Promise<Page<TenantDto>> {
@@ -68,5 +74,31 @@ export class TenantsController {
     @Body(new ZodValidationPipe(UpdateBody)) body: z.infer<typeof UpdateBody>,
   ): Promise<TenantDto> {
     return this.tenants.update(params.id, body);
+  }
+
+  /** Ends every session, blocks the tenant's routes and disconnects its sockets (FR-004). */
+  @Post(':id/suspend')
+  @HttpCode(200)
+  async suspend(
+    @Req() req: Request,
+    @Param(new ZodValidationPipe(IdParams)) params: z.infer<typeof IdParams>,
+    @Body(new ZodValidationPipe(SuspendBody)) body: z.infer<typeof SuspendBody>,
+  ): Promise<TenantDto> {
+    const actor = operatorActorOf(req);
+    await this.tenants.requireTenant(params.id);
+    await this.suspension.suspend(this.tenants.contextFor(params.id, actor), body.reason);
+    return this.tenants.get(params.id);
+  }
+
+  @Post(':id/reactivate')
+  @HttpCode(200)
+  async reactivate(
+    @Req() req: Request,
+    @Param(new ZodValidationPipe(IdParams)) params: z.infer<typeof IdParams>,
+  ): Promise<TenantDto> {
+    const actor = operatorActorOf(req);
+    await this.tenants.requireTenant(params.id);
+    await this.suspension.reactivate(this.tenants.contextFor(params.id, actor));
+    return this.tenants.get(params.id);
   }
 }

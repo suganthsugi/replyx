@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 
 import { IdentityModule } from '../../identity/identity.module.js';
+import { SuspensionService } from '../suspension.service.js';
 import { TenancyModule } from '../tenant-provisioning.service.js';
 
 import { OperatorAuthController } from './operator-auth.controller.js';
@@ -17,7 +18,7 @@ import { TenantsService } from './tenants.service.js';
 @Module({
   imports: [IdentityModule, TenancyModule],
   controllers: [OperatorAuthController, TenantsController],
-  providers: [OperatorSessionService, OperatorAuthGuard, OperatorBootstrap, TenantsService],
-  exports: [OperatorSessionService, OperatorAuthGuard, TenantsService],
+  providers: [OperatorSessionService, OperatorAuthGuard, OperatorBootstrap, TenantsService, SuspensionService],
+  exports: [OperatorSessionService, OperatorAuthGuard, TenantsService, SuspensionService],
 })
 export class PlatformModule {}
