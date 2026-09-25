@@ -1,6 +1,5 @@
 import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query';
 
-import { useListRoles } from '../api/generated/access/access';
 import {
   listUsers,
   useDeactivateUser as useDeactivateUserMutation,
@@ -13,7 +12,7 @@ import {
 
 import { mapError } from './errors';
 
-import type { ListUsersKind, Role, User, UserStatus } from '../api/generated/model';
+import type { ListUsersKind, User, UserStatus } from '../api/generated/model';
 
 /**
  * User directory and role hooks (data-hooks rule 6): components never import
@@ -122,21 +121,6 @@ export function useEraseUser() {
   return {
     ...mutation,
     mutateAsync: ({ id }: { id: string }) => mutation.mutateAsync({ id, data: { confirm: 'ERASE' } }),
-  };
-}
-
-export const roleKeys = {
-  all: ['roles'] as const,
-};
-
-export function useRoles() {
-  const query = useListRoles<{ items: Role[] }>({
-    query: { queryKey: roleKeys.all },
-  });
-  return {
-    ...query,
-    data: query.data?.items,
-    error: query.error ? mapError(query.error) : undefined,
   };
 }
 

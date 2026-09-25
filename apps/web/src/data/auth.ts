@@ -1,5 +1,4 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
 
 import {
   useAcceptInvitation as useAcceptInvitationMutation,
@@ -17,7 +16,6 @@ import {
 
 import { mapError } from './errors';
 
-import type { RealtimeClient } from './socket';
 import type { GetInvitation200, Me, UpdateMeBody } from '../api/generated/model';
 
 /**
@@ -148,17 +146,4 @@ export function useChangePassword() {
     ...mutation,
     mutateAsync: (data: { currentPassword: string; newPassword: string }) => mutation.mutateAsync({ data }),
   };
-}
-
-/**
- * Refetches `/me` whenever access changes (role/group updates elsewhere invalidate this user's
- * effective permissions); `accessVersion` on `Me` is the signal the server bumps.
- */
-export function useAccessChangeRefetch(client: RealtimeClient | undefined): void {
-  useEffect(() => {
-    if (!client) return undefined;
-    return client.onEvent('access.changed', (_envelope, queryClient) => {
-      void queryClient.invalidateQueries({ queryKey: meKeys.all });
-    });
-  }, [client]);
 }

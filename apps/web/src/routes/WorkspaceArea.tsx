@@ -5,7 +5,8 @@ import { useCallback } from 'react';
 import { Route, Routes, useNavigate } from 'react-router';
 
 import { useToast } from '../components/shell/Toast';
-import { useAccessChangeRefetch, useKnownMe } from '../data/auth';
+import { useAccessChanges, useAccessRevoked } from '../data/access';
+import { useKnownMe } from '../data/auth';
 import { RealtimeProvider, useRealtime, useSessionEnded } from '../data/realtime';
 import SupportAccessPage from '../pages/admin/support-access/SupportAccessPage';
 import UsersPage from '../pages/admin/users/UsersPage';
@@ -64,7 +65,11 @@ function StaffSessionEvents() {
   const navigate = useNavigate();
   const toast = useToast();
 
-  useAccessChangeRefetch(client);
+  useAccessChanges(client);
+  useAccessRevoked(
+    client,
+    useCallback(() => toast({ message: 'Your access changed. Some tickets or groups are no longer available to you.', severity: 'info' }), [toast]),
+  );
   useSessionEnded(
     client,
     useCallback(
