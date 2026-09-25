@@ -18,8 +18,8 @@ export interface EmptyStateProps {
   /** Error variant: shows a "Try again" button. */
   onRetry?: () => void;
   icon?: ReactNode;
-  /** Heading level for `title` within the page outline. */
-  headingLevel?: 2 | 3 | 4;
+  /** Heading level for `title` within the page outline; `1` when the state is the whole page. */
+  headingLevel?: 1 | 2 | 3 | 4;
 }
 
 export function EmptyState({ variant = 'empty', title, message, action, onRetry, icon, headingLevel = 2 }: EmptyStateProps) {
