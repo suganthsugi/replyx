@@ -3,6 +3,7 @@ import { Inject, Injectable, Optional } from '@nestjs/common';
 import { AuditService } from '../audit/audit.service.js';
 import { bumpAccessVersion } from '../authorization/access-version.js';
 import { PolicyService } from '../authorization/policy.service.js';
+import { newGroupAccess } from '../authorization/role-access.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
 import { conflict, notFound, permissionDenied } from '../platform-kernel/http/app-error.js';
@@ -237,14 +238,20 @@ class GroupsRepository extends TenantRepository {
 
   /** FR-029: the Admin role, and no other, gets every flag on a new group. */
   async grantAdminFullAccess(tx: TenantTransaction, groupId: string): Promise<void> {
-    const admin = await this.selectFrom(tx, 'roles').select('id').where('system_key', '=', 'admin').executeTakeFirstOrThrow();
-    await this.insertInto(tx, 'role_group_access', {
-      role_id: admin.id,
-      group_id: groupId,
-      can_view: true,
-      can_create: true,
-      can_edit: true,
-      can_delete: true,
-    }).execute();
+    const roles = await this.selectFrom(tx, 'roles').select(['id', 'system_key']).execute();
+    const rows = newGroupAccess(roles, groupId);
+    if (rows.length === 0) throw new Error('Tenant has no Admin role');
+    await this.insertInto(
+      tx,
+      'role_group_access',
+      rows.map((row) => ({
+        role_id: row.roleId,
+        group_id: row.groupId,
+        can_view: row.view,
+        can_create: row.create,
+        can_edit: row.edit,
+        can_delete: row.delete,
+      })),
+    ).execute();
   }
 }
