@@ -33,6 +33,13 @@ function resourceOf(route: RouteInfo): string | undefined {
   return undefined;
 }
 
+/** The fixture for a route: its route name when one is keyed so, else its resource. */
+function fixtureKey(route: RouteInfo): string | undefined {
+  const resource = resourceOf(route);
+  if (resource === undefined) return undefined;
+  return FIXTURES[route.name] === undefined ? resource : route.name;
+}
+
 function pathParams(path: string): string[] {
   return [...path.matchAll(/:(\w+)/g)].map((match) => match[1] as string);
 }
@@ -49,7 +56,7 @@ const tenantRoutes = routes.filter((route) => resourceOf(route) !== undefined);
 
 describe('cross-tenant isolation (generated)', () => {
   it('has a fixture for every tenant-scoped route resource', () => {
-    const missing = [...new Set(tenantRoutes.map(resourceOf))].filter((resource) => FIXTURES[resource as string] === undefined);
+    const missing = [...new Set(tenantRoutes.map(fixtureKey))].filter((resource) => FIXTURES[resource as string] === undefined);
     expect(missing, 'add these resources to test/cross-tenant/fixtures.ts').toEqual([]);
   });
 
@@ -59,7 +66,7 @@ describe('cross-tenant isolation (generated)', () => {
   });
 
   for (const route of tenantRoutes) {
-    const resource = resourceOf(route) as string;
+    const resource = fixtureKey(route) as string;
     const params = pathParams(route.path);
     const method = route.method.toLowerCase() as Method;
     if (params.length === 0 && method !== 'get') continue;

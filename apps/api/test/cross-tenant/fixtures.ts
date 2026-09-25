@@ -2,7 +2,7 @@ import { TenantContext } from '../../src/platform-kernel/db/tenant-context.js';
 import { TenantRepository } from '../../src/platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../../src/platform-kernel/db/unit-of-work.js';
 import { service } from '../support/app.js';
-import { createRole, createUser, type RoleRef, type TestTenant, type TestUser } from '../support/factories.js';
+import { createGroup, createRole, createUser, type RoleRef, type TestTenant, type TestUser } from '../support/factories.js';
 import { connectResult } from '../support/socket.js';
 
 /**
@@ -14,6 +14,8 @@ import { connectResult } from '../support/socket.js';
  *
  * Staff routes are keyed by the registry resource (`ticket`, `group`, ...); customer routes
  * (`@CustomerApi`) by `customer:{first path segment after /customer}`, e.g. `customer:conversation`.
+ * A route whose permission's resource differs from the resource in its path is keyed by its
+ * route name (`Controller.method`), which wins over the resource key.
  */
 
 export interface CreatedResource {
@@ -40,6 +42,25 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
     async create(tenant) {
       const role = await createRole(tenant, { permissions: ['ticket.view'] });
       return { params: { id: role.id }, ids: [role.id] };
+    },
+    bodies: {
+      'RolesController.update': () => ({ name: 'Renamed by another tenant', permissions: [], groupAccess: [] }),
+    },
+  },
+  group: {
+    async create(tenant) {
+      const group = await createGroup(tenant);
+      return { params: { id: group.id }, ids: [group.id] };
+    },
+    bodies: {
+      'GroupsController.update': () => ({ name: 'Renamed by another tenant' }),
+    },
+  },
+  // Keyed by route: the owner picker needs `ticket.edit` but its resource is a group (T095).
+  'GroupsController.eligibleOwners': {
+    async create(tenant) {
+      const group = await createGroup(tenant);
+      return { params: { id: group.id }, ids: [group.id] };
     },
   },
   user: {
