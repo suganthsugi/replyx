@@ -4,7 +4,7 @@ import { sql } from 'kysely';
 import { Clock } from '../platform-kernel/clock.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
-import { validationFailed } from '../platform-kernel/http/app-error.js';
+import { notFound, validationFailed } from '../platform-kernel/http/app-error.js';
 import { uuidv7 } from '../platform-kernel/ids.js';
 import { OutboxService } from '../platform-kernel/outbox/outbox.service.js';
 import { TenantSettingsRepository, type ConversationSettings } from '../tenancy/tenant-settings.js';
@@ -87,9 +87,12 @@ export class CustomerMessageRouter {
     @Inject(TICKET_ROUTER) private readonly router: TicketRouter,
   ) {}
 
-  accept(ctx: TenantContext, customer: MessageCustomer, input: CustomerMessageInput): Promise<AcceptedMessage> {
+  /** `customerId` is the signed-in customer (never taken from input). */
+  accept(ctx: TenantContext, customerId: string, input: CustomerMessageInput): Promise<AcceptedMessage> {
     return this.unitOfWork.withTenant(ctx, async (tx) => {
-      await sql`SELECT pg_advisory_xact_lock(hashtext(${`${ctx.tenantId}:${customer.id}`}))`.execute(tx);
+      await sql`SELECT pg_advisory_xact_lock(hashtext(${`${ctx.tenantId}:${customerId}`}))`.execute(tx);
+      const customer = await new RoutingRepository(ctx).customer(tx, customerId);
+      if (customer === undefined) throw notFound('customer');
 
       const messages = new MessagesRepository(ctx);
       const existing = await messages.findByClientMessageId(tx, customer.id, input.clientMessageId);
@@ -159,7 +162,7 @@ export class CustomerMessageRouter {
     if (settings.afterCloseBehavior === 'reopen_previous') return { ticket: previous, created: false };
 
     const followUp = await this.create(ctx, tx, customer, body, 'follow_up', now);
-    await new LinksRepository(ctx).followUp(tx, followUp.id, previous.id);
+    await new RoutingRepository(ctx).followUp(tx, followUp.id, previous.id);
     return { ticket: followUp, created: true };
   }
 
@@ -188,7 +191,7 @@ export class CustomerMessageRouter {
 
     const decision = await this.router.route(tx, ticket, { body }, customer);
     const groupId = decision?.groupId;
-    if (groupId !== undefined && (await new LinksRepository(ctx).isActiveGroup(tx, groupId))) {
+    if (groupId !== undefined && (await new RoutingRepository(ctx).isActiveGroup(tx, groupId))) {
       const patch: TicketPatch = { group_id: groupId, ...(decision?.priority === undefined ? {} : { priority: decision.priority }) };
       const changes: FieldChange[] = [
         { field: 'group_id', old: null, new: groupId },
@@ -287,9 +290,18 @@ export function stateChanges(before: TicketRow, moved: TransitionResult): FieldC
   return changes;
 }
 
-class LinksRepository extends TenantRepository {
+class RoutingRepository extends TenantRepository {
   async followUp(tx: TenantTransaction, fromTicketId: string, toTicketId: string): Promise<void> {
     await this.insertInto(tx, 'ticket_links', { from_ticket_id: fromTicketId, to_ticket_id: toTicketId, kind: 'follow_up_of' }).execute();
+  }
+
+  customer(tx: TenantTransaction, userId: string): Promise<MessageCustomer | undefined> {
+    return this.selectFrom(tx, 'users')
+      .select(['users.id', 'users.email'])
+      .where('users.id', '=', userId)
+      .where('users.kind', '=', 'customer')
+      .where('users.status', '=', 'active')
+      .executeTakeFirst();
   }
 
   async isActiveGroup(tx: TenantTransaction, groupId: string): Promise<boolean> {
