@@ -38,13 +38,16 @@ import type { Redis } from 'ioredis';
  *
  *   1. in one platform-pool transaction, lock a batch (`FOR UPDATE`), give each event the next
  *      `seq` (max + 1: a single writer, so gap-free in publish order) and set `published_at`;
- *   2. fan out: one BullMQ job per interested consumer, one Socket.IO emit per stream room
- *      (customer rooms get only the customer projection), and a server-side broadcast of
- *      control events to the gateways;
- *   3. commit.
+ *   2. enqueue one BullMQ job per interested consumer;
+ *   3. commit;
+ *   4. emit: one Socket.IO emit per stream room (customer rooms get only the customer
+ *      projection) and a server-side broadcast of control events to the gateways.
  *
- * A crash before commit republishes the batch: jobs are deduplicated by job id and clients drop
- * envelopes whose `id` they already applied. Published events are kept 7 days for `sync`.
+ * Emitting only after commit means every `seq` a client receives is already visible to `sync`,
+ * so a socket that syncs while the batch is in flight can't ack past an event it never gets. A
+ * crash before commit republishes the batch (jobs are deduplicated by job id); a crash between
+ * commit and emit loses only the live emit, which the client's next `sync` replays. Published
+ * events are kept 7 days for `sync`.
  */
 
 /** Client-facing event name for persistent envelopes; ephemeral signals use their own names. */
@@ -258,7 +261,7 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
 
   /** Publishes one batch; returns how many events it published. */
   async publishBatch(): Promise<number> {
-    return this.db.transaction().execute(async (trx) => {
+    const published = await this.db.transaction().execute(async (trx) => {
       const rows = await trx
         .selectFrom('outbox_events')
         .select(['id', 'tenant_id', 'type', 'actor', 'payload', 'customer_payload', 'streams', 'created_at'])
@@ -268,7 +271,7 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
         .limit(BATCH_SIZE)
         .forUpdate()
         .execute();
-      if (rows.length === 0) return 0;
+      if (rows.length === 0) return [];
 
       const max = await trx
         .selectFrom('outbox_events')
@@ -283,6 +286,7 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
         WHERE o.id = v.id
       `.execute(trx);
 
+      const planned: { plan: DeliveryPlan; event: RelayEvent }[] = [];
       for (const [index, row] of rows.entries()) {
         const event: RelayEvent = {
           id: row.id,
@@ -295,19 +299,28 @@ export class OutboxRelay implements OnApplicationBootstrap, OnApplicationShutdow
           occurredAt: row.created_at,
           seq: first + index,
         };
-        await runWithLogContext({ tenantId: event.tenantId, eventId: event.id }, () =>
-          this.deliver(planDelivery(event, this.router.routesFor(event.type)), event),
-        );
+        const plan = planDelivery(event, this.router.routesFor(event.type));
+        await runWithLogContext({ tenantId: event.tenantId, eventId: event.id }, () => this.enqueueJobs(plan, event));
+        planned.push({ plan, event });
         this.metrics.realtimeDeliveryLag.record(Number(row.age_seconds));
       }
-      return rows.length;
+      return planned;
     });
+
+    for (const { plan, event } of published) {
+      runWithLogContext({ tenantId: event.tenantId, eventId: event.id }, () => this.emit(plan));
+    }
+    return published.length;
   }
 
-  private async deliver(plan: DeliveryPlan, event: RelayEvent): Promise<void> {
+  private async enqueueJobs(plan: DeliveryPlan, event: RelayEvent): Promise<void> {
     for (const route of plan.jobs) {
       await this.queues.enqueueEvent(route.queue, route.consumer, { tenantId: event.tenantId, eventId: event.id });
     }
+  }
+
+  /** After commit only (see the class comment). */
+  private emit(plan: DeliveryPlan): void {
     const emitter = this.emitter;
     if (emitter === undefined) throw new Error('Relay emitter is not ready');
     for (const emit of plan.emits) {
