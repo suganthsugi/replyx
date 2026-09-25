@@ -2,10 +2,14 @@ import { Injectable, Optional } from '@nestjs/common';
 import { sql } from 'kysely';
 import { z } from 'zod';
 
+import { Clock } from '../platform-kernel/clock.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
+import { notFound } from '../platform-kernel/http/app-error.js';
 import { decodeCursor, encodeCursor } from '../platform-kernel/http/pagination.js';
+import { OutboxService } from '../platform-kernel/outbox/outbox.service.js';
 import { PresenceService } from '../platform-kernel/realtime/presence.service.js';
+import { ticketStream } from '../tickets/ticket-events.js';
 import { ACTIVE_STATES } from '../tickets/tickets.repository.js';
 
 import {
@@ -65,6 +69,8 @@ function isBefore(entry: { at: Date; key: string }, cursor: { at: Date; key: str
 export class CustomerConversationService {
   constructor(
     private readonly unitOfWork: UnitOfWork,
+    private readonly outbox: OutboxService,
+    private readonly clock: Clock,
     @Optional() private readonly presence?: PresenceService,
   ) {}
 
@@ -119,6 +125,33 @@ export class CustomerConversationService {
     return friendlyStatus(code);
   }
 
+  /**
+   * Read receipts (FR-053): support's public replies up to `upToMessageId` become read, and each
+   * ticket they belong to gets one `message.read` for its staff. An id the customer can't see is
+   * 404, like any missing message.
+   */
+  markRead(ctx: TenantContext, customerId: string, upToMessageId: string): Promise<void> {
+    return this.unitOfWork.withTenant(ctx, async (tx) => {
+      const upTo = await new ConversationRepository(ctx).publicMessage(tx, customerId, upToMessageId);
+      if (upTo === undefined) throw notFound('message');
+      const now = this.clock.now();
+      const read = await new MessagesRepository(ctx).markSupportRepliesRead(tx, customerId, { createdAt: upTo.created_at, id: upTo.id }, now);
+      const latestByTicket = new Map<string, string>();
+      // Rows come back in no particular order; ids are UUIDv7, so the largest is the latest.
+      for (const row of read) {
+        const current = latestByTicket.get(row.ticket_id);
+        if (current === undefined || row.id > current) latestByTicket.set(row.ticket_id, row.id);
+      }
+      for (const [ticketId, messageId] of latestByTicket) {
+        await this.outbox.append(tx, {
+          type: 'message.read',
+          payload: { ticketId, upToMessageId: messageId, readAt: now.toISOString() },
+          streams: [ticketStream(ticketId)],
+        });
+      }
+    });
+  }
+
   private async refs(ctx: TenantContext, tx: TenantTransaction, rows: readonly MessageRow[]) {
     const messages = new MessagesRepository(ctx);
     const [authors, attachments] = await Promise.all([
@@ -159,6 +192,18 @@ class ConversationRepository extends TenantRepository {
       );
     }
     return query.orderBy('ticket_messages.created_at', 'desc').orderBy('ticket_messages.id', 'desc').limit(limit).execute();
+  }
+
+  publicMessage(tx: TenantTransaction, customerId: string, messageId: string) {
+    return this.selectFrom(tx, 'ticket_messages')
+      .innerJoin('tickets', (join) =>
+        join.onRef('tickets.tenant_id', '=', 'ticket_messages.tenant_id').onRef('tickets.id', '=', 'ticket_messages.ticket_id'),
+      )
+      .select(['ticket_messages.id', 'ticket_messages.created_at'])
+      .where('ticket_messages.id', '=', messageId)
+      .where('tickets.customer_id', '=', customerId)
+      .where('ticket_messages.visibility', '=', 'public')
+      .executeTakeFirst();
   }
 
   /** When each resolved or closed, unmerged ticket was resolved (or closed without resolving). */

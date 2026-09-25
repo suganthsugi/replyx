@@ -6,6 +6,7 @@ import { AuthorizationModule } from './authorization/authorization.module.js';
 import { RolesHttpModule } from './authorization/roles.controller.js';
 import { GroupsHttpModule } from './groups/groups.controller.js';
 import { IdentityJobsModule } from './identity/erasure.job.js';
+import { MessagingHttpModule, MessagingModule } from './messaging/messaging.module.js';
 import { ClockModule } from './platform-kernel/clock.js';
 import { DatabaseModule } from './platform-kernel/db/database.js';
 import { JobsModule } from './platform-kernel/jobs/jobs.module.js';
@@ -20,6 +21,7 @@ import { RealtimeModule } from './platform-kernel/realtime/gateway.js';
 import { RedisModule } from './platform-kernel/redis/redis.module.js';
 import { TenancyHttpModule } from './tenancy/tenancy-http.module.js';
 import { TenancyModule } from './tenancy/tenant-provisioning.service.js';
+import { TicketsModule } from './tickets/tickets.module.js';
 
 /**
  * The same codebase runs as two processes (research D1):
@@ -47,9 +49,19 @@ export class AppModule {
       AuthorizationModule.forRoot({ syncOnBootstrap: options.role === 'api' }),
       TenancyModule,
       AuditModule,
+      TicketsModule,
+      MessagingModule,
     ];
     // HTTP controllers, guards and the Socket.IO gateway (api only).
-    const apiOnly: ModuleImports = [ApiPipelineModule, HealthModule, RealtimeModule, RolesHttpModule, GroupsHttpModule, TenancyHttpModule];
+    const apiOnly: ModuleImports = [
+      ApiPipelineModule,
+      HealthModule,
+      RealtimeModule,
+      RolesHttpModule,
+      GroupsHttpModule,
+      TenancyHttpModule,
+      MessagingHttpModule,
+    ];
     // Outbox relay, queue consumers and sweepers (worker only).
     const workerOnly: ModuleImports = [JobsModule, OutboxRelayModule, IdentityJobsModule];
 
