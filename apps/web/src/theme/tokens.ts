@@ -125,6 +125,78 @@ export const motionTokens = {
   },
 } as const;
 
+/**
+ * The design system for screens built from Phase 5 on (docs/design-system/README.md): a
+ * teal/slate palette, Sora headings, pill buttons and chips, borders instead of shadows. Phase
+ * 1–4 screens keep the tokens above until a retheme task; `createDesignSystemTheme` builds from
+ * these and is applied through `DesignSystemScope`.
+ */
+export const designSystemTokens = {
+  color: {
+    light: {
+      pageBg: '#F1F5F9',
+      bg: '#F8FAFC',
+      surface: '#FFFFFF',
+      surface2: '#F1F5F9',
+      border: '#E2E8F0',
+      textPrimary: '#0F172A',
+      textSecondary: '#475569',
+      primary: '#0D9488',
+      primaryContrast: '#FFFFFF',
+      primarySoft: '#CCFBF1',
+      warningText: '#92400E',
+      warningSoft: '#FEF3C7',
+      errorText: '#991B1B',
+      errorSoft: '#FEE2E2',
+      successText: '#047857',
+      successSoft: '#D1FAE5',
+    },
+    dark: {
+      pageBg: '#0B1120',
+      bg: '#0B1120',
+      surface: '#0F172A',
+      surface2: '#1E293B',
+      border: '#1E293B',
+      textPrimary: '#F1F5F9',
+      textSecondary: '#94A3B8',
+      primary: '#2DD4BF',
+      primaryContrast: '#0F172A',
+      primarySoft: '#134E4A',
+      warningText: '#FBBF24',
+      warningSoft: '#3F2D0B',
+      errorText: '#F87171',
+      errorSoft: '#3F1417',
+      successText: '#34D399',
+      successSoft: '#0B2E22',
+    },
+  },
+  type: {
+    heading: '"Sora", "Inter", "Segoe UI", system-ui, sans-serif',
+    base: '"Inter", "Segoe UI", system-ui, -apple-system, sans-serif',
+    mono: '"IBM Plex Mono", "SFMono-Regular", Consolas, monospace',
+    size: {
+      timestamp: '0.625rem', // 10px
+      meta: '0.75rem', // 12px
+      body: '0.8125rem', // 13px, workspace body
+      bodyChat: '0.875rem', // 14px, customer chat body
+      paneTitle: '0.9375rem', // 15px
+      title: '1rem', // 16px
+      cardTitle: '1.1875rem', // 19px
+      pageTitle: '1.375rem', // 22px
+    },
+    sectionLabel: { size: '0.75rem', weight: 600, letterSpacing: '0.04em' },
+  },
+  radius: {
+    control: 8,
+    card: 12,
+    shell: 16,
+    pill: 9999,
+  },
+  elevation: {
+    shell: '0 8px 24px rgba(0, 0, 0, 0.08)',
+  },
+} as const;
+
 export const tokens = {
   color: colorTokens,
   type: typeScaleTokens,
