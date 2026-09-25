@@ -36,6 +36,7 @@ describe('RealtimeAuth', () => {
       userId: USER,
       sessionId: 's1',
       kind: 'staff',
+      expiresAt: 0,
     });
     expect(sessions.authenticate).toHaveBeenCalledWith(TENANT, TOKEN);
   });
@@ -75,14 +76,14 @@ function staffGateway(groupOf?: (id: string) => Promise<string | null | undefine
   const policy = { effectiveAccess: vi.fn(() => Promise.resolve(access(groups))) };
   const tickets = groupOf === undefined ? undefined : { groupOf: vi.fn((_ctx: unknown, id: string) => groupOf(id)) };
   const streams = new StreamAccess(policy as never, tickets);
-  return new StaffGateway({} as never, policy as never, {} as never, { wsConnections: { add: vi.fn() } } as never, streams, {} as never, {} as never);
+  return new StaffGateway({} as never, policy as never, {} as never, { wsConnections: { add: vi.fn() } } as never, streams, {} as never, {} as never, {} as never);
 }
 
 function socket(kind: 'staff' | 'customer' = 'staff') {
   const joined: string[] = [];
   const s = {
     id: 'sock1',
-    data: { tenantId: TENANT, userId: USER, sessionId: 's1', kind },
+    data: { tenantId: TENANT, userId: USER, sessionId: 's1', kind, expiresAt: Number.MAX_SAFE_INTEGER },
     join: vi.fn((rooms: string | string[]) => {
       joined.push(...(Array.isArray(rooms) ? rooms : [rooms]));
       return Promise.resolve();
@@ -128,7 +129,7 @@ describe('StaffGateway', () => {
 
 describe('CustomerGateway', () => {
   it('joins only the own conversation and refuses other streams', async () => {
-    const gateway = new CustomerGateway({} as never, { wsConnections: { add: vi.fn() } } as never, {} as never);
+    const gateway = new CustomerGateway({} as never, { wsConnections: { add: vi.fn() } } as never, {} as never, {} as never);
     const { socket: s, joined } = socket('customer');
     await gateway.handleConnection(s);
     expect(joined).toEqual([tenantRoom(TENANT), sessionRoom(TENANT, 's1'), `t:${TENANT}:conversation:${USER}`]);

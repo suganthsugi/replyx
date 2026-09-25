@@ -22,6 +22,7 @@ import { CONTROL_EVENT, CUSTOMER_NAMESPACE, roomFor, STAFF_NAMESPACE, type Contr
 import { AccessChangeHandler } from './access-change.handler.js';
 import { PresenceService } from './presence.service.js';
 import { REALTIME_PATH } from './redis-io.adapter.js';
+import { SessionExpirySweeper } from './session-expiry.js';
 import {
   CLOSING_EVENT,
   errorAck,
@@ -53,7 +54,8 @@ import type { Namespace, Server } from 'socket.io';
  *   `sync` replays missed events (sync.handler.ts).
  * - Control events from the relay (`session.revoked`, `tenant.suspended`) send `closing { code }`
  *   and disconnect the affected sockets on this process; `access.changed` recomputes rooms
- *   (access-change.handler.ts).
+ *   (access-change.handler.ts). Sessions that idle out close with `SESSION_EXPIRED`
+ *   (session-expiry.ts).
  */
 
 class HandshakeError extends Error {
@@ -84,7 +86,13 @@ export class RealtimeAuth {
     if (principal?.tenantId !== resolution.tenant.id || principal.kind !== audience) {
       throw new HandshakeError('UNAUTHENTICATED');
     }
-    return { tenantId: principal.tenantId, userId: principal.userId, sessionId: principal.sessionId, kind: principal.kind };
+    return {
+      tenantId: principal.tenantId,
+      userId: principal.userId,
+      sessionId: principal.sessionId,
+      kind: principal.kind,
+      expiresAt: principal.expiresAt,
+    };
   }
 }
 
@@ -126,12 +134,14 @@ export class StaffGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
     private readonly access: StreamAccess,
     private readonly syncHandler: SyncHandler,
     private readonly accessChange: AccessChangeHandler,
+    private readonly expiry: SessionExpirySweeper,
   ) {}
 
   /** For the root namespace Nest passes the `Server` itself. */
   afterInit(namespace: Namespace | Server): void {
     this.server = 'server' in namespace ? namespace.server : namespace;
     namespace.use(handshakeMiddleware(this.auth, 'staff', this.logger) as Parameters<Namespace['use']>[0]);
+    this.expiry.watch('server' in namespace ? namespace : namespace.of(STAFF_NAMESPACE));
     // Server-side broadcasts from the relay arrive on the root namespace of every api process.
     namespace.on(CONTROL_EVENT, (message: ControlMessage) => void this.onControl(message));
   }
@@ -230,10 +240,12 @@ export class CustomerGateway implements OnGatewayInit, OnGatewayConnection, OnGa
     private readonly auth: RealtimeAuth,
     private readonly metrics: MetricsService,
     private readonly syncHandler: SyncHandler,
+    private readonly expiry: SessionExpirySweeper,
   ) {}
 
   afterInit(namespace: Namespace): void {
     namespace.use(handshakeMiddleware(this.auth, 'customer', this.logger) as Parameters<Namespace['use']>[0]);
+    this.expiry.watch(namespace);
   }
 
   async handleConnection(socket: RealtimeSocket): Promise<void> {
@@ -270,7 +282,16 @@ export class CustomerGateway implements OnGatewayInit, OnGatewayConnection, OnGa
 /** Real-time gateway (api process only). */
 @Module({
   imports: [HttpKernelModule, IdentityModule],
-  providers: [RealtimeAuth, StreamAccess, SyncHandler, AccessChangeHandler, PresenceService, StaffGateway, CustomerGateway],
-  exports: [StaffGateway, StreamAccess, PresenceService],
+  providers: [
+    RealtimeAuth,
+    StreamAccess,
+    SyncHandler,
+    AccessChangeHandler,
+    PresenceService,
+    SessionExpirySweeper,
+    StaffGateway,
+    CustomerGateway,
+  ],
+  exports: [StaffGateway, StreamAccess, PresenceService, SessionExpirySweeper],
 })
 export class RealtimeModule {}

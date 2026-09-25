@@ -11,7 +11,8 @@ Transport and delivery decisions: [research.md D7–D8](../research.md#d8-real-t
   session is missing, expired, belongs to another tenant, or belongs to the wrong audience
   (a customer session on `/` or a staff session on `/customer`).
 - The server disconnects a socket with reason `{ code: "SESSION_REVOKED" }` on sign-out-all,
-  deactivation or tenant suspension (`{ code: "TENANT_SUSPENDED" }`).
+  deactivation or tenant suspension (`{ code: "TENANT_SUSPENDED" }`), and with
+  `{ code: "SESSION_EXPIRED" }` when the session idles out (checked every minute).
 
 ## Client → server messages
 

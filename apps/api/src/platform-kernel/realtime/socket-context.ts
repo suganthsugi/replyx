@@ -12,6 +12,8 @@ export interface RealtimeSocketData {
   userId: string;
   sessionId: string;
   kind: SessionKind;
+  /** Session idle expiry (ms) as last checked; see session-expiry.ts. */
+  expiresAt: number;
 }
 
 /** Server → client events (contracts/realtime-events.md). Ephemeral signals are added by T040. */

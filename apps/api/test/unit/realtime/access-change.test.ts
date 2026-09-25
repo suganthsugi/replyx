@@ -48,7 +48,7 @@ function setup(groups: [string | null, typeof flags][]) {
   const emitted: unknown[] = [];
   const socket = {
     id: 'sock1',
-    data: { tenantId: TENANT, userId: USER, sessionId: 's1', kind: 'staff' as const },
+    data: { tenantId: TENANT, userId: USER, sessionId: 's1', kind: 'staff' as const, expiresAt: Number.MAX_SAFE_INTEGER },
     rooms,
     leave: vi.fn((r: string) => {
       rooms.delete(r);
