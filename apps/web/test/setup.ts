@@ -2,7 +2,7 @@ import * as jestDomMatchers from '@testing-library/jest-dom/matchers';
 import { cleanup } from '@testing-library/react';
 import axe from 'axe-core';
 import { setupServer } from 'msw/node';
-import { afterAll, afterEach, beforeAll, expect } from 'vitest';
+import { afterAll, afterEach, beforeAll, expect, vi } from 'vitest';
 
 import { handlers } from './msw/handlers';
 
@@ -15,6 +15,19 @@ import { handlers } from './msw/handlers';
 // `vitest` it resolves from its own install location, which under pnpm is not this app's
 // instance, and it breaks built-in matchers such as `rejects.toThrow`.
 expect.extend(jestDomMatchers);
+
+// Areas open a socket once someone is signed in; component tests never talk to a real server, so
+// socket.io-client gets an inert socket (the realtime client itself is tested with a fake).
+vi.mock('socket.io-client', () => ({
+  io: () => ({
+    connected: false,
+    on: () => undefined,
+    emit: () => undefined,
+    timeout: () => ({ emitWithAck: () => Promise.resolve({ ok: true }) }),
+    connect: () => undefined,
+    disconnect: () => undefined,
+  }),
+}));
 
 export const server = setupServer(...handlers);
 

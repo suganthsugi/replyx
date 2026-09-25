@@ -1,7 +1,13 @@
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
-import { Route, Routes } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
+import { useCallback } from 'react';
+import { Route, Routes, useNavigate } from 'react-router';
 
+import { useToast } from '../components/shell/Toast';
+import { useAccessChangeRefetch, useKnownMe } from '../data/auth';
+import { RealtimeProvider, useRealtime, useSessionEnded } from '../data/realtime';
+import SupportAccessPage from '../pages/admin/support-access/SupportAccessPage';
 import UsersPage from '../pages/admin/users/UsersPage';
 import AcceptInvitationPage from '../pages/desk/auth/AcceptInvitationPage';
 import ForgotPasswordPage from '../pages/desk/auth/ForgotPasswordPage';
@@ -9,7 +15,10 @@ import ResetPasswordPage from '../pages/desk/auth/ResetPasswordPage';
 import SignInPage from '../pages/desk/auth/SignInPage';
 import ProfilePage from '../pages/desk/me/ProfilePage';
 
+import { WORKSPACE_BASE } from './area';
 import { AreaShell, NotFoundPage } from './AreaShell';
+
+import type { ReactNode } from 'react';
 
 /**
  * The agent/admin workspace (`/desk/*` on a tenant host), loaded lazily. Paths here are relative
@@ -18,18 +27,59 @@ import { AreaShell, NotFoundPage } from './AreaShell';
 export default function WorkspaceArea() {
   return (
     <AreaShell>
-      <Routes>
-        <Route index element={<WorkspaceHome />} />
-        <Route path="sign-in" element={<SignInPage />} />
-        <Route path="accept-invitation" element={<AcceptInvitationPage />} />
-        <Route path="forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="reset-password" element={<ResetPasswordPage />} />
-        <Route path="me" element={<ProfilePage />} />
-        <Route path="admin/users" element={<UsersPage />} />
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+      <StaffRealtime>
+        <Routes>
+          <Route index element={<WorkspaceHome />} />
+          <Route path="sign-in" element={<SignInPage />} />
+          <Route path="accept-invitation" element={<AcceptInvitationPage />} />
+          <Route path="forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="reset-password" element={<ResetPasswordPage />} />
+          <Route path="me" element={<ProfilePage />} />
+          <Route path="admin/users" element={<UsersPage />} />
+          <Route path="admin/support-access" element={<SupportAccessPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </StaffRealtime>
     </AreaShell>
   );
+}
+
+/**
+ * Opens the staff socket once the page knows who is signed in, and ends the page's session when
+ * the server ends it: a revoked session or a suspended workspace goes back to sign-in (FR-004).
+ */
+function StaffRealtime({ children }: { children: ReactNode }) {
+  const me = useKnownMe();
+  return (
+    <RealtimeProvider namespace="/" userId={me?.id}>
+      <StaffSessionEvents />
+      {children}
+    </RealtimeProvider>
+  );
+}
+
+function StaffSessionEvents() {
+  const client = useRealtime();
+  const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const toast = useToast();
+
+  useAccessChangeRefetch(client);
+  useSessionEnded(
+    client,
+    useCallback(
+      (code: string) => {
+        queryClient.clear();
+        toast({
+          message: code === 'TENANT_SUSPENDED' ? 'This workspace is currently unavailable.' : 'You have been signed out.',
+          severity: 'info',
+        });
+        void navigate(`${WORKSPACE_BASE}/sign-in`, { replace: true });
+      },
+      [queryClient, toast, navigate],
+    ),
+  );
+  return null;
 }
 
 function WorkspaceHome() {

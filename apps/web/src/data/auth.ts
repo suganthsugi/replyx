@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
 import {
@@ -37,6 +37,14 @@ export function useMe() {
     },
   });
   return { ...query, error: query.error ? mapError(query.error) : undefined };
+}
+
+/**
+ * The signed-in staff member as far as this page already knows (sign-in, or a page that loaded
+ * `/me`), without fetching: the workspace area uses it to decide whether to open a socket.
+ */
+export function useKnownMe(): Me | undefined {
+  return useQuery<Me>({ queryKey: meKeys.all, enabled: false }).data;
 }
 
 export function useSignIn() {
