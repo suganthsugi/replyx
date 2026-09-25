@@ -7,6 +7,7 @@ import { RolesHttpModule } from './authorization/roles.controller.js';
 import { GroupsHttpModule } from './groups/groups.controller.js';
 import { IdentityJobsModule } from './identity/erasure.job.js';
 import { MessagingHttpModule, MessagingModule } from './messaging/messaging.module.js';
+import { MessagingJobsModule } from './messaging/offline-reply-email.consumer.js';
 import { ClockModule } from './platform-kernel/clock.js';
 import { DatabaseModule } from './platform-kernel/db/database.js';
 import { JobsModule } from './platform-kernel/jobs/jobs.module.js';
@@ -63,7 +64,7 @@ export class AppModule {
       MessagingHttpModule,
     ];
     // Outbox relay, queue consumers and sweepers (worker only).
-    const workerOnly: ModuleImports = [JobsModule, OutboxRelayModule, IdentityJobsModule];
+    const workerOnly: ModuleImports = [JobsModule, OutboxRelayModule, IdentityJobsModule, MessagingJobsModule];
 
     return {
       module: AppModule,
