@@ -142,7 +142,7 @@ export default function UsersPage() {
   };
 
   return (
-    <Box component="main" sx={{ px: 6, py: 6 }}>
+    <Box component="main" sx={{ px: { xs: 4, sm: 6 }, py: 6 }}>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 6, flexWrap: 'wrap', gap: 3 }}>
         <Typography component="h1" variant="h4">
           Users
@@ -217,8 +217,10 @@ export default function UsersPage() {
 
       {!usersQuery.isPending && !usersQuery.isError && users.length > 0 && (
         <>
-          <TableContainer>
-            <Table aria-label="Users">
+          {/* The table is wider than a phone: it scrolls inside its container rather than
+              widening the page (ui-components: no horizontal page scroll at phone width). */}
+          <TableContainer sx={{ maxWidth: '100%' }}>
+            <Table aria-label="Users" sx={{ minWidth: 720 }}>
               <TableHead>
                 <TableRow>
                   <TableCell>Name</TableCell>

@@ -189,6 +189,14 @@ export function createAppTheme(mode: ColorMode, tenantColor?: string | null): Th
           root: {
             borderRadius: radiusTokens.sm,
           },
+          // `error.main` reaches AA on white but not on the page background, which is where
+          // destructive text buttons sit (a row of a table). The darker shade passes on both.
+          textError: {
+            color: mode === 'dark' ? colorTokens.danger.light : colorTokens.danger.dark,
+          },
+          outlinedError: {
+            color: mode === 'dark' ? colorTokens.danger.light : colorTokens.danger.dark,
+          },
         },
       },
 
