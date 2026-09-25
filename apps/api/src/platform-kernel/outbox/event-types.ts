@@ -39,6 +39,10 @@ export interface DomainEventMap {
   'access.revoked': { ticketIds?: string[]; groupIds?: (string | null)[] };
   /** The tenant was suspended; every socket of the tenant disconnects. */
   'tenant.suspended': Record<string, never>;
+  /** Deactivated by an admin (FR-008): tickets consumers unassign the user's open tickets. */
+  'user.deactivated': { userId: string };
+  /** An admin asked for the user's data to be erased; the erasure job does it (T062). */
+  'user.erasure_requested': { userId: string };
 }
 
 export type DomainEventType = keyof DomainEventMap;

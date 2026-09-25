@@ -12,6 +12,8 @@ import { PasswordService } from './password.service.js';
 import { SessionService } from './session.service.js';
 import { StaffAuthController } from './staff-auth.controller.js';
 import { StaffAuthService } from './staff-auth.service.js';
+import { UsersController } from './users.controller.js';
+import { UsersService } from './users.service.js';
 
 /**
  * Identity (research D5): sessions, authentication, password hashing, lockout, staff sign-in and
@@ -19,8 +21,8 @@ import { StaffAuthService } from './staff-auth.service.js';
  * registered globally by the API pipeline, which is also what brings in the controllers.
  */
 @Module({
-  controllers: [StaffAuthController, InvitationsController, CustomerAuthController, MeController],
-  providers: [SessionService, AuthGuard, PasswordService, LockoutService, MeService, StaffAuthService, InvitationsService, CustomerAuthService],
+  controllers: [StaffAuthController, InvitationsController, CustomerAuthController, MeController, UsersController],
+  providers: [SessionService, AuthGuard, PasswordService, LockoutService, MeService, StaffAuthService, InvitationsService, CustomerAuthService, UsersService],
   exports: [SessionService, AuthGuard, PasswordService, LockoutService, MeService, InvitationsService],
 })
 export class IdentityModule {}

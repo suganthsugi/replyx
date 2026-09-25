@@ -9,8 +9,8 @@ import { unauthenticated, validationFailed } from '../platform-kernel/http/app-e
 import { PasswordService } from './password.service.js';
 import { SessionService } from './session.service.js';
 
-import type { Availability, UserKind } from '../platform-kernel/db/tables/identity.js';
 import type { JsonValue } from '../platform-kernel/db/tables/column-types.js';
+import type { Availability, UserKind } from '../platform-kernel/db/tables/identity.js';
 import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
 
 /**
@@ -71,7 +71,7 @@ export class MeService {
         ...(input.name === undefined ? {} : { name: input.name }),
         ...(input.avatarAttachmentId === undefined ? {} : { avatar_attachment_id: input.avatarAttachmentId }),
         ...(input.availability === undefined ? {} : { availability: input.availability }),
-        ...(timeDisplay === undefined ? {} : { time_display: timeDisplay as JsonValue }),
+        ...(timeDisplay === undefined ? {} : { time_display: timeDisplay }),
       });
     });
     return this.me(ctx);
