@@ -58,6 +58,7 @@ export const ROUTE_ACCESS = 'replyx:routeAccess';
 export type RouteAccess =
   | { kind: 'permission'; permission: PermissionKey }
   | { kind: 'public' }
+  | { kind: 'staff' }
   | { kind: 'customer' }
   | { kind: 'operator' };
 
@@ -78,6 +79,12 @@ export const RequirePermission = (permission: PermissionKey) => accessDecorator(
 
 /** No session needed (sign-in, branding, health). */
 export const Public = () => accessDecorator({ kind: 'public' });
+
+/**
+ * Any signed-in staff user, no permission key: only for the caller's own account (sign-out,
+ * `/me`). Never for tenant data, which always needs `@RequirePermission`.
+ */
+export const StaffApi = () => accessDecorator({ kind: 'staff' });
 
 /** Customer API (`/customer/*`): authorized by ownership of the caller's own conversation. */
 export const CustomerApi = () => accessDecorator({ kind: 'customer' });

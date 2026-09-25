@@ -22,6 +22,7 @@ export function routeNotFound(): AppError {
  * - `@RequirePermission(key)`: staff only; the policy service decides, `deny` → 403. Resource
  *   visibility (tickets outside the user's groups → 404) is decided by the service handling
  *   the resource, through the same policy service.
+ * - `@StaffApi()`: staff sessions only, no permission key (the caller's own account).
  * - `@CustomerApi()`: customer sessions only.
  * - A customer on a staff route or staff on a customer route gets 404, not 403 (research D9):
  *   the other surface does not exist for them.
@@ -47,6 +48,9 @@ export class PermissionGuard implements CanActivate {
       case 'operator':
         if (req.hostKind !== 'console') throw routeNotFound();
         if (req.operator === undefined) throw unauthenticated();
+        return true;
+      case 'staff':
+        if (req.actor?.kind !== 'staff') throw routeNotFound();
         return true;
       case 'customer':
         if (req.actor?.kind !== 'customer') throw routeNotFound();

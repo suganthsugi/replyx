@@ -9,6 +9,7 @@ import {
   OperatorApi,
   Public,
   RequirePermission,
+  StaffApi,
 } from '../../../src/authorization/registry/module-permissions.js';
 import { PermissionRegistry } from '../../../src/authorization/registry/registry.service.js';
 import { auditRoutes, RouteAudit } from '../../../src/authorization/registry/route-audit.js';
@@ -25,6 +26,8 @@ class Routes {
   staffRoute(this: void) {}
   @CustomerApi()
   customerRoute(this: void) {}
+  @StaffApi()
+  ownAccountRoute(this: void) {}
   @OperatorApi()
   operatorRoute(this: void) {}
   @Public()
@@ -67,6 +70,15 @@ describe('PermissionGuard', () => {
     });
   });
 
+  it('lets any staff session through own-account routes without asking the policy', async () => {
+    const { promise, policy } = run(Routes.prototype.ownAccountRoute, { tenant: TENANT, actor: staff });
+    await expect(promise).resolves.toBe(true);
+    expect(policy.can).not.toHaveBeenCalled();
+    await expect(run(Routes.prototype.ownAccountRoute, { tenant: TENANT, actor: customer }).promise).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
   it('lets customers through customer routes', async () => {
     await expect(run(Routes.prototype.customerRoute, { tenant: TENANT, actor: customer }).promise).resolves.toBe(true);
   });
@@ -101,6 +113,7 @@ describe('auditRoutes', () => {
           { name: 'A.b', method: 'GET', path: '/customer/conversation', access: [{ kind: 'customer' }] },
           { name: 'A.c', method: 'GET', path: '/platform/tenants', access: [{ kind: 'operator' }] },
           { name: 'A.d', method: 'GET', path: '/auth/sign-in', access: [{ kind: 'public' }] },
+          { name: 'A.e', method: 'GET', path: '/me', access: [{ kind: 'staff' }] },
         ],
         known,
       ),
