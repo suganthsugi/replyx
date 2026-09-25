@@ -92,6 +92,8 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       company text,
       notes text,
       last_message_at timestamptz,
+      -- "Email me when support replies" (customer.yaml PATCH /me); full preferences arrive with US15.
+      email_on_reply boolean NOT NULL DEFAULT true,
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now(),
       CONSTRAINT customer_profiles_tenant_id_user_id_key UNIQUE (tenant_id, user_id),

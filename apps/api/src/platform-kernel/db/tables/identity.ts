@@ -106,6 +106,7 @@ export interface CustomerProfilesTable {
   company: string | null;
   notes: string | null;
   last_message_at: Timestamp | null;
+  email_on_reply: Generated<boolean>;
   created_at: GeneratedTimestamp;
   updated_at: GeneratedTimestamp;
 }
