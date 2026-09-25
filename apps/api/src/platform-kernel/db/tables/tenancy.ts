@@ -38,8 +38,25 @@ export interface TenantCountersTable {
   value: ColumnType<string, number | string, number | string>;
 }
 
+/**
+ * Migration 0007_support_access. A grant is active while `revoked_at IS NULL` and now is between
+ * `starts_at` and `expires_at`; the window is at most 7 days (CHECK, FR-001a).
+ */
+export interface SupportAccessGrantsTable {
+  id: Generated<string>;
+  tenant_id: string;
+  granted_by: string;
+  reason: string | null;
+  starts_at: GeneratedTimestamp;
+  expires_at: Timestamp;
+  revoked_at: Timestamp | null;
+  revoked_by: string | null;
+  created_at: GeneratedTimestamp;
+}
+
 export interface TenancyTables {
   tenants: TenantsTable;
   tenant_settings: TenantSettingsTable;
   tenant_counters: TenantCountersTable;
+  support_access_grants: SupportAccessGrantsTable;
 }
