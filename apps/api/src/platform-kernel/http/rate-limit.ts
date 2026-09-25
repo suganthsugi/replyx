@@ -49,6 +49,11 @@ export const RATE_LIMIT_POLICIES = {
 
 export type RateLimitPolicyName = keyof typeof RATE_LIMIT_POLICIES;
 
+/** Friendlier wording where people, not scripts, hit the limit (FR-057). */
+const RATE_LIMIT_MESSAGES: Partial<Record<RateLimitPolicyName, string>> = {
+  'customer-message': "You're sending messages quickly. Please wait a moment and try again",
+};
+
 // Atomic: drop expired entries, then either reject with the time until the oldest one leaves
 // the window, or record this request.
 const SLIDING_WINDOW = `
@@ -101,7 +106,7 @@ export class RateLimiter {
       this.logger.warn(`Rate limit ${policy} skipped: ${error instanceof Error ? error.message : 'unknown'}`);
       return;
     }
-    if (waitMs > 0) throw rateLimited(waitMs / 1000);
+    if (waitMs > 0) throw rateLimited(waitMs / 1000, RATE_LIMIT_MESSAGES[policy]);
   }
 }
 
