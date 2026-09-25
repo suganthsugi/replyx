@@ -2,6 +2,7 @@ import { Global, Module, type OnApplicationShutdown, Inject } from '@nestjs/comm
 
 import { CustomerAttachmentsController, StaffAttachmentsController } from './attachments.controller.js';
 import { AttachmentsService } from './attachments.service.js';
+import { DownloadController, DownloadService } from './download.controller.js';
 import { FILE_STORAGE, type FileStorage } from './storage/file-storage.js';
 import { LocalFileStorage } from './storage/local-file-storage.js';
 import { S3FileStorage, s3SettingsFromEnv } from './storage/s3-file-storage.js';
@@ -28,7 +29,7 @@ export class FileStorageModule implements OnApplicationShutdown {
 
 /** HTTP side of attachments (api process only). */
 @Module({
-  controllers: [StaffAttachmentsController, CustomerAttachmentsController],
-  providers: [AttachmentsService],
+  controllers: [StaffAttachmentsController, CustomerAttachmentsController, DownloadController],
+  providers: [AttachmentsService, DownloadService],
 })
 export class AttachmentsHttpModule {}

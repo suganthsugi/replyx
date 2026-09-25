@@ -28,6 +28,9 @@ Object.assign(process.env, {
   OPERATOR_BOOTSTRAP_PASSWORD: 'operator-password',
   // Signs operator support tokens; tests must not depend on the developer's own .env.
   SESSION_SECRET: 'test-session-secret',
+  FILE_SIGNING_KEY: 'test-file-signing-key',
+  FILE_STORAGE: 'local',
+  CLAMAV_HOST: '',
 });
 
 afterAll(closeTestApps);
