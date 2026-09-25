@@ -158,6 +158,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
    - **Validation checkpoints**: Verify each phase completion before proceeding
+   - **Jira tracking (mandatory, follow the `jira-tracking` skill)**: right before starting each task (or the first task of a new user story/phase), ensure its Story exists in RX and create the Task/Sub-task for the specific work item — never create Jira issues for tasks that haven't started yet. Transition the issue to **In Progress** when work on it begins.
 
 7. Implementation execution rules:
    - **Setup first**: Initialize project structure, dependencies, configuration
@@ -173,6 +174,7 @@ You **MUST** consider the user input before proceeding (if not empty).
    - Provide clear error messages with context for debugging
    - Suggest next steps if implementation cannot proceed
    - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+   - **Jira tracking (mandatory, follow the `jira-tracking` skill)**: when a task's checkbox is marked `[X]`, transition its Jira issue to **Done**, add a comment with what was done (commit/summary), and attach a screenshot when the task produced anything visual or otherwise observable. When a non-parallel task fails and execution halts on it, transition its Jira issue to **Blocked** and comment with the failure reason instead of leaving it silently In Progress. When a whole user story finishes, transition its Story issue to **Done** with a summary comment.
 
 9. Completion validation:
    - Verify all required tasks are completed
