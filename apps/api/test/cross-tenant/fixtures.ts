@@ -1,4 +1,4 @@
-import type { RoleRef, TestTenant, TestUser } from '../support/factories.js';
+import { createRole, createUser, type RoleRef, type TestTenant, type TestUser } from '../support/factories.js';
 
 /**
  * Cross-tenant fixtures (research D25, SC-010, testing-conventions rule 7). Every registry
@@ -30,7 +30,36 @@ export interface CrossTenantFixture {
   callerRoles?: RoleRef[];
 }
 
-export const FIXTURES: Record<string, CrossTenantFixture> = {};
+export const FIXTURES: Record<string, CrossTenantFixture> = {
+  role: {
+    async create(tenant) {
+      const role = await createRole(tenant, { permissions: ['ticket.view'] });
+      return { params: { id: role.id }, ids: [role.id] };
+    },
+  },
+  user: {
+    async create(tenant) {
+      const user = await createUser(tenant, { roles: ['agent'] });
+      return { params: { id: user.id }, ids: [user.id] };
+    },
+    bodies: {
+      'UsersController.update': () => ({ name: 'Renamed by another tenant' }),
+      'UsersController.erase': () => ({ confirm: 'ERASE' }),
+    },
+  },
+  'customer:me': {
+    async create(tenant) {
+      const customer = await createUser(tenant, { roles: ['customer'] });
+      return { params: {}, ids: [customer.id] };
+    },
+  },
+  'customer:auth': {
+    async create(tenant) {
+      const customer = await createUser(tenant, { roles: ['customer'] });
+      return { params: {}, ids: [customer.id] };
+    },
+  },
+};
 
 /**
  * Extra cross-tenant checks added by later stories: real-time subscriptions (a tenant B socket
