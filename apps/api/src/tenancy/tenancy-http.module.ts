@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { IdentityModule } from '../identity/identity.module.js';
 
+import { BrandingController } from './branding.controller.js';
 import { SupportAccessController } from './support-access.controller.js';
 import { SupportAccessService } from './support-access.service.js';
 import { SuspensionService } from './suspension.service.js';
@@ -14,7 +15,7 @@ import { TenancyModule } from './tenant-provisioning.service.js';
  */
 @Module({
   imports: [IdentityModule, TenancyModule],
-  controllers: [SupportAccessController],
+  controllers: [SupportAccessController, BrandingController],
   providers: [SuspensionService, SupportAccessService],
   exports: [SuspensionService, SupportAccessService],
 })
