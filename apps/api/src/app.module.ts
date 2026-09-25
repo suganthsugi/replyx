@@ -4,6 +4,7 @@ import { ApiPipelineModule } from './api-pipeline.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthorizationModule } from './authorization/authorization.module.js';
 import { RolesHttpModule } from './authorization/roles.controller.js';
+import { GroupsHttpModule } from './groups/groups.controller.js';
 import { IdentityJobsModule } from './identity/erasure.job.js';
 import { ClockModule } from './platform-kernel/clock.js';
 import { DatabaseModule } from './platform-kernel/db/database.js';
@@ -48,7 +49,7 @@ export class AppModule {
       AuditModule,
     ];
     // HTTP controllers, guards and the Socket.IO gateway (api only).
-    const apiOnly: ModuleImports = [ApiPipelineModule, HealthModule, RealtimeModule, RolesHttpModule, TenancyHttpModule];
+    const apiOnly: ModuleImports = [ApiPipelineModule, HealthModule, RealtimeModule, RolesHttpModule, GroupsHttpModule, TenancyHttpModule];
     // Outbox relay, queue consumers and sweepers (worker only).
     const workerOnly: ModuleImports = [JobsModule, OutboxRelayModule, IdentityJobsModule];
 
