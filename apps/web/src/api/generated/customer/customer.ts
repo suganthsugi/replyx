@@ -23,6 +23,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  Branding,
   CustomerMe,
   CustomerSignInBody,
   ErrorResponse,
@@ -618,3 +619,103 @@ export const useUpdateCustomerMe = <TError = unknown, TContext = unknown>(
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * @summary Public chat branding and availability; answers even while the tenant is suspended
+ */
+export const getGetBrandingUrl = () => {
+  return `/customer/branding`;
+};
+
+export const getBranding = async (options?: RequestInit): Promise<Branding> => {
+  return http<Branding>(getGetBrandingUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetBrandingQueryKey = () => {
+  return [`/customer/branding`] as const;
+};
+
+export const getGetBrandingQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBranding>>,
+  TError = unknown,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData>>;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetBrandingQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getBranding>>> = ({ signal }) =>
+    getBranding({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBranding>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetBrandingQueryResult = NonNullable<Awaited<ReturnType<typeof getBranding>>>;
+export type GetBrandingQueryError = unknown;
+
+export function useGetBranding<TData = Awaited<ReturnType<typeof getBranding>>, TError = unknown>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBranding>>,
+          TError,
+          Awaited<ReturnType<typeof getBranding>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetBranding<TData = Awaited<ReturnType<typeof getBranding>>, TError = unknown>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getBranding>>,
+          TError,
+          Awaited<ReturnType<typeof getBranding>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetBranding<TData = Awaited<ReturnType<typeof getBranding>>, TError = unknown>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Public chat branding and availability; answers even while the tenant is suspended
+ */
+
+export function useGetBranding<TData = Awaited<ReturnType<typeof getBranding>>, TError = unknown>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getBranding>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetBrandingQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
