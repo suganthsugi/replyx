@@ -151,7 +151,23 @@ Start commit: b4afe6b
 - Live checks over HTTP need the cookies handled by hand: `rx_session`/`rx_csrf` are `Secure`, so curl will not store them from an `http://` response. Read the `Set-Cookie` headers and send them back as a `Cookie` header (browsers accept them because `localhost` is a secure context).
 - E2E notes: sign-in is rate-limited 10/min per IP and both Playwright projects share one, so the spec signs in as few times as possible; unique email addresses per test (never clear the shared Mailpit); on the phone viewport the invite dialog is submitted from the keyboard, because a click on the footer button lands on the dialog container.
 
-### Resume here (Phase 4) 2026-09-25
+| T074–T081 | inline | c13c3cc..0e2bfb6 | backend: support access grants, operator auth, tenants API, suspension, support token as read-only actor, branding, openapi merge |
+| T082–T085 | inline | 1f306cf..f82c032 | integration tests + cross-tenant fixtures (`support_access_grant`, `tenant_settings`, socket handshake) |
+| T086–T088 | inline | 4cd76b1, b384a2b, a3e5a80, cf45443 | console + support access pages, hooks; new `data/realtime.tsx` (`RealtimeProvider`, `useSessionEnded`) wired into the workspace and customer areas |
+| T089 | inline | 327c4d7 (+4655f37 timeouts) | 8/8 e2e on both projects |
+| T090 | documentator (sonnet) | 431a0a0 | docs build verified inline |
+
+### Phase 4 complete (T074–T090) 2026-09-25
+- Checkpoint: `turbo run lint typecheck test` 8/8 green; api 265 tests, web 119 tests; coverage api 87.8% / web 84.32% lines; docs build passes; e2e 8/8 on desktop and mobile.
+- T088 went further than its text: no area opened a socket, so suspension could not reach an open page. `RealtimeProvider` opens one per area once the user is known. Staff use `useKnownMe`, a cache-only `['me']` observer; customers open theirs once `/customer/me` has loaded. On `closing`, staff get a cleared cache, a toast and `/desk/sign-in`. For customers, `TENANT_SUSPENDED` refetches branding, which shows the unavailable page, and any other code resets `customerMe`. `useAccessChangeRefetch` (Phase 3 follow-up) is now wired. Component tests mock `socket.io-client` globally with an inert socket (test/setup.ts).
+- Playwright `timeout` 60 s / `expect` 10 s: with the lifecycle spec, four workers against the Vite dev server timed the sign-in spec out.
+- Component tests for the US2 pages had no task; they were added so the web coverage gate keeps its margin.
+- Not covered: a signed-out customer on a page that is already open only notices a suspension when branding refetches (focus, or 60 s stale), because it has no socket.
+
+### Stopped here 2026-09-25
+- User scope (Phases 3 and 4) done. Next is Phase 5 (US4, T091+).
+
+### Resume notes (Phase 4) 2026-09-25
 - User scope: finish Phase 3 and Phase 4, then stop. Phase 3 is done; Phase 4 (T074–T090) is next, starting at T074.
 - Checks: `docker compose run --rm -T tools bash -c 'set -o pipefail; pnpm turbo run lint typecheck test --continue'`; coverage `./scripts/check-coverage.sh`; e2e `docker compose --profile e2e run --rm -T playwright bash -c 'cd /repo && pnpm --filter web exec playwright test e2e/'` after `pnpm --filter api seed:dev`.
 - `docker compose restart api worker` after backend changes, `restart web` after frontend changes. Write files as UTF-8.

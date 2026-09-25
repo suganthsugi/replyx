@@ -190,32 +190,32 @@ nothing from the other tenant; suspend and reactivate a tenant with users connec
 
 ### Implementation (backend)
 
-- [ ] T074 [US2] Migration `apps/api/migrations/0007_support_access.ts`: `support_access_grants` (`granted_by`, `reason` ≤ 500, `starts_at`, `expires_at` with CHECK "`expires_at - starts_at ≤ 7 days`", `revoked_at`, `revoked_by`); RLS
-- [ ] T075 [US2] Implement operator auth in `apps/api/src/tenancy/platform/operator-auth.controller.ts`: `POST /platform/auth/sign-in` and `/sign-out` on the console host only, `rx_op_session` cookie in `operator_sessions`, lockout and rate limit; bootstrap the first operator from `OPERATOR_BOOTSTRAP_EMAIL/PASSWORD` on start-up if none exists
-- [ ] T076 [US2] Implement `apps/api/src/tenancy/platform/tenants.controller.ts` + `tenants.service.ts` (`@OperatorApi`): `GET/POST /platform/tenants` (slug pattern `^[a-z0-9](-?[a-z0-9]){2,39}$`, 409 `SLUG_TAKEN` / `SLUG_RESERVED`; creates via `TenantProvisioningService` and invites the admin email with the Admin role), `GET/PATCH /platform/tenants/{id}` (aggregate `stats` only, no business content)
-- [ ] T077 [US2] Implement suspension in `apps/api/src/tenancy/suspension.service.ts`: `POST /platform/tenants/{id}/suspend` (status `suspended`, `suspended_at`, revoke all tenant sessions, emit `tenant.suspended` so the gateway disconnects sockets, flag webhooks and notification sending as paused, delete nothing) and `/reactivate`; audited in the tenant's audit log (FR-004)
-- [ ] T078 [US2] Implement support access in `apps/api/src/tenancy/support-access.controller.ts` + `support-access.service.ts`: `GET /support-access`, `POST /support-access` (`durationHours` 1–168, `support_access.create`), `POST /support-access/{id}/revoke`; `POST /platform/tenants/{id}/support-session` returns 404 `SUPPORT_ACCESS_NOT_GRANTED` without an active grant, otherwise issues a support token bound to the tenant and the grant's expiry (FR-001a)
-- [ ] T079 [US2] Extend `apps/api/src/identity/auth.guard.ts` to accept the operator support token on the tenant host as a read-only actor: every request runs with `withTenantReadOnly`, non-GET returns 403 `READ_ONLY_SUPPORT_ACCESS`, every request writes audit `support_access.read` (resource and path, no content); the token stops working at expiry or revocation
-- [ ] T080 [US2] Implement `GET /customer/branding` in `apps/api/src/tenancy/branding.controller.ts` (`@Public`, `@AllowSuspended`): tenant name, logo URL, colors, welcome message, `selfRegistration`, `available: false` when suspended (`outOfHoursMessage` added in US12)
-- [ ] T081 [US2] Merge `contracts/platform.yaml`, the `/support-access*` paths from `contracts/operations.yaml` and `/customer/branding` into `apps/api/openapi.yaml` (platform paths under a `platform` tag)
+- [X] T074 [US2] Migration `apps/api/migrations/0007_support_access.ts`: `support_access_grants` (`granted_by`, `reason` ≤ 500, `starts_at`, `expires_at` with CHECK "`expires_at - starts_at ≤ 7 days`", `revoked_at`, `revoked_by`); RLS
+- [X] T075 [US2] Implement operator auth in `apps/api/src/tenancy/platform/operator-auth.controller.ts`: `POST /platform/auth/sign-in` and `/sign-out` on the console host only, `rx_op_session` cookie in `operator_sessions`, lockout and rate limit; bootstrap the first operator from `OPERATOR_BOOTSTRAP_EMAIL/PASSWORD` on start-up if none exists
+- [X] T076 [US2] Implement `apps/api/src/tenancy/platform/tenants.controller.ts` + `tenants.service.ts` (`@OperatorApi`): `GET/POST /platform/tenants` (slug pattern `^[a-z0-9](-?[a-z0-9]){2,39}$`, 409 `SLUG_TAKEN` / `SLUG_RESERVED`; creates via `TenantProvisioningService` and invites the admin email with the Admin role), `GET/PATCH /platform/tenants/{id}` (aggregate `stats` only, no business content)
+- [X] T077 [US2] Implement suspension in `apps/api/src/tenancy/suspension.service.ts`: `POST /platform/tenants/{id}/suspend` (status `suspended`, `suspended_at`, revoke all tenant sessions, emit `tenant.suspended` so the gateway disconnects sockets, flag webhooks and notification sending as paused, delete nothing) and `/reactivate`; audited in the tenant's audit log (FR-004)
+- [X] T078 [US2] Implement support access in `apps/api/src/tenancy/support-access.controller.ts` + `support-access.service.ts`: `GET /support-access`, `POST /support-access` (`durationHours` 1–168, `support_access.create`), `POST /support-access/{id}/revoke`; `POST /platform/tenants/{id}/support-session` returns 404 `SUPPORT_ACCESS_NOT_GRANTED` without an active grant, otherwise issues a support token bound to the tenant and the grant's expiry (FR-001a)
+- [X] T079 [US2] Extend `apps/api/src/identity/auth.guard.ts` to accept the operator support token on the tenant host as a read-only actor: every request runs with `withTenantReadOnly`, non-GET returns 403 `READ_ONLY_SUPPORT_ACCESS`, every request writes audit `support_access.read` (resource and path, no content); the token stops working at expiry or revocation
+- [X] T080 [US2] Implement `GET /customer/branding` in `apps/api/src/tenancy/branding.controller.ts` (`@Public`, `@AllowSuspended`): tenant name, logo URL, colors, welcome message, `selfRegistration`, `available: false` when suspended (`outOfHoursMessage` added in US12)
+- [X] T081 [US2] Merge `contracts/platform.yaml`, the `/support-access*` paths from `contracts/operations.yaml` and `/customer/branding` into `apps/api/openapi.yaml` (platform paths under a `platform` tag)
 
 ### Tests
 
-- [ ] T082 [P] [US2] Integration tests `apps/api/test/integration/tenancy/platform-tenants.test.ts`: create tenant (system roles, Ungrouped access, admin invitation sent), slug rules, operator endpoints unreachable from tenant hosts and tenant endpoints unreachable from the console host
-- [ ] T083 [P] [US2] Integration tests `apps/api/test/integration/tenancy/suspension.test.ts`: suspending disconnects connected sockets with `TENANT_SUSPENDED`, blocks staff sign-in, branding reports `available: false`, reactivation restores access with data intact
-- [ ] T084 [P] [US2] Integration tests `apps/api/test/integration/tenancy/support-access.test.ts`: no grant → 404; with grant → reads succeed, writes 403 `READ_ONLY_SUPPORT_ACCESS`, audit entries per read; access ends at expiry and immediately on revoke; grant longer than 168 h rejected
-- [ ] T085 [US2] Add `support_access_grant` and `tenant_settings` fixtures to `apps/api/test/cross-tenant/fixtures.ts` and extend the suite to cover the socket handshake on another tenant's host (expects `UNAUTHENTICATED`)
+- [X] T082 [P] [US2] Integration tests `apps/api/test/integration/tenancy/platform-tenants.test.ts`: create tenant (system roles, Ungrouped access, admin invitation sent), slug rules, operator endpoints unreachable from tenant hosts and tenant endpoints unreachable from the console host
+- [X] T083 [P] [US2] Integration tests `apps/api/test/integration/tenancy/suspension.test.ts`: suspending disconnects connected sockets with `TENANT_SUSPENDED`, blocks staff sign-in, branding reports `available: false`, reactivation restores access with data intact
+- [X] T084 [P] [US2] Integration tests `apps/api/test/integration/tenancy/support-access.test.ts`: no grant → 404; with grant → reads succeed, writes 403 `READ_ONLY_SUPPORT_ACCESS`, audit entries per read; access ends at expiry and immediately on revoke; grant longer than 168 h rejected
+- [X] T085 [US2] Add `support_access_grant` and `tenant_settings` fixtures to `apps/api/test/cross-tenant/fixtures.ts` and extend the suite to cover the socket handshake on another tenant's host (expects `UNAUTHENTICATED`)
 
 ### Implementation (frontend)
 
-- [ ] T086 [P] [US2] Create console pages in `apps/web/src/pages/console/`: `ConsoleSignInPage.tsx`, `TenantsPage.tsx` (list with status and grant indicator, create dialog, suspend/reactivate with confirmation), `SupportSessionPage.tsx`
-- [ ] T087 [P] [US2] Create `apps/web/src/pages/customer/UnavailablePage.tsx` (friendly "support is unavailable") and `apps/web/src/pages/admin/support-access/SupportAccessPage.tsx` (grant with duration and reason, active grants, revoke)
-- [ ] T088 [US2] Create hooks `apps/web/src/data/console.ts`, `apps/web/src/data/support-access.ts`, `apps/web/src/data/branding.ts`; handle `TENANT_SUSPENDED` socket disconnects by routing to the unavailable page
+- [X] T086 [P] [US2] Create console pages in `apps/web/src/pages/console/`: `ConsoleSignInPage.tsx`, `TenantsPage.tsx` (list with status and grant indicator, create dialog, suspend/reactivate with confirmation), `SupportSessionPage.tsx`
+- [X] T087 [P] [US2] Create `apps/web/src/pages/customer/UnavailablePage.tsx` (friendly "support is unavailable") and `apps/web/src/pages/admin/support-access/SupportAccessPage.tsx` (grant with duration and reason, active grants, revoke)
+- [X] T088 [US2] Create hooks `apps/web/src/data/console.ts`, `apps/web/src/data/support-access.ts`, `apps/web/src/data/branding.ts`; handle `TENANT_SUSPENDED` socket disconnects by routing to the unavailable page
 
 ### Frontend tests and docs
 
-- [ ] T089 [P] [US2] E2E `apps/web/e2e/tenant-lifecycle.spec.ts`: operator creates tenant → admin accepts invitation → operator suspends while the admin is connected → admin is signed out and the customer chat shows unavailable → reactivate
-- [ ] T090 [P] [US2] Operator guide `apps/docs/src/content/docs/operators/tenants.md` and admin guide `apps/docs/src/content/docs/admin/support-access.md`
+- [X] T089 [P] [US2] E2E `apps/web/e2e/tenant-lifecycle.spec.ts`: operator creates tenant → admin accepts invitation → operator suspends while the admin is connected → admin is signed out and the customer chat shows unavailable → reactivate
+- [X] T090 [P] [US2] Operator guide `apps/docs/src/content/docs/operators/tenants.md` and admin guide `apps/docs/src/content/docs/admin/support-access.md`
 
 **Checkpoint**: tenants can be created, suspended and supported safely; isolation suite covers users and settings.
 
