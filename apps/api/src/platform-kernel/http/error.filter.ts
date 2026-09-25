@@ -47,11 +47,11 @@ export class ErrorFilter implements ExceptionFilter {
       // The stack goes to the log only; request/tenant ids come from the request logger.
       this.logger.error(exception instanceof Error ? (exception.stack ?? exception.message) : 'Non-error thrown');
     }
-    if (body.error.retryAfter !== undefined) {
-      response.setHeader('Retry-After', String(body.error.retryAfter));
-    }
     if (response.headersSent) {
       return;
+    }
+    if (body.error.retryAfter !== undefined) {
+      response.setHeader('Retry-After', String(body.error.retryAfter));
     }
     response.status(status).json(body);
   }
