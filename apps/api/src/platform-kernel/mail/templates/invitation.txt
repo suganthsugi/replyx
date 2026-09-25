@@ -1,0 +1,7 @@
+Hi,
+
+{{inviterName}} invited you to join {{tenantName}} on ReplyX. Open this link within 7 days to choose your name and password:
+
+{{url}}
+
+If you weren't expecting this, you can ignore this email.
