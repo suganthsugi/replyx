@@ -64,8 +64,8 @@ export function validationFailed(details: readonly ErrorDetail[]): AppError {
   return new AppError('VALIDATION_FAILED', 400, 'The request is invalid', details);
 }
 
-export function rateLimited(retryAfterSeconds: number): AppError {
-  return new AppError('RATE_LIMITED', 429, 'Too many requests, try again later', undefined, {
+export function rateLimited(retryAfterSeconds: number, message = 'Too many requests, try again later'): AppError {
+  return new AppError('RATE_LIMITED', 429, message, undefined, {
     retryAfter: Math.max(1, Math.ceil(retryAfterSeconds)),
   });
 }
