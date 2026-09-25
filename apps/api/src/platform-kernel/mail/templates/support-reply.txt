@@ -1,0 +1,5 @@
+{{agentName}} from support replied to your message. Open the chat to read it and reply:
+
+{{chatUrl}}
+
+You can turn these emails off in your chat profile.
