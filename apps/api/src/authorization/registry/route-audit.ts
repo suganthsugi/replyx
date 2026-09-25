@@ -27,6 +27,9 @@ const AUDIENCE_PREFIX: Readonly<Partial<Record<RouteAccess['kind'], string>>> = 
   operator: 'platform',
 };
 
+/** `@StaffApi()` skips the permission check, so it is confined to the caller's own account. */
+const STAFF_API_SEGMENTS: ReadonlySet<string> = new Set(['auth', 'me']);
+
 function firstSegment(path: string): string {
   return path.split('/').find((segment) => segment !== '') ?? '';
 }
@@ -49,6 +52,9 @@ export function auditRoutes(routes: readonly RouteInfo[], knownPermission: (key:
       problems.push(`${label} requires unknown permission ${access.permission}`);
     }
     const segment = firstSegment(route.path);
+    if (access.kind === 'staff' && !STAFF_API_SEGMENTS.has(segment)) {
+      problems.push(`${label}: @StaffApi() routes may only live under /auth or /me`);
+    }
     for (const [kind, prefix] of Object.entries(AUDIENCE_PREFIX)) {
       if ((access.kind === kind) !== (segment === prefix)) {
         problems.push(`${label}: only ${kind} routes may live under /${prefix}, and they must`);

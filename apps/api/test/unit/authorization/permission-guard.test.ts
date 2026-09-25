@@ -129,10 +129,12 @@ describe('auditRoutes', () => {
         { name: 'B.customerOutside', method: 'GET', path: '/tickets', access: [{ kind: 'customer' }] },
         { name: 'B.staffInside', method: 'GET', path: '/customer/x', access: [{ kind: 'permission', permission: 'group.create' }] },
         { name: 'B.operatorOutside', method: 'GET', path: '/tenants', access: [{ kind: 'operator' }] },
+        { name: 'B.staffOnData', method: 'GET', path: '/tickets', access: [{ kind: 'staff' }] },
       ],
       known,
     );
-    expect(problems).toHaveLength(6);
+    expect(problems).toHaveLength(7);
+    expect(problems.join('\n')).toMatch(/B\.staffOnData .*only live under \/auth or \/me/);
     expect(problems.join('\n')).toMatch(/B\.none .*no access decorator/);
     expect(problems.join('\n')).toMatch(/B\.two .*2 access decorators/);
     expect(problems.join('\n')).toMatch(/B\.unknown .*unknown permission nope\.view/);
