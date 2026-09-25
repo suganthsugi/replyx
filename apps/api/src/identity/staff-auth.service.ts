@@ -13,7 +13,7 @@ import { MailQueue } from '../platform-kernel/mail/mail.service.js';
 
 import { accountLocked, LockoutService } from './lockout.service.js';
 import { PasswordService } from './password.service.js';
-import { hashToken, SessionService, type SessionPrincipal } from './session.service.js';
+import { hashToken, SessionService, type SessionKind, type SessionPrincipal } from './session.service.js';
 
 import type { ResolvedTenant } from '../platform-kernel/http/request-context.js';
 
@@ -63,13 +63,22 @@ export class StaffAuthService {
     private readonly clock: Clock,
   ) {}
 
-  /** Creates a staff session; throws 401 `INVALID_CREDENTIALS` or 423 `ACCOUNT_LOCKED`. */
-  async signIn(info: AuthRequestInfo, email: string, password: string): Promise<{ token: string; principal: SessionPrincipal }> {
+  /**
+   * Password sign-in for `kind` users (customers who set a password use the same rules); throws
+   * 401 `INVALID_CREDENTIALS` or 423 `ACCOUNT_LOCKED`.
+   */
+  async signIn(
+    info: AuthRequestInfo,
+    email: string,
+    password: string,
+    options: { kind?: SessionKind; trustDevice?: boolean } = {},
+  ): Promise<{ token: string; principal: SessionPrincipal }> {
+    const kind = options.kind ?? 'staff';
     const ctx = systemContext(info);
     // Failures are written (audit, lockout count) and committed before the error is thrown.
     const outcome = await this.unitOfWork.withTenant(ctx, async (tx): Promise<SignInOutcome> => {
       const repo = new StaffAuthRepository(ctx);
-      const user = await repo.staffByEmail(tx, email);
+      const user = await repo.userByEmail(tx, email, kind);
 
       if (user !== undefined && this.lockout.isLocked(user)) {
         await this.recordFailure(tx, user.id, 'locked');
@@ -87,7 +96,13 @@ export class StaffAuthService {
       const hash = user.password_hash;
       const rehash = hash !== null && this.passwords.needsRehash(hash) ? await this.passwords.hash(password) : undefined;
       await repo.markSignedIn(tx, user.id, this.clock.now(), rehash);
-      const session = await this.sessions.create(tx, { userId: user.id, kind: 'staff', ip: info.ip, userAgent: info.userAgent });
+      const session = await this.sessions.create(tx, {
+        userId: user.id,
+        kind,
+        trustedDevice: options.trustDevice,
+        ip: info.ip,
+        userAgent: info.userAgent,
+      });
       await this.audit.record(
         tx,
         { action: 'auth.sign_in', resourceType: 'user', resourceId: user.id },
@@ -117,7 +132,7 @@ export class StaffAuthService {
     const token = randomBytes(32).toString('base64url');
     const created = await this.unitOfWork.withTenant(ctx, async (tx) => {
       const repo = new StaffAuthRepository(ctx);
-      const user = await repo.staffByEmail(tx, email);
+      const user = await repo.userByEmail(tx, email, 'staff');
       if (user?.status !== 'active') return undefined;
       const now = this.clock.nowMs();
       await repo.retireResets(tx, user.id, new Date(now));
@@ -172,11 +187,11 @@ function systemContext(info: AuthRequestInfo): TenantContext {
 }
 
 class StaffAuthRepository extends TenantRepository {
-  staffByEmail(tx: TenantTransaction, email: string) {
+  userByEmail(tx: TenantTransaction, email: string, kind: SessionKind) {
     return this.selectFrom(tx, 'users')
       .select(['id', 'email', 'name', 'status', 'password_hash', 'locked_until'])
       .where('email', '=', email)
-      .where('kind', '=', 'staff')
+      .where('kind', '=', kind)
       .executeTakeFirst();
   }
 

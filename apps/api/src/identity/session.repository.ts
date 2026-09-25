@@ -63,7 +63,9 @@ export class SessionRepository extends TenantRepository {
     return this.deleteFrom(tx, 'sessions').where('id', '=', sessionId).returning(['id', 'user_id']).execute();
   }
 
-  deleteAllForUser(tx: TenantTransaction, userId: string) {
-    return this.deleteFrom(tx, 'sessions').where('user_id', '=', userId).returning('id').execute();
+  deleteAllForUser(tx: TenantTransaction, userId: string, exceptSessionId?: string) {
+    let query = this.deleteFrom(tx, 'sessions').where('user_id', '=', userId);
+    if (exceptSessionId !== undefined) query = query.where('id', '!=', exceptSessionId);
+    return query.returning('id').execute();
   }
 }

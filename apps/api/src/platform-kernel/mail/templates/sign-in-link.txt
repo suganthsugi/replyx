@@ -1,0 +1,7 @@
+Hi {{name}},
+
+Open this link to sign in and continue your conversation with support. It works once and expires in 15 minutes:
+
+{{url}}
+
+If you didn't ask for this, you can ignore this email.

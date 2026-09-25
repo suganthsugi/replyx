@@ -167,6 +167,14 @@ export class SessionService {
     return ids;
   }
 
+  /** Password changes: every session of the user except the one making the change. */
+  async revokeOthersForUser(tx: TenantTransaction, userId: string, keepSessionId: string): Promise<string[]> {
+    const rows = await new SessionRepository(requireScope(tx)).deleteAllForUser(tx, userId, keepSessionId);
+    const ids = rows.map((row) => row.id);
+    if (ids.length > 0) await this.announce(tx, userId, ids, 'sign_out_all');
+    return ids;
+  }
+
   /**
    * Drops cached lookups. Called during revocation and again when `session.revoked` is published
    * (after commit), so a lookup racing the revoking transaction can't keep a session alive.

@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 
 import { AuthGuard } from './auth.guard.js';
+import { CustomerAuthController } from './customer-auth.controller.js';
+import { CustomerAuthService } from './customer-auth.service.js';
 import { InvitationsController } from './invitations.controller.js';
 import { InvitationsService } from './invitations.service.js';
 import { LockoutService } from './lockout.service.js';
@@ -16,8 +18,8 @@ import { StaffAuthService } from './staff-auth.service.js';
  * registered globally by the API pipeline, which is also what brings in the controllers.
  */
 @Module({
-  controllers: [StaffAuthController, InvitationsController],
-  providers: [SessionService, AuthGuard, PasswordService, LockoutService, MeService, StaffAuthService, InvitationsService],
+  controllers: [StaffAuthController, InvitationsController, CustomerAuthController],
+  providers: [SessionService, AuthGuard, PasswordService, LockoutService, MeService, StaffAuthService, InvitationsService, CustomerAuthService],
   exports: [SessionService, AuthGuard, PasswordService, LockoutService, MeService, InvitationsService],
 })
 export class IdentityModule {}
