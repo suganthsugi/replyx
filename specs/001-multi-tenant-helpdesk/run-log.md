@@ -167,6 +167,40 @@ Start commit: b4afe6b
 ### Stopped here 2026-09-25
 - User scope (Phases 3 and 4) done. Next is Phase 5 (US4, T091+).
 
+### Phase 5 decisions (2026-09-26; user: continue Phase 5, skip Jira if unavailable)
+- Jira skipped: the Atlassian MCP server failed to connect (404) for the whole run. No RX issues were created for T091–T102.
+- P5-1 `GET /groups/{id}/eligible-owners` is `@RequirePermission('ticket.edit')` and then the policy decides on the group itself: no view gives 404 `GROUP_NOT_FOUND`, view without edit gives 403. Agents don't hold `group.view`, but they pick owners. A support session skips the group check.
+- P5-2 `GROUP_TICKET_STATS` (groups.service.ts) is an optional provider for open-ticket counts per group and per owner, and for `hasTickets` (409 `GROUP_HAS_TICKETS`). **US6 must provide it from a global module.** Until then every count is 0 and no group has tickets.
+- P5-3 `role.updated { roleId, groupsLostEdit }` goes on the `tenant` stream. The relay does not put it in socket rooms, so only consumers see it. **T142 consumes it to unassign owners (FR-026).** Every role edit bumps the access version.
+- P5-4 The role access rules are pure functions in `authorization/role-access.ts` (`diffGroupAccess`, `reducesAccess`, `newGroupAccess`). A missing matrix entry counts as no access.
+- P5-5 Cross-tenant fixtures can be keyed by route name (`GroupsController.eligibleOwners`), and that key wins over the resource key. Use it when a route's permission resource differs from its path resource.
+- P5-6 openapi also has `getRole`/`getGroup` (the contract listed the paths but not the operationIds) and a separate `GroupCreateInput` (name required).
+- P5-7 Web design system (ui-components rule 9): `designSystemTokens`, `createDesignSystemTheme` and `DesignSystemScope`. The accent is resolved through `resolveBrandAccent` (new `fallbackColor` argument), then brought to 4.5:1 against `pageBg`, because axe failed teal links on the page background. The Users and Support access pages keep the old theme inside the new admin rail. Sora is named but not loaded, like Inter: the app loads no web fonts.
+- P5-8 The web socket client now applies an envelope with the same `seq` as the stream cursor (only below-cursor ones are dropped; duplicates are caught by id). The gateway emits `access.revoked` with the `access.changed` seq, so before this change the client dropped every revocation.
+- P5-9 The admin area (`AdminLayout` and its pages) is its own lazy chunk inside the workspace. Loading it eagerly pushed the workspace chunk's cold import past the 10 s area-test timeout in the full parallel run.
+- P5-10 `useAccessChangeRefetch` (auth.ts) was replaced by `useAccessChanges`/`useAccessRevoked` (data/access.ts). `roleKeys`/`useRoles` moved from users.ts to roles.ts.
+
+| task | agent | commit | notes |
+|------|-------|--------|-------|
+| T091 | inline | 0ac1d6e | live-checked on dev: every 4xx path, audit rows (`role.*`, `permission.changed`, `group_access.changed`), outbox `role.updated` + `access.changed` |
+| T092 | inline | 72c0593 | live-checked: Admin-only access on create, case-insensitive 409, eligible owners 200/404 per caller, cross-tenant 404s |
+| T093 | inline | 3776ee6, 7477e50 | merge script recreated in the scratchpad; redocly valid (22 warnings as before); client regenerated |
+| T094 | inline | 4ef5101, 735cfe8 | refactor to pure rules first, then 13 unit tests |
+| T095 | inline | 1052241, 95163c8 | 21 tests including SC-014 (a registry key added at run time goes to Admin only, in every tenant) |
+| T096 | inline | 11f66ba, 0a22d43 | revocation measured under 2 s; room membership observed by delivery; `beforeAll` waits for the relay backlog left by files without a worker |
+| T097 | inline | 96ef433, 574e76b | design-system theme + builders |
+| T098 | inline | 5e3209b | pages |
+| T099 | inline | 556c0a1, 86ac81a | equal-seq fix + hooks |
+| T100 | inline | 7e5c587 | admin shell, lazy chunk |
+| T101 | inline | 555c406, d2427a1 | 13 builder/layout tests, plus 7 page tests (not in the task text; added for coverage) |
+| T102 | documentator + dev-documentator (sonnet) | 7d923c4, 9f91e6c | reviewed inline; overstated claims removed; dead link replaced |
+
+### Phase 5 complete (T091–T102) 2026-09-26
+- `turbo run lint typecheck test` 8/8 green; api 311 tests (37 files), web 141 tests (22 files). Coverage: api 91.09% lines, web 84.83% (gate 80/70). E2E 8/8 on desktop and mobile after re-seeding. Docs build passes (8 pages). redocly valid.
+- Chrome live check not possible: the extension refuses scripted cookies and credentials aren't typed into the browser. A temporary Playwright walkthrough (not committed) signed in, screenshotted roles, role editor, Admin (locked), groups and the group dialog on both projects, and ran axe on each. It found and fixed an active-rail contrast failure, teal links on the page background, 24 px radii (sx radius multiplies the 8 px base), a black rail border (a responsive shorthand reset the color) and a mobile page overflow (a `VisuallyHidden` span escaping the table scroller; the table containers are `position: relative` now).
+- Reviewer: PASS, no critical or major findings. Minor: RoleEditorPage runs its own submit/error cycle because `Form` has no confirm-before-submit hook; extend `Form` with one before the next confirm-then-save form. The reviewer also saw one timing flake in role-pages.test.tsx under the full parallel run; it passed on the rerun and alone.
+- Follow-ups: the developer doc's Mermaid diagram renders as a code block (Starlight has no Mermaid plugin); load Sora and Inter when the retheme task lands.
+
 ### Resume notes (Phase 4) 2026-09-25
 - User scope: finish Phase 3 and Phase 4, then stop. Phase 3 is done; Phase 4 (T074–T090) is next, starting at T074.
 - Checks: `docker compose run --rm -T tools bash -c 'set -o pipefail; pnpm turbo run lint typecheck test --continue'`; coverage `./scripts/check-coverage.sh`; e2e `docker compose --profile e2e run --rm -T playwright bash -c 'cd /repo && pnpm --filter web exec playwright test e2e/'` after `pnpm --filter api seed:dev`.
