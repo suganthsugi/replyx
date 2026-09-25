@@ -24,10 +24,19 @@ export interface RequestActor {
   readonly sessionId: string;
 }
 
-/** A platform operator on the console host, set by the operator auth guard (T081). */
+/** A platform operator on the console host, set by the operator auth guard. */
 export interface RequestOperator {
   readonly operatorId: string;
   readonly sessionId: string;
+}
+
+/**
+ * A platform operator reading a tenant under a support-access grant, set by the support guard
+ * (FR-001a). Read-only: the guard refuses anything but GET before the handler runs.
+ */
+export interface RequestSupport {
+  readonly operatorId: string;
+  readonly grantId: string;
 }
 
 // @types/express merges the global Express.Request into its Request type.
@@ -40,6 +49,7 @@ declare global {
       tenant?: ResolvedTenant;
       actor?: RequestActor;
       operator?: RequestOperator;
+      support?: RequestSupport;
     }
   }
 }
@@ -50,8 +60,21 @@ declare global {
  * route that is not tenant-authenticated.
  */
 export function tenantContextOf(req: Request): TenantContext {
-  if (req.tenant === undefined || req.actor === undefined) {
-    throw new Error('tenantContextOf needs a resolved tenant and an authenticated actor');
+  if (req.tenant === undefined) {
+    throw new Error('tenantContextOf needs a resolved tenant');
+  }
+  // A support session acts as the operator and is pinned read-only at the database (FR-001a).
+  if (req.actor === undefined && req.support !== undefined) {
+    return TenantContext.create({
+      tenantId: req.tenant.id,
+      actor: { kind: 'operator', id: req.support.operatorId },
+      requestId: requestIdOf(req),
+      ip: req.ip ?? null,
+      readOnly: true,
+    });
+  }
+  if (req.actor === undefined) {
+    throw new Error('tenantContextOf needs an authenticated actor');
   }
   return TenantContext.create({
     tenantId: req.tenant.id,

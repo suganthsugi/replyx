@@ -59,3 +59,22 @@ export function appendSetCookie(
   const list = Array.isArray(existing) ? (existing as string[]) : typeof existing === 'string' ? [existing] : [];
   res.setHeader('Set-Cookie', [...list, cookie]);
 }
+
+/**
+ * The header a platform operator's support token travels in (FR-001a). It lives here so the CSRF
+ * and auth guards can recognise a support request without importing the tenancy module.
+ */
+export const SUPPORT_TOKEN_HEADER = 'x-support-token';
+
+/**
+ * True when the only credential on the request is a support token. A custom header cannot be set
+ * by a cross-site form, and the support guard refuses every method but GET, so such a request
+ * needs no CSRF pairing and has no session for the tenant auth guard to find.
+ */
+export function isSupportTokenRequest(req: {
+  headers: Record<string, string | string[] | undefined>;
+}): boolean {
+  const token = req.headers[SUPPORT_TOKEN_HEADER];
+  if (typeof token !== 'string' || token === '') return false;
+  return parseCookies(typeof req.headers.cookie === 'string' ? req.headers.cookie : undefined).get(SESSION_COOKIE) === undefined;
+}

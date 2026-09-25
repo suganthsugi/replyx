@@ -5,7 +5,7 @@ import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/com
 import { routeAccessOf } from '../../authorization/registry/module-permissions.js';
 
 import { AppError } from './app-error.js';
-import { appendSetCookie, CSRF_COOKIE, parseCookies, serializeCookie } from './cookies.js';
+import { appendSetCookie, CSRF_COOKIE, isSupportTokenRequest, parseCookies, serializeCookie } from './cookies.js';
 
 import type { Request } from 'express';
 
@@ -16,8 +16,11 @@ import type { Request } from 'express';
  * send the cookie but cannot read it, so it cannot produce the header.
  *
  * Safe methods and `@Public()` routes are exempt: public routes (sign-in, sign-in links, password
- * reset) run before any session or CSRF cookie exists and act on no session. Everything else,
- * including `@OperatorApi()` routes, needs a matching header or gets 403 `CSRF_FAILED`.
+ * reset) run before any session or CSRF cookie exists and act on no session. So is a request
+ * whose only credential is a support token, which is a custom header and therefore unforgeable
+ * cross-site; the support guard answers it with 403 `READ_ONLY_SUPPORT_ACCESS` instead.
+ * Everything else, including `@OperatorApi()` routes, needs a matching header or gets 403
+ * `CSRF_FAILED`.
  */
 
 export const CSRF_HEADER = 'x-csrf-token';
@@ -56,6 +59,7 @@ export class CsrfGuard implements CanActivate {
 
     const access = routeAccessOf(context.getHandler(), context.getClass());
     if (access.length === 1 && access[0]?.kind === 'public') return true;
+    if (isSupportTokenRequest(req)) return true;
 
     const cookie = parseCookies(req.headers.cookie).get(CSRF_COOKIE);
     if (!csrfTokensMatch(cookie, req.headers[CSRF_HEADER])) throw csrfFailed();

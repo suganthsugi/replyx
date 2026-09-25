@@ -19,6 +19,12 @@ export interface TenantContextInit {
   requestId: string;
   /** Client IP for audit entries (HTTP requests only). */
   ip?: string | null;
+  /**
+   * Forces every unit of work opened with this context to be read-only, whichever method the
+   * caller uses. Set for operator support-access requests (FR-001a): the guarantee belongs to
+   * the actor, not to each call site.
+   */
+  readOnly?: boolean;
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -30,6 +36,7 @@ export class TenantContext {
   readonly actor: Actor;
   readonly requestId: string;
   readonly ip: string | null;
+  readonly readOnly: boolean;
 
   // A private field makes the class nominal: an object literal is not a TenantContext.
   readonly #brand = true;
@@ -39,12 +46,13 @@ export class TenantContext {
     this.actor = Object.freeze({ ...init.actor });
     this.requestId = init.requestId;
     this.ip = init.ip ?? null;
+    this.readOnly = init.readOnly === true;
     Object.freeze(this);
   }
 
   /** Throws (a programming error, not a client error) when any part is missing or malformed. */
   static create(init: TenantContextInit): TenantContext {
-    const { tenantId, actor, requestId, ip } = init as Partial<TenantContextInit>;
+    const { tenantId, actor, requestId, ip, readOnly } = init as Partial<TenantContextInit>;
     if (typeof tenantId !== 'string' || !UUID_PATTERN.test(tenantId)) {
       throw new TypeError('TenantContext requires a tenantId (uuid)');
     }
@@ -55,7 +63,7 @@ export class TenantContext {
       throw new TypeError('TenantContext ip must be a short string');
     }
     assertActor(actor);
-    return new TenantContext({ tenantId, actor, requestId, ip });
+    return new TenantContext({ tenantId, actor, requestId, ip, readOnly: readOnly === true });
   }
 
   static isTenantContext(value: unknown): value is TenantContext {

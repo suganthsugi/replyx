@@ -26,7 +26,10 @@ export function routeNotFound(): AppError {
  * - `@CustomerApi()`: customer sessions only.
  * - A customer on a staff route or staff on a customer route gets 404, not 403 (research D9):
  *   the other surface does not exist for them.
- * - `@OperatorApi()`: console host with an operator session (set by the operator auth guard, T081).
+ * - `@OperatorApi()`: console host with an operator session (set by the operator auth guard).
+ * - A support session (an operator reading a tenant under a grant, FR-001a) passes every
+ *   `@RequirePermission` route: the grant is the authorisation, and the support guard has already
+ *   refused everything but reads. The staff and customer surfaces stay closed to it.
  * - `@Public()`: nothing to check.
  *
  * A route without exactly one decorator never gets here in a running app (route-audit.ts fails
@@ -56,6 +59,7 @@ export class PermissionGuard implements CanActivate {
         if (req.actor?.kind !== 'customer') throw routeNotFound();
         return true;
       case 'permission': {
+        if (req.actor === undefined && req.support !== undefined) return true;
         if (req.actor?.kind !== 'staff') throw routeNotFound();
         const decision = await this.policy.can(tenantContextOf(req), entry.permission);
         if (decision === 'allow') return true;

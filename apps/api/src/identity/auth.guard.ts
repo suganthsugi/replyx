@@ -2,7 +2,7 @@ import { type CanActivate, type ExecutionContext, Injectable } from '@nestjs/com
 
 import { routeAccessOf } from '../authorization/registry/module-permissions.js';
 import { unauthenticated } from '../platform-kernel/http/app-error.js';
-import { parseCookies, SESSION_COOKIE } from '../platform-kernel/http/cookies.js';
+import { isSupportTokenRequest, parseCookies, SESSION_COOKIE } from '../platform-kernel/http/cookies.js';
 import { assignLogContext } from '../platform-kernel/observability/logger.js';
 
 import { SessionService } from './session.service.js';
@@ -17,7 +17,8 @@ import type { Request } from 'express';
  * rare; this check makes it impossible).
  *
  * `@Public()` routes skip authentication. `@OperatorApi()` routes are authenticated by the
- * console's operator session instead. Routes without access metadata fail closed.
+ * console's operator session instead, and a request whose only credential is a support token is
+ * left to the support guard (FR-001a). Routes without access metadata fail closed.
  */
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -31,6 +32,8 @@ export class AuthGuard implements CanActivate {
     }
 
     const req = context.switchToHttp().getRequest<Request>();
+    // A support token is not a session: the support guard validates it and its grant.
+    if (isSupportTokenRequest(req)) return true;
     const tenant = req.tenant;
     if (req.hostKind !== 'tenant' || tenant === undefined) throw unauthenticated();
 

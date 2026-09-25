@@ -49,7 +49,8 @@ export class UnitOfWork {
     return this.db
       .transaction()
       .execute(async (trx) => {
-        if (readOnly) {
+        // A read-only context can never be widened by the call site (support access, FR-001a).
+        if (readOnly || ctx.readOnly) {
           // Must be the first statement of the transaction.
           await sql`SET TRANSACTION READ ONLY`.execute(trx);
         }

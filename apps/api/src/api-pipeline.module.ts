@@ -10,6 +10,8 @@ import { RateLimitGuard } from './platform-kernel/http/rate-limit.js';
 import { TenantStatusGuard } from './platform-kernel/http/tenant-resolver.middleware.js';
 import { OperatorAuthGuard } from './tenancy/platform/operator-auth.guard.js';
 import { PlatformModule } from './tenancy/platform/platform.module.js';
+import { SupportAccessGuard } from './tenancy/support-access.guard.js';
+import { TenancyHttpModule } from './tenancy/tenancy-http.module.js';
 
 /**
  * The request pipeline of the `api` process, in constitution II order. The tenant resolver
@@ -22,12 +24,13 @@ import { PlatformModule } from './tenancy/platform/platform.module.js';
  * CSRF runs before authentication: it needs no database work, so forged requests stop early.
  */
 @Module({
-  imports: [HttpKernelModule, IdentityModule, PlatformModule],
+  imports: [HttpKernelModule, IdentityModule, PlatformModule, TenancyHttpModule],
   providers: [
     { provide: APP_GUARD, useClass: TenantStatusGuard },
     { provide: APP_GUARD, useClass: CsrfGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_GUARD, useClass: OperatorAuthGuard },
+    { provide: APP_GUARD, useClass: SupportAccessGuard },
     { provide: APP_GUARD, useClass: RateLimitGuard },
     { provide: APP_GUARD, useClass: PermissionGuard },
   ],
