@@ -5,6 +5,7 @@ import { sql, type Kysely } from 'kysely';
 import { PLATFORM_DB, type Database } from '../../platform-kernel/db/database.js';
 import { TenantContext } from '../../platform-kernel/db/tenant-context.js';
 import { tenantScopeOf, UnitOfWork, type TenantTransaction } from '../../platform-kernel/db/unit-of-work.js';
+import { bumpAccessVersion } from '../access-version.js';
 
 import { isModulePermissions, type ModulePermissions, type PermissionKey } from './module-permissions.js';
 
@@ -154,7 +155,12 @@ export class PermissionRegistry implements OnModuleInit, OnApplicationBootstrap 
       const tenants = await query.execute();
       for (const { id } of tenants) {
         const ctx = TenantContext.create({ tenantId: id, actor: { kind: 'system' }, requestId: 'permission-registry' });
-        granted += await this.unitOfWork.withTenant(ctx, grantRegistryToAdminRole);
+        granted += await this.unitOfWork.withTenant(ctx, async (tx) => {
+          const added = await grantRegistryToAdminRole(tx);
+          // Admins' cached effective access predates the new keys.
+          if (added > 0) await bumpAccessVersion(tx, id, 'permission_registry');
+          return added;
+        });
       }
       if (tenants.length < TENANT_PAGE_SIZE) return granted;
       after = tenants.at(-1)?.id;
