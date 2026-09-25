@@ -21,15 +21,20 @@ interface FormState {
 
 const FormContext = createContext<FormState>({ submitting: false });
 
+/** The API's validation `issue` codes (apps/api validation.pipe.ts) mapped to field messages. */
 const ISSUE_MESSAGES: Record<string, string> = {
   required: 'This field is required',
   too_long: 'This is too long',
   too_short: 'This is too short',
-  too_big: 'This value is too large',
+  too_many: 'Too many items',
+  too_few: 'Too few items',
+  too_large: 'This value is too large',
   too_small: 'This value is too small',
-  invalid_format: 'This format is not valid',
-  invalid_email: 'Enter a valid email address',
+  invalid_format: 'Check the format of this value',
+  invalid_timezone: 'Choose a valid time zone',
+  invalid_value: 'Choose one of the allowed values',
   invalid_type: 'This value is not valid',
+  invalid: 'This value is not valid',
   unrecognized_key: 'This field is not allowed',
 };
 

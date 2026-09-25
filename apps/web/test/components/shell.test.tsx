@@ -146,11 +146,11 @@ describe('Form', () => {
 
   it('puts validation issues on the matching field', async () => {
     const { container } = renderWithProviders(
-      <InviteForm onSubmit={() => Promise.reject(apiError(400, 'VALIDATION_FAILED', 'Invalid', [{ path: 'email', issue: 'invalid_email' }]))} />,
+      <InviteForm onSubmit={() => Promise.reject(apiError(400, 'VALIDATION_FAILED', 'Invalid', [{ path: 'email', issue: 'invalid_format' }]))} />,
     );
     await userEvent.click(screen.getByRole('button', { name: 'Send invitation' }));
     const field = await screen.findByRole('textbox', { name: 'Email' });
-    await waitFor(() => expect(field).toHaveAccessibleDescription('Enter a valid email address'));
+    await waitFor(() => expect(field).toHaveAccessibleDescription('Check the format of this value'));
     expect(field).toHaveAttribute('aria-invalid', 'true');
     await expectNoAxeViolations(container);
   });
