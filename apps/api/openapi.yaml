@@ -492,6 +492,26 @@ paths:
           description: Changed; other sessions ended
         "400":
           $ref: "#/components/responses/ValidationFailed"
+  /roles:
+    get:
+      operationId: listRoles
+      tags:
+        - access
+      summary: List roles (role.view)
+      responses:
+        "200":
+          description: Roles
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Role"
   /users:
     get:
       operationId: listUsers
@@ -1035,3 +1055,64 @@ components:
           type: boolean
         emailOnReply:
           type: boolean
+    GroupAccessEntry:
+      type: object
+      required:
+        - groupId
+        - view
+        - create
+        - edit
+        - delete
+      additionalProperties: false
+      properties:
+        groupId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: null = Ungrouped
+        view:
+          type: boolean
+        create:
+          type: boolean
+        edit:
+          type: boolean
+        delete:
+          type: boolean
+    Role:
+      type: object
+      required:
+        - id
+        - name
+        - system
+        - permissions
+        - groupAccess
+        - userCount
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        system:
+          type:
+            - string
+            - "null"
+          enum:
+            - customer
+            - agent
+            - manager
+            - admin
+            - null
+        permissions:
+          type: array
+          items:
+            type: string
+        groupAccess:
+          type: array
+          items:
+            $ref: "#/components/schemas/GroupAccessEntry"
+        userCount:
+          type: integer

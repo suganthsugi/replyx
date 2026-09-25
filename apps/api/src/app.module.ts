@@ -3,6 +3,7 @@ import { type DynamicModule, Module } from '@nestjs/common';
 import { ApiPipelineModule } from './api-pipeline.module.js';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthorizationModule } from './authorization/authorization.module.js';
+import { RolesHttpModule } from './authorization/roles.controller.js';
 import { ClockModule } from './platform-kernel/clock.js';
 import { DatabaseModule } from './platform-kernel/db/database.js';
 import { JobsModule } from './platform-kernel/jobs/jobs.module.js';
@@ -45,7 +46,7 @@ export class AppModule {
       AuditModule,
     ];
     // HTTP controllers, guards and the Socket.IO gateway (api only).
-    const apiOnly: ModuleImports = [ApiPipelineModule, HealthModule, RealtimeModule];
+    const apiOnly: ModuleImports = [ApiPipelineModule, HealthModule, RealtimeModule, RolesHttpModule];
     // Outbox relay, queue consumers and sweepers (worker only).
     const workerOnly: ModuleImports = [JobsModule, OutboxRelayModule];
 
