@@ -224,10 +224,14 @@ export class RealtimeClient {
     this.apply(envelope, this.cursors.get(envelope.stream));
   }
 
-  /** Applies an envelope unless it was already applied or is at or below `floor`. */
+  /**
+   * Applies an envelope unless it was already applied or is below `floor`. Equal `seq` is not a
+   * duplicate: the gateway derives `access.revoked` from the `access.changed` it follows, with
+   * the same `seq` on the same `user` stream. Duplicates are caught by id.
+   */
   private apply(envelope: Envelope, floor: number | undefined): void {
     if (this.applied.has(envelope.id)) return;
-    if (floor !== undefined && envelope.seq <= floor) return;
+    if (floor !== undefined && envelope.seq < floor) return;
     this.markApplied(envelope.id);
     this.setCursor(envelope.stream, Math.max(this.cursors.get(envelope.stream) ?? 0, envelope.seq));
     for (const type of [envelope.type, '*']) {

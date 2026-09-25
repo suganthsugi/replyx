@@ -64,9 +64,19 @@ describe('RealtimeClient', () => {
     client.onEvent('*', (event) => seen.push(event.id));
     socket.fire('event', envelope('a', 5));
     socket.fire('event', envelope('a', 5)); // duplicate id
-    socket.fire('event', envelope('b', 4)); // at or below the cursor (replayed)
+    socket.fire('event', envelope('b', 4)); // below the cursor (replayed)
     socket.fire('event', envelope('c', 6));
     expect(seen).toEqual(['a', 'c']);
+    expect(client.cursor('user')).toBe(6);
+  });
+
+  it('applies a second envelope with the same seq (access.revoked follows access.changed)', () => {
+    const { socket, client } = setup();
+    const seen: string[] = [];
+    client.onEvent('*', (event) => seen.push(event.type));
+    socket.fire('event', envelope('changed', 6, 'user', 'access.changed'));
+    socket.fire('event', envelope('revoked', 6, 'user', 'access.revoked'));
+    expect(seen).toEqual(['access.changed', 'access.revoked']);
     expect(client.cursor('user')).toBe(6);
     expect(JSON.parse(sessionStorage.getItem('rx:rt:cursors:/:u1') ?? '{}')).toEqual({ user: 6 });
   });
