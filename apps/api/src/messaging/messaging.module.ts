@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 
 import { RealtimeModule } from '../platform-kernel/realtime/gateway.js';
 
+import { ConversationTyping, CustomerTypingGateway, StaffTypingGateway } from './conversation-events.js';
 import { CustomerConversationService } from './customer-conversation.service.js';
 import { CustomerMessageRouter } from './customer-message-router.js';
 import { CustomerController } from './customer.controller.js';
@@ -23,7 +24,7 @@ export class MessagingModule {}
 @Module({
   imports: [MessagingModule, RealtimeModule],
   controllers: [CustomerController, StaffMessagesController],
-  providers: [CustomerConversationService, StaffMessagesService],
+  providers: [CustomerConversationService, StaffMessagesService, ConversationTyping, StaffTypingGateway, CustomerTypingGateway],
   exports: [CustomerConversationService],
 })
 export class MessagingHttpModule {}
