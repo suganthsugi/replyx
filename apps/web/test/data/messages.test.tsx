@@ -7,13 +7,13 @@ import { useSendTicketMessage, useTicketMessages } from '../../src/data/messages
 import { API } from '../msw/handlers';
 import { server } from '../setup';
 
-import type { Message } from '../../src/api/generated/model';
+import type { Message, PostTicketMessageBody } from '../../src/api/generated/model';
 
 /**
  * Regression for T157/T158: `POST /tickets/:id/messages` can resolve before the list query has
  * loaded (or while its cached snapshot predates the send). The sent reply must stay visible,
  * exactly once, whether the list then loads without it (stale snapshot, patched in place) or with
- * it (server already has it, deduped by `clientMessageId`).
+ * it (server already has it, deduped by `clientMessageId`, the same value the API echoes back).
  */
 
 function renderWithClient<T>(hook: () => T) {
@@ -34,7 +34,7 @@ function makeMessage(overrides: Partial<Message> = {}): Message {
     body: 'On it',
     mentions: [],
     attachments: [],
-    clientMessageId: 'client-1',
+    clientMessageId: null,
     deliveredAt: null,
     readAt: null,
     movedFromTicketId: null,
@@ -48,6 +48,9 @@ describe('useSendTicketMessage / useTicketMessages race', () => {
     const ticketId = 't1';
     let resolveList: ((value: { items: Message[]; nextCursor: null }) => void) | undefined;
     let listCalls = 0;
+    // The API echoes back the request's `clientMessageId` (idempotent send): capture it from the
+    // POST body so the "list catches up" response can carry the same value.
+    let sentClientMessageId: string | undefined;
 
     server.use(
       http.get(`${API}/tickets/${ticketId}/messages`, () => {
@@ -59,10 +62,14 @@ describe('useSendTicketMessage / useTicketMessages race', () => {
             resolveList = (value) => resolve(HttpResponse.json(value));
           });
         }
-        // Second call (a refetch): the list has since caught up and includes the sent message.
-        return HttpResponse.json({ items: [makeMessage()], nextCursor: null });
+        // A later call (a refetch): the list has since caught up and includes the sent message.
+        return HttpResponse.json({ items: [makeMessage({ clientMessageId: sentClientMessageId ?? null })], nextCursor: null });
       }),
-      http.post(`${API}/tickets/${ticketId}/messages`, () => HttpResponse.json(makeMessage())),
+      http.post(`${API}/tickets/${ticketId}/messages`, async ({ request }) => {
+        const body = (await request.json()) as PostTicketMessageBody;
+        sentClientMessageId = body.clientMessageId;
+        return HttpResponse.json(makeMessage({ clientMessageId: body.clientMessageId }));
+      }),
     );
 
     const { result } = renderWithClient(() => ({
@@ -88,7 +95,7 @@ describe('useSendTicketMessage / useTicketMessages race', () => {
     expect(result.current.messages.items.filter((item) => item.body === 'On it')).toHaveLength(1);
 
     // The list catches up and now includes the message itself: still shown exactly once, this
-    // time from the fetched list (the outbox entry is pruned).
+    // time from the fetched list (the outbox entry is deduped and pruned).
     await result.current.messages.refetch();
     await waitFor(() => expect(result.current.messages.items.filter((item) => item.body === 'On it')).toHaveLength(1));
     expect(result.current.messages.items.find((item) => item.body === 'On it')?.id).toBe('m1');
