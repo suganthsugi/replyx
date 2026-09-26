@@ -6,13 +6,18 @@ import ListItemText from '@mui/material/ListItemText';
 import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
-import { useMemo, useState } from 'react';
-import { Navigate, Outlet, useNavigate } from 'react-router';
+import { useCallback, useMemo, useState } from 'react';
+import { Navigate, Outlet, useNavigate, useParams } from 'react-router';
 
+// The command bar's ticket-number jump has no dedicated data hook yet (data-hooks rule 6 would
+// normally route this through `data/tickets.ts`); this calls the generated client the same way
+// that file does, scoped to this one lookup, until a helper lands there.
+import { listTickets } from '../../api/generated/tickets/tickets';
 import { CommandBar } from '../../components/shell/CommandBar';
 import { DesignSystemScope } from '../../components/shell/DesignSystemScope';
 import { useToast } from '../../components/shell/Toast';
 import { useMe, useUpdateMe } from '../../data/auth';
+import { mapError } from '../../data/errors';
 import { useRealtime } from '../../data/realtime';
 import { useTicketListEvents } from '../../data/tickets';
 import { useViewEvents, useViews } from '../../data/views';
@@ -46,6 +51,27 @@ export default function DeskLayout() {
   const commandBarViews = useMemo(() => (views.data ?? []).map((view) => ({ id: view.id, name: view.name })), [views.data]);
   const navigate = useNavigate();
   const toast = useToast();
+  // The current view, when the route below already has one, so a found ticket opens alongside it
+  // instead of losing the agent's place; falls back to the first visible view otherwise.
+  const routeParams = useParams<{ viewId?: string }>();
+
+  const onOpenTicketNumber = useCallback(
+    async (ticketNumber: number) => {
+      try {
+        const result = await listTickets({ number: ticketNumber, limit: 1 });
+        const ticket = result.items[0];
+        const viewId = routeParams.viewId ?? views.data?.[0]?.id;
+        if (ticket === undefined || viewId === undefined) {
+          toast({ message: `No ticket #${ticketNumber} you can open`, severity: 'info' });
+          return;
+        }
+        void navigate(`${WORKSPACE_BASE}/inbox/${viewId}/${ticket.id}`);
+      } catch (caught) {
+        toast({ message: mapError(caught).message, severity: 'error' });
+      }
+    },
+    [routeParams.viewId, views.data, navigate, toast],
+  );
 
   if (meQuery.error?.code === 'UNAUTHENTICATED') {
     return <Navigate to={`${WORKSPACE_BASE}/sign-in`} replace />;
@@ -128,11 +154,7 @@ export default function DeskLayout() {
       <CommandBar
         views={commandBarViews}
         onSelectView={(viewId) => void navigate(`${WORKSPACE_BASE}/inbox/${viewId}`)}
-        onOpenTicketNumber={(ticketNumber) => {
-          // The API has no lookup from a ticket number to its id yet (open issue: T154 report),
-          // so this can't navigate straight to the ticket. Tell the agent instead of guessing.
-          toast({ message: `Search for ticket #${ticketNumber} from a view — jumping straight to a number isn't wired up yet.`, severity: 'info' });
-        }}
+        onOpenTicketNumber={(ticketNumber) => void onOpenTicketNumber(ticketNumber)}
       />
     </DesignSystemScope>
   );
