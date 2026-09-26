@@ -1,13 +1,11 @@
-import { Global, Module } from '@nestjs/common';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { ERASED_NAME } from '../../../src/identity/erasure.job.js';
-import { USER_HISTORY_CHECKS, type UserHistoryCheck } from '../../../src/identity/users.service.js';
 import { TenantContext } from '../../../src/platform-kernel/db/tenant-context.js';
 import { TenantRepository } from '../../../src/platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../../../src/platform-kernel/db/unit-of-work.js';
 import { getTestApp, getTestWorker, service } from '../../support/app.js';
-import { createRole, createTenant, createUser, type TestTenant, type TestUser } from '../../support/factories.js';
+import { createRole, createTenant, createTicket, createUser, type TestTenant, type TestUser } from '../../support/factories.js';
 import { asGuest, asUser } from '../../support/http.js';
 
 /**
@@ -37,21 +35,6 @@ const page = (response: { body: unknown }) => response.body as { items: UserBody
 const ids = (response: { body: unknown }) => page(response).items.map((item) => item.id);
 const failure = (response: { body: unknown }) =>
   response.body as { error: { code: string; details?: { path: string; issue: string }[] } };
-
-/**
- * A `UserHistoryCheck` like the one the Tickets module will provide (US6), switched on per test.
- * It has to be in the app from the start, so it is registered in this file's single `getTestApp`.
- */
-let userHasHistory = false;
-
-const historyCheck: UserHistoryCheck = { hasHistory: () => Promise.resolve(userHasHistory) };
-
-@Global()
-@Module({
-  providers: [{ provide: USER_HISTORY_CHECKS, useValue: [historyCheck] }],
-  exports: [USER_HISTORY_CHECKS],
-})
-class HistoryChecksModule {}
 
 function ctxFor(tenant: { id: string }): TenantContext {
   return TenantContext.create({ tenantId: tenant.id, actor: { kind: 'system' }, requestId: 'users-test' });
@@ -103,11 +86,7 @@ function roleIdsOf(tenant: TestTenant): string[] {
 }
 
 beforeAll(async () => {
-  await getTestApp({ imports: [HistoryChecksModule] });
-});
-
-afterEach(() => {
-  userHasHistory = false;
+  await getTestApp();
 });
 
 describe('GET /users', () => {
@@ -426,11 +405,12 @@ describe('DELETE /users/{id}', () => {
     expect((await asUser(admin).get(`/users/${target.id}`)).status).toBe(404);
   });
 
-  it('409s USER_HAS_HISTORY when a module reports authored records', async () => {
-    userHasHistory = true;
+  it('409s USER_HAS_HISTORY when the user authored ticket messages', async () => {
     const tenant = await createTenant();
     const { admin } = await actors(tenant);
     const target = await createUser(tenant, { roles: ['agent'] });
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    await createTicket(tenant, { customer, messages: [{ body: 'Question' }, { body: 'Answer', staff: target }] });
 
     const response = await asUser(admin).delete(`/users/${target.id}`);
     expect(response.status).toBe(409);
