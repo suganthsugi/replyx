@@ -79,6 +79,8 @@ export interface TicketListQuery {
   /** `'me'`, `'unassigned'` or a user id. */
   ownerId?: string;
   customerId?: string;
+  /** Filters on `tickets.number`; the access filter still applies (an invisible ticket is an empty page). */
+  number?: number;
   sort?: TicketSort;
 }
 
@@ -120,6 +122,7 @@ export class TicketQueryService {
         groupId,
         ownerId,
         customerId: query.customerId,
+        number: query.number,
         sortExpr: spec.expr,
         direction: spec.direction,
         after: after === undefined ? undefined : { value: afterValueOf(spec, after.value), id: after.id },

@@ -224,6 +224,31 @@ describe('GET /tickets', () => {
     expect(JSON.stringify(response.body)).not.toContain(customer.id);
   });
 
+  it('filters by number: found, invisible (empty page, not 403/404) and another tenant\'s number (empty page)', async () => {
+    const tenant = await createTenant();
+    const admin = await createUser(tenant, { roles: ['admin'] });
+    const viewer = await createUser(tenant, { roles: ['agent'] });
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const group = await createGroup(tenant);
+    const ticket = await createTicket(tenant, { customer, group: group.id, state: 'open' });
+
+    const found = await asUser(admin).get(`/tickets?number=${ticket.number}`);
+    expect(found.status).toBe(200);
+    expect(body<PageBody<TicketSummaryBody>>(found).items.map((t) => t.id)).toEqual([ticket.id]);
+
+    // `viewer` (agent) has no access grant on `group`, so the ticket exists but is invisible.
+    const notVisible = await asUser(viewer).get(`/tickets?number=${ticket.number}`);
+    expect(notVisible.status).toBe(200);
+    expect(body<PageBody<TicketSummaryBody>>(notVisible).items).toEqual([]);
+
+    // A fresh tenant, so it can't coincidentally have its own ticket at the same number.
+    const otherTenant = await createTenant();
+    const otherAdmin = await createUser(otherTenant, { roles: ['admin'] });
+    const crossTenant = await asUser(otherAdmin).get(`/tickets?number=${ticket.number}`);
+    expect(crossTenant.status).toBe(200);
+    expect(body<PageBody<TicketSummaryBody>>(crossTenant).items).toEqual([]);
+  });
+
   it('needs ticket.view (403) and hides an unknown viewId as invisible (404)', async () => {
     const bystander = await createUser(a, { roles: [] });
     expect((await asUser(bystander).get('/tickets')).status).toBe(403);
