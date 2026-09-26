@@ -197,9 +197,11 @@ export function useTicketMessageEvents(client: RealtimeClient | undefined, ticke
         patchMessages(queryClient, ticketId, (data) => upsertMessage(data, message));
       }),
       client.onEvent('message.moved', (envelope, queryClient) => {
-        const { messageId, fromTicketId, toTicketId } = envelope.data as { messageId: string; fromTicketId: string; toTicketId: string };
-        if (fromTicketId === ticketId) patchMessages(queryClient, ticketId, (data) => removeMessage(data, messageId));
-        if (toTicketId === ticketId) void queryClient.invalidateQueries({ queryKey: messageKeys.list(ticketId) });
+        // Payload is the moved message itself: `ticketId` is its new (target) ticket,
+        // `movedFromTicketId` the ticket it left (event-types.ts `message.moved`).
+        const message = envelope.data as Message;
+        if (message.movedFromTicketId === ticketId) patchMessages(queryClient, ticketId, (data) => removeMessage(data, message.id));
+        if (message.ticketId === ticketId) void queryClient.invalidateQueries({ queryKey: messageKeys.list(ticketId) });
       }),
       client.onEvent('message.read', (envelope, queryClient) => {
         const { upToMessageId, readAt } = envelope.data as { upToMessageId: string; readAt: string };
