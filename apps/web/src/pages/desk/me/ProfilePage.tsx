@@ -12,7 +12,7 @@ import { Form, FormError, FormField, SubmitButton } from '../../../components/sh
 import { useToast } from '../../../components/shell/Toast';
 import { useChangePassword, useMe, useSignOut, useSignOutAll, useUpdateMe } from '../../../data/auth';
 
-import type { Availability } from '../../../api/generated/model';
+import type { Availability } from '../../../data/auth';
 
 const AVAILABILITY_OPTIONS: { value: Availability; label: string }[] = [
   { value: 'online', label: 'Online' },

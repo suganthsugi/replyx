@@ -1,6 +1,6 @@
 import Chip from '@mui/material/Chip';
 
-import type { SlaSummary } from '../../api/generated/model';
+import type { SlaSummary } from '../../data/tickets';
 
 /**
  * A ticket's SLA status as a soft pill (docs/design-system "SLA pill"). Renders nothing until

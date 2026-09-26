@@ -7,7 +7,7 @@ import Select, { type SelectChangeEvent } from '@mui/material/Select';
 import TextField from '@mui/material/TextField';
 import { useId } from 'react';
 
-import { TicketState } from '../../api/generated/model';
+import { TicketState } from '../../data/tickets';
 
 import type { ChangeEvent } from 'react';
 

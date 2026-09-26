@@ -19,7 +19,7 @@ import { findTicketByNumber, useTicketListEvents } from '../../data/tickets';
 import { useViewEvents, useViews } from '../../data/views';
 import { WORKSPACE_BASE } from '../../routes/area';
 
-import type { Availability } from '../../api/generated/model';
+import type { Availability } from '../../data/auth';
 
 /**
  * The workspace shell (docs/design-system "Workspace Inbox"): a top bar with the command bar,
