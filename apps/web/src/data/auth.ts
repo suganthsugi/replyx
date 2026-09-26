@@ -16,7 +16,7 @@ import {
 
 import { mapError } from './errors';
 
-import type { GetInvitation200, Me, UpdateMeBody } from '../api/generated/model';
+import type { Availability, GetInvitation200, Me, UpdateMeBody } from '../api/generated/model';
 
 /**
  * Staff auth and profile hooks (data-hooks rule 6): components never import
@@ -147,3 +147,5 @@ export function useChangePassword() {
     mutateAsync: (data: { currentPassword: string; newPassword: string }) => mutation.mutateAsync({ data }),
   };
 }
+
+export type { Availability, Me, UpdateMeBody };

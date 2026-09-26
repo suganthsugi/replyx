@@ -1,6 +1,7 @@
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { Priority, TicketState } from '../api/generated/model';
 import {
   createTicketLink,
   deleteTicketLink,
@@ -19,14 +20,15 @@ import type { RealtimeClient } from './socket';
 import type {
   CreateTicketBody,
   CreateTicketLinkBody,
+  CreateTicketLinkBodyKind,
   HistoryEntry,
+  HistoryEntryActor,
   ListTickets200,
   ListTicketHistory200,
   ListTicketsParams,
   ListTicketsSort,
-  Priority,
+  SlaSummary,
   Ticket,
-  TicketState,
   TicketSummary,
   UpdateTicketBody,
 } from '../api/generated/model';
@@ -410,4 +412,5 @@ export function useTicketTypingSignal(client: RealtimeClient | undefined, ticket
   return { onTyping, stopTyping };
 }
 
-export type { HistoryEntry, ListTicketsSort, Priority, Ticket, TicketState, TicketSummary };
+export { Priority, TicketState };
+export type { CreateTicketLinkBodyKind, HistoryEntry, HistoryEntryActor, ListTicketsSort, SlaSummary, Ticket, TicketSummary };
