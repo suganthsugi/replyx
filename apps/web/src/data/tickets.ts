@@ -213,7 +213,13 @@ function patchLists(queryClient: QueryClient, update: (items: TicketSummary[]) =
   }
 }
 
-function upsertTicket(items: TicketSummary[], ticket: TicketSummary): TicketSummary[] {
+/** Ignores a malformed payload (missing `id`/`customer`) instead of corrupting the list. */
+function isWellFormedTicketSummary(ticket: TicketSummary | undefined | null): ticket is TicketSummary {
+  return ticket != null && typeof ticket.id === 'string' && ticket.customer != null;
+}
+
+function upsertTicket(items: TicketSummary[], ticket: TicketSummary | undefined | null): TicketSummary[] {
+  if (!isWellFormedTicketSummary(ticket)) return items;
   const exists = items.some((item) => item.id === ticket.id);
   return exists ? items.map((item) => (item.id === ticket.id ? ticket : item)) : [ticket, ...items];
 }
@@ -229,7 +235,8 @@ export function useTicketListEvents(client: RealtimeClient | undefined): void {
     client.registerStreamKeys('tickets', () => [ticketKeys.all]);
     const off = [
       client.onEvent('ticket.created', (envelope, queryClient) => {
-        patchLists(queryClient, (items) => upsertTicket(items, envelope.data as TicketSummary));
+        const { ticket } = envelope.data as { ticket: TicketSummary };
+        patchLists(queryClient, (items) => upsertTicket(items, ticket));
       }),
       client.onEvent('ticket.updated', (envelope, queryClient) => {
         const { ticket } = envelope.data as { ticket: TicketSummary; changes: Array<{ field: string; old: unknown; new: unknown }> };
