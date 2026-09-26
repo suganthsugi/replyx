@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getUploadCustomerAttachmentUrl } from '../api/generated/customer/customer';
+import { getUploadAttachmentUrl } from '../api/generated/tickets/tickets';
 
 import { mapError } from './errors';
 import { CSRF_COOKIE, CSRF_HEADER, HttpError, readCookie, resolveUrl, type ApiErrorBody } from './http';
@@ -9,22 +10,18 @@ import type { AttachmentSummary } from '../api/generated/model';
 import type { ComposerAttachment } from '../components/chat/types';
 
 /**
- * Customer attachment uploads (`POST /customer/attachments`) with progress for the composer.
- * This is the one request that doesn't go through the `http` mutator: `fetch` can't report
- * upload progress, so it uses XMLHttpRequest with the same contract (same-origin path under
- * `/api/v1`, cookies, the CSRF header, and an `HttpError` carrying the error envelope, so
- * `mapError` treats 413 `ATTACHMENT_TOO_LARGE` and 415 `ATTACHMENT_TYPE_NOT_ALLOWED` like any
- * other API error).
+ * Attachment uploads with progress for a composer, customer (`POST /customer/attachments`) or
+ * staff (`POST /attachments`). This is the one request that doesn't go through the `http`
+ * mutator: `fetch` can't report upload progress, so it uses XMLHttpRequest with the same contract
+ * (same-origin path under `/api/v1`, cookies, the CSRF header, and an `HttpError` carrying the
+ * error envelope, so `mapError` treats 413 `ATTACHMENT_TOO_LARGE` and 415
+ * `ATTACHMENT_TYPE_NOT_ALLOWED` like any other API error).
  */
 
-export function uploadCustomerAttachmentWithProgress(
-  file: File,
-  onProgress: (percent: number) => void,
-  signal?: AbortSignal,
-): Promise<AttachmentSummary> {
+function uploadWithProgress(url: string, file: File, onProgress: (percent: number) => void, signal?: AbortSignal): Promise<AttachmentSummary> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
-    request.open('POST', resolveUrl(getUploadCustomerAttachmentUrl()));
+    request.open('POST', resolveUrl(url));
     request.withCredentials = true;
     request.setRequestHeader('Accept', 'application/json');
     const csrf = readCookie(CSRF_COOKIE);
@@ -65,6 +62,15 @@ export function uploadCustomerAttachmentWithProgress(
   });
 }
 
+export function uploadCustomerAttachmentWithProgress(file: File, onProgress: (percent: number) => void, signal?: AbortSignal): Promise<AttachmentSummary> {
+  return uploadWithProgress(getUploadCustomerAttachmentUrl(), file, onProgress, signal);
+}
+
+/** Staff counterpart, for replies and notes on a ticket. */
+export function uploadAttachmentWithProgress(file: File, onProgress: (percent: number) => void, signal?: AbortSignal): Promise<AttachmentSummary> {
+  return uploadWithProgress(getUploadAttachmentUrl(), file, onProgress, signal);
+}
+
 interface Upload extends ComposerAttachment {
   summary?: AttachmentSummary;
   controller: AbortController;
@@ -75,7 +81,17 @@ interface Upload extends ComposerAttachment {
  * drops one, `ready` lists what can go with the next message, `clearReady` takes those out of the
  * tray after a send.
  */
-export function useAttachmentUploads() {
+export interface AttachmentUploadsOptions {
+  /** Which endpoint uploads go to; defaults to `customer` (the existing chat composer). */
+  audience?: 'staff' | 'customer';
+}
+
+const UPLOAD_BY_AUDIENCE = {
+  staff: uploadAttachmentWithProgress,
+  customer: uploadCustomerAttachmentWithProgress,
+} as const;
+
+export function useAttachmentUploads({ audience = 'customer' }: AttachmentUploadsOptions = {}) {
   const [uploads, setUploads] = useState<Upload[]>([]);
   const live = useRef(uploads);
   live.current = uploads;
@@ -96,7 +112,7 @@ export function useAttachmentUploads() {
       setUploads((current) => [...current, ...started]);
       started.forEach((upload, index) => {
         const file = files[index] as File;
-        uploadCustomerAttachmentWithProgress(file, (progress) => update(upload.localId, { progress }), upload.controller.signal)
+        UPLOAD_BY_AUDIENCE[audience](file, (progress) => update(upload.localId, { progress }), upload.controller.signal)
           .then((summary) => update(upload.localId, { status: 'ready', progress: 100, summary }))
           .catch((error: unknown) => {
             if (upload.controller.signal.aborted) return;
@@ -104,7 +120,7 @@ export function useAttachmentUploads() {
           });
       });
     },
-    [update],
+    [update, audience],
   );
 
   const remove = useCallback((localId: string) => {
