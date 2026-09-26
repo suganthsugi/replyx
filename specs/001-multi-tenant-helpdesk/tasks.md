@@ -361,7 +361,7 @@ verified once US8 adds notifications.
 
 - [ ] T156 [P] [US6] Component tests `apps/web/test/desk/*.test.tsx`: composer reply vs note styling and labels, allowed actions hide disabled controls, status strip keyboard use, empty/loading/error states, axe
 - [ ] T157 [P] [US6] E2E `apps/web/e2e/agent-conversation.spec.ts`: agent assigns to self, replies (customer sees it), adds internal note (customer doesn't), changes priority, history shows all changes; staff-started ticket appears in the customer chat
-- [ ] T158 [P] [US6] Agent guide `apps/docs/src/content/docs/guides/working-tickets.md` (states, notes vs replies, pending dates, links)
+- [X] T158 [P] [US6] Agent guide `apps/docs/src/content/docs/guides/working-tickets.md` (states, notes vs replies, pending dates, links)
 
 **Checkpoint**: agents can do their daily work; the customer↔agent conversation works end to end.
 
