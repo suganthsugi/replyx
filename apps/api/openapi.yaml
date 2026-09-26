@@ -335,6 +335,195 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/CustomerMe"
+  /customer/conversation:
+    get:
+      operationId: getConversation
+      tags:
+        - customer
+      summary: The customer's single thread (all tickets, public content only), newest page first
+      parameters:
+        - name: limit
+          in: query
+          description: Page size
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 30
+        - name: before
+          in: query
+          description: Cursor for older items (scroll up), from a previous page's olderCursor
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Thread page
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                  - status
+                  - olderCursor
+                  - streamSeq
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/ThreadItem"
+                  olderCursor:
+                    type:
+                      - string
+                      - "null"
+                  status:
+                    $ref: "#/components/schemas/FriendlyStatus"
+                  pendingRating:
+                    type: "null"
+                  streamSeq:
+                    type: integer
+                    description: Latest seq of the conversation stream, for real-time catch-up
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /customer/messages:
+    post:
+      operationId: sendCustomerMessage
+      tags:
+        - customer
+      summary: Send a message — routed to exactly one ticket, idempotent by clientMessageId
+      description: A repeated clientMessageId returns the message already stored for it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - body
+                - clientMessageId
+              additionalProperties: false
+              properties:
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 10000
+                clientMessageId:
+                  type: string
+                  format: uuid
+                attachmentIds:
+                  type: array
+                  maxItems: 10
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "201":
+          description: Accepted (or the original message when the clientMessageId was already used)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConversationMessage"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "429":
+          $ref: "#/components/responses/RateLimited"
+  /customer/messages/read:
+    post:
+      operationId: markConversationRead
+      tags:
+        - customer
+      summary: Mark support replies up to a message as read (drives read receipts)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - upToMessageId
+              additionalProperties: false
+              properties:
+                upToMessageId:
+                  type: string
+                  format: uuid
+      responses:
+        "204":
+          description: Recorded
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /customer/attachments:
+    post:
+      operationId: uploadCustomerAttachment
+      tags:
+        - customer
+      summary: Upload a file for a later message (25 MB max; allowed types only)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Uploaded; scanStatus pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttachmentSummary"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "413":
+          description: ATTACHMENT_TOO_LARGE
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          description: ATTACHMENT_TYPE_NOT_ALLOWED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /customer/attachments/{id}/download:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: downloadCustomerAttachment
+      tags:
+        - customer
+      summary: Authorize, then redirect to a private URL valid for 15 minutes
+      description: Only an attachment on a public message in the customer's own conversation, or the customer's own not-yet-sent upload, is reachable; anything else is 404.
+      responses:
+        "302":
+          description: Redirect to /api/v1/files/{token}, a signed link valid for 15 minutes
+          headers:
+            Location:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: ATTACHMENT_NOT_READY (still scanning) or ATTACHMENT_BLOCKED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /invitations/{token}:
     get:
       operationId: getInvitation
@@ -1330,6 +1519,214 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+  /tickets/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: getTicket
+      tags:
+        - tickets
+      summary: Ticket with properties, links and customer summary (ticket.view on the ticket's group)
+      responses:
+        "200":
+          description: Ticket
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /tickets/{id}/messages:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: listTicketMessages
+      tags:
+        - tickets
+      summary: Timeline — customer messages, public replies and internal notes (ticket.view on group)
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: includeMerged
+          in: query
+          schema:
+            type: string
+            enum:
+              - "true"
+              - "false"
+      responses:
+        "200":
+          description: Page of messages, oldest first
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PageMeta"
+                  - type: object
+                    required:
+                      - items
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Message"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      operationId: postTicketMessage
+      tags:
+        - tickets
+      summary: Send a public reply or add an internal note (ticket.edit on the ticket's group)
+      description: A repeated clientMessageId returns the message already stored for it.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - visibility
+                - body
+                - clientMessageId
+              additionalProperties: false
+              properties:
+                visibility:
+                  type: string
+                  enum:
+                    - public
+                    - internal
+                body:
+                  type: string
+                  minLength: 1
+                  maxLength: 10000
+                clientMessageId:
+                  type: string
+                  format: uuid
+                attachmentIds:
+                  type: array
+                  maxItems: 10
+                  items:
+                    type: string
+                    format: uuid
+                mentionIds:
+                  type: array
+                  maxItems: 20
+                  items:
+                    type: string
+                    format: uuid
+                  description: Internal notes only
+      responses:
+        "201":
+          description: Created (or the existing message for a repeated clientMessageId)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /attachments:
+    post:
+      operationId: uploadAttachment
+      tags:
+        - tickets
+      summary: Upload a file for a later message (25 MB max; allowed types only)
+      description: Anyone who may reply somewhere may upload (ticket.edit); sending the message checks the ticket.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Uploaded; scanStatus pending
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AttachmentSummary"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "413":
+          description: ATTACHMENT_TOO_LARGE
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "415":
+          description: ATTACHMENT_TYPE_NOT_ALLOWED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /attachments/{id}/download:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: downloadAttachment
+      tags:
+        - tickets
+      summary: Authorize, then redirect to a private URL valid for 15 minutes (ticket.view on group; notes included)
+      responses:
+        "302":
+          description: Redirect to /api/v1/files/{token}, a signed link valid for 15 minutes
+          headers:
+            Location:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: ATTACHMENT_NOT_READY (still scanning) or ATTACHMENT_BLOCKED
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /files/{token}:
+    get:
+      operationId: downloadFile
+      tags:
+        - tickets
+      summary: Stream a file through a signed, 15-minute link issued by an attachment download endpoint
+      description: No session needed; the token is checked for signature, expiry and that its tenant matches the host. Used by both the staff and customer download endpoints.
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: File contents (Content-Disposition attachment, inline only for safe images)
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   securitySchemes:
     session:
@@ -2086,3 +2483,391 @@ components:
               $ref: "#/components/schemas/Availability"
             openTicketCount:
               type: integer
+    ConversationMessage:
+      description: Public message as the customer sees it. No ticket fields, ever.
+      type: object
+      required:
+        - id
+        - from
+        - body
+        - attachments
+        - clientMessageId
+        - delivery
+        - createdAt
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        from:
+          type: object
+          required:
+            - kind
+          properties:
+            kind:
+              type: string
+              enum:
+                - me
+                - support
+                - system
+            name:
+              type: string
+              description: Agent display name for support messages
+            avatarUrl:
+              type:
+                - string
+                - "null"
+        body:
+          type: string
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttachmentSummary"
+        clientMessageId:
+          type:
+            - string
+            - "null"
+        delivery:
+          type: string
+          enum:
+            - sent
+            - delivered
+            - read
+          description: For the customer's own messages; support replies are always delivered
+        createdAt:
+          type: string
+          format: date-time
+    ResolvedMarker:
+      type: object
+      required:
+        - id
+        - text
+        - createdAt
+      properties:
+        id:
+          type: string
+        text:
+          type: string
+          examples:
+            - Glad we could help, just reply if you need anything else
+        createdAt:
+          type: string
+          format: date-time
+    ThreadItem:
+      oneOf:
+        - type: object
+          required:
+            - type
+            - message
+          properties:
+            type:
+              type: string
+              enum:
+                - message
+            message:
+              $ref: "#/components/schemas/ConversationMessage"
+        - type: object
+          required:
+            - type
+            - marker
+          properties:
+            type:
+              type: string
+              enum:
+                - resolved_marker
+            marker:
+              $ref: "#/components/schemas/ResolvedMarker"
+    FriendlyStatus:
+      type: object
+      required:
+        - code
+        - text
+      properties:
+        code:
+          type: string
+          enum:
+            - idle
+            - received
+            - replying
+            - answered
+        text:
+          type: string
+          examples:
+            - Support has your message
+            - Support is replying
+    SlaSummary:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - none
+            - ok
+            - warning
+            - breached
+        policyName:
+          type: string
+        nextDueAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        target:
+          type: string
+          enum:
+            - first_response
+            - next_response
+            - resolution
+    TicketSummary:
+      type: object
+      required:
+        - id
+        - number
+        - title
+        - state
+        - priority
+        - waitingOn
+        - group
+        - owner
+        - customer
+        - tags
+        - sla
+        - lastCustomerMessageAt
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        number:
+          type: integer
+        title:
+          type: string
+        state:
+          $ref: "#/components/schemas/TicketState"
+        priority:
+          $ref: "#/components/schemas/Priority"
+        waitingOn:
+          $ref: "#/components/schemas/WaitingOn"
+        group:
+          oneOf:
+            - $ref: "#/components/schemas/GroupRef"
+            - type: "null"
+        owner:
+          oneOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+        customer:
+          $ref: "#/components/schemas/UserRef"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/TagRef"
+        sla:
+          $ref: "#/components/schemas/SlaSummary"
+        lastCustomerMessageAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    TicketLink:
+      type: object
+      required:
+        - id
+        - kind
+        - direction
+        - ticket
+        - removedReason
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        kind:
+          type: string
+          enum:
+            - follow_up_of
+            - related
+            - duplicate_of
+            - merged_into
+            - split_from
+        direction:
+          type: string
+          enum:
+            - outgoing
+            - incoming
+        ticket:
+          description: null when the linked ticket was removed by retention or is not visible to the caller
+          oneOf:
+            - type: object
+              properties:
+                id:
+                  type: string
+                number:
+                  type: integer
+                title:
+                  type: string
+                state:
+                  $ref: "#/components/schemas/TicketState"
+            - type: "null"
+        removedReason:
+          type:
+            - string
+            - "null"
+          enum:
+            - retention
+            - not_visible
+            - null
+    Ticket:
+      allOf:
+        - $ref: "#/components/schemas/TicketSummary"
+        - type: object
+          required:
+            - pendingUntil
+            - autoCloseAt
+            - resolvedAt
+            - closedAt
+            - lastAgentReplyAt
+            - origin
+            - mergedInto
+            - links
+            - csat
+            - allowedActions
+          properties:
+            pendingUntil:
+              type:
+                - string
+                - "null"
+              format: date-time
+            autoCloseAt:
+              type:
+                - string
+                - "null"
+              format: date-time
+            resolvedAt:
+              type:
+                - string
+                - "null"
+              format: date-time
+            closedAt:
+              type:
+                - string
+                - "null"
+              format: date-time
+            lastAgentReplyAt:
+              type:
+                - string
+                - "null"
+              format: date-time
+            origin:
+              type: string
+              enum:
+                - customer_message
+                - staff_started
+                - split
+                - follow_up
+            mergedInto:
+              type:
+                - string
+                - "null"
+              format: uuid
+            links:
+              type: array
+              items:
+                $ref: "#/components/schemas/TicketLink"
+            csat:
+              type:
+                - object
+                - "null"
+              properties:
+                score:
+                  type: integer
+                comment:
+                  type: string
+            allowedActions:
+              type: array
+              description: What the caller may do now (drives UI; server re-checks)
+              items:
+                type: string
+                enum:
+                  - reply
+                  - note
+                  - edit
+                  - change_group
+                  - assign
+                  - delete
+                  - merge
+                  - split
+                  - move_message
+    Message:
+      type: object
+      required:
+        - id
+        - ticketId
+        - author
+        - authorKind
+        - visibility
+        - body
+        - mentions
+        - attachments
+        - clientMessageId
+        - deliveredAt
+        - readAt
+        - movedFromTicketId
+        - createdAt
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        ticketId:
+          $ref: "#/components/schemas/Id"
+        author:
+          oneOf:
+            - $ref: "#/components/schemas/UserRef"
+            - type: "null"
+        authorKind:
+          type: string
+          enum:
+            - customer
+            - staff
+            - system
+            - automation
+        visibility:
+          type: string
+          enum:
+            - public
+            - internal
+        body:
+          type: string
+        mentions:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserRef"
+        attachments:
+          type: array
+          items:
+            $ref: "#/components/schemas/AttachmentSummary"
+        clientMessageId:
+          type:
+            - string
+            - "null"
+        deliveredAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        readAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        movedFromTicketId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
