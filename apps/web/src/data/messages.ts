@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 import { listTicketMessages, postTicketMessage, useMoveTicketMessage as useMoveTicketMessageMutation } from '../api/generated/tickets/tickets';
 
 import { mapError } from './errors';
+import { ticketKeys } from './tickets';
 
 import type { RealtimeClient } from './socket';
 import type { ListTicketMessages200, Message, PostTicketMessageBodyVisibility } from '../api/generated/model';
@@ -153,6 +154,8 @@ export function useMoveTicketMessage() {
       onSuccess: (message, { id }) => {
         patchMessages(queryClient, id, (data) => removeMessage(data, message.id));
         void queryClient.invalidateQueries({ queryKey: messageKeys.list(message.ticketId) });
+        void queryClient.invalidateQueries({ queryKey: ticketKeys.history(id) });
+        void queryClient.invalidateQueries({ queryKey: ticketKeys.history(message.ticketId) });
       },
     },
   });

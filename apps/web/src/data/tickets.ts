@@ -132,7 +132,10 @@ export function useUpdateTicket() {
         if (context?.previous !== undefined) queryClient.setQueryData(ticketKeys.detail(id), context.previous);
       },
       onSuccess: (ticket) => queryClient.setQueryData(ticketKeys.detail(ticket.id), ticket),
-      onSettled: () => void queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === ticketKeys.all[0] && query.queryKey[1] === 'list' }),
+      onSettled: (ticket, _error, { id }) => {
+        void queryClient.invalidateQueries({ predicate: (query) => query.queryKey[0] === ticketKeys.all[0] && query.queryKey[1] === 'list' });
+        void queryClient.invalidateQueries({ queryKey: ticketKeys.history(ticket?.id ?? id) });
+      },
     },
   });
   return { ...mutation, mutateAsync: ({ id, ...data }: { id: string } & UpdateTicketBody) => mutation.mutateAsync({ id, data }) };
@@ -232,6 +235,7 @@ export function useTicketListEvents(client: RealtimeClient | undefined): void {
         const { ticket } = envelope.data as { ticket: TicketSummary; changes: Array<{ field: string; old: unknown; new: unknown }> };
         patchLists(queryClient, (items) => upsertTicket(items, ticket));
         queryClient.setQueryData<Ticket>(ticketKeys.detail(ticket.id), (previous) => (previous === undefined ? previous : { ...previous, ...ticket }));
+        void queryClient.invalidateQueries({ queryKey: ticketKeys.history(ticket.id) });
       }),
       client.onEvent('ticket.removed_from_view', (envelope, queryClient) => {
         const { ticketId } = envelope.data as { ticketId: string; reason: 'moved' | 'deleted' | 'merged' };
