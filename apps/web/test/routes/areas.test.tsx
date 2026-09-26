@@ -52,7 +52,7 @@ describe('AreaRoutes', () => {
   it('shows the customer area on a tenant host', async () => {
     server.use(http.get(`${API}/customer/me`, () => HttpResponse.json(customerMe)));
     const { container } = renderAt('acme.localhost', '/');
-    expect(await screen.findByRole('heading', { level: 1, name: 'Support' }, LAZY)).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Acme Support' }, LAZY)).toBeInTheDocument();
     await expectNoAxeViolations(container);
   });
 

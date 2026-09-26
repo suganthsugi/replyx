@@ -1,5 +1,4 @@
 import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { Route, Routes } from 'react-router';
@@ -11,6 +10,7 @@ import { customerMeKeys, useCustomerMe } from '../data/customer-auth';
 import { RealtimeProvider, useRealtime, useSessionEnded } from '../data/realtime';
 import RedeemLinkPage from '../pages/customer/auth/RedeemLinkPage';
 import { SignInFlow } from '../pages/customer/auth/SignInFlow';
+import ChatPage from '../pages/customer/ChatPage';
 import UnavailablePage from '../pages/customer/UnavailablePage';
 
 import { AreaShell, NotFoundPage } from './AreaShell';
@@ -20,8 +20,8 @@ import type { ReactNode } from 'react';
 /**
  * The customer chat area (`/` on a tenant host). Loaded lazily and kept free of workspace
  * imports so the customer bundle stays small (research D21) and ticket-free (ui-components
- * rule 5). Chat itself arrives later; for now the signed-in home is a placeholder and the
- * signed-out home is the sign-in flow (T068).
+ * rule 7). A signed-in customer gets the chat (T128); the signed-out home is the sign-in flow
+ * (T068).
  */
 export default function CustomerArea() {
   return (
@@ -72,13 +72,18 @@ function CustomerHome() {
     );
   }
 
+  // The chat needs the workspace's name and colors.
+  if (brandingQuery.data === undefined) {
+    return (
+      <Box component="main" sx={{ maxWidth: 720, mx: 'auto', px: 4, py: 8 }}>
+        <EmptyState variant="error" title="Couldn't load the chat" message={brandingQuery.error?.message} onRetry={() => void brandingQuery.refetch()} />
+      </Box>
+    );
+  }
+
   return (
     <CustomerRealtime customerId={meQuery.data.id}>
-      <Box component="main" sx={{ maxWidth: 720, mx: 'auto', px: 4, py: 8 }}>
-        <Typography component="h1" variant="h4">
-          Support
-        </Typography>
-      </Box>
+      <ChatPage me={meQuery.data} branding={brandingQuery.data} />
     </CustomerRealtime>
   );
 }
