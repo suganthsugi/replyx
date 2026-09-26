@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { createContext, useContext, useEffect, useState } from 'react';
 
-import { RealtimeClient, type Namespace } from './socket';
+import { RealtimeClient, type Namespace, type RealtimeOptions } from './socket';
 
 import type { ReactNode } from 'react';
 
@@ -17,23 +17,26 @@ export function RealtimeProvider({
   namespace,
   userId,
   children,
+  createSocket,
 }: {
   namespace: Namespace;
   userId: string | undefined;
   children: ReactNode;
+  /** Injected in tests (a fake socket); defaults to a real connection. */
+  createSocket?: RealtimeOptions['createSocket'];
 }) {
   const queryClient = useQueryClient();
   const [client, setClient] = useState<RealtimeClient | undefined>();
 
   useEffect(() => {
     if (userId === undefined) return undefined;
-    const next = new RealtimeClient({ namespace, userId, queryClient });
+    const next = new RealtimeClient({ namespace, userId, queryClient, ...(createSocket === undefined ? {} : { createSocket }) });
     setClient(next);
     return () => {
       next.close();
       setClient(undefined);
     };
-  }, [namespace, userId, queryClient]);
+  }, [namespace, userId, queryClient, createSocket]);
 
   return <RealtimeContext.Provider value={client}>{children}</RealtimeContext.Provider>;
 }
