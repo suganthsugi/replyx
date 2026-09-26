@@ -50,15 +50,21 @@ function sortSpecOf(sort: TicketSort | undefined): SortSpec {
   return { key, direction, expr };
 }
 
-/** The row's value for `spec.key`, in the same shape the keyset comparison and cursor use. */
-function valueOf(row: TicketRow, spec: SortSpec): string | number {
+/**
+ * The row's value for `spec.key`, in the same shape the keyset comparison and cursor use. `null`
+ * (only possible for a nullable sort key, e.g. `last_customer_message_at`) is kept as `null`
+ * rather than coerced to a sentinel date: the repository orders nulls last in both directions and
+ * needs to tell "no value" apart from any real timestamp to stay NULL-aware across pages.
+ */
+function valueOf(row: TicketRow, spec: SortSpec): string | number | null {
   if (spec.key === 'priority') return PRIORITY_RANK[row.priority];
   const value = row[spec.key];
-  return (value ?? new Date(0)).toISOString();
+  return value === null ? null : value.toISOString();
 }
 
 /** Parsed `after.value` back to what the column (or rank) compares against. */
-function afterValueOf(spec: SortSpec, value: string | number): Date | number {
+function afterValueOf(spec: SortSpec, value: string | number | null): Date | number | null {
+  if (value === null) return null;
   return spec.key === 'priority' ? Number(value) : new Date(String(value));
 }
 
@@ -81,7 +87,7 @@ function actorUserId(ctx: TenantContext): string {
   return ctx.actor.id;
 }
 
-const CursorPosition = z.object({ value: z.union([z.string(), z.number()]), id: z.uuid() }).strict();
+const CursorPosition = z.object({ value: z.union([z.string(), z.number(), z.null()]), id: z.uuid() }).strict();
 
 @Injectable()
 export class TicketQueryService {
