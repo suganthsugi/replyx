@@ -359,7 +359,7 @@ verified once US8 adds notifications.
 
 ### Frontend tests and docs
 
-- [ ] T156 [P] [US6] Component tests `apps/web/test/desk/*.test.tsx`: composer reply vs note styling and labels, allowed actions hide disabled controls, status strip keyboard use, empty/loading/error states, axe
+- [X] T156 [P] [US6] Component tests `apps/web/test/desk/*.test.tsx`: composer reply vs note styling and labels, allowed actions hide disabled controls, status strip keyboard use, empty/loading/error states, axe
 - [ ] T157 [P] [US6] E2E `apps/web/e2e/agent-conversation.spec.ts`: agent assigns to self, replies (customer sees it), adds internal note (customer doesn't), changes priority, history shows all changes; staff-started ticket appears in the customer chat
 - [X] T158 [P] [US6] Agent guide `apps/docs/src/content/docs/guides/working-tickets.md` (states, notes vs replies, pending dates, links)
 
