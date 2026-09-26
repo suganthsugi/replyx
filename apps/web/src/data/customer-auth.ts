@@ -1,4 +1,4 @@
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient } from '@tanstack/react-query';
 
 import {
   useCustomerSignIn as useCustomerPasswordSignInMutation,
@@ -86,13 +86,21 @@ export function useUpdateCustomerMe() {
   };
 }
 
+/**
+ * After signing out, nothing of the old session stays cached, and `/customer/me` is refetched so
+ * the area drops back to the sign-in flow (clearing the cache alone would leave the mounted
+ * `me` query showing the old customer).
+ */
+function signedOut(queryClient: QueryClient): void {
+  queryClient.removeQueries({ predicate: (query) => query.queryKey[0] !== customerMeKeys.all[0] });
+  void queryClient.resetQueries({ queryKey: customerMeKeys.all });
+}
+
 export function useCustomerSignOut() {
   const queryClient = useQueryClient();
   const mutation = useCustomerSignOutMutation({
     mutation: {
-      onSuccess: () => {
-        queryClient.clear();
-      },
+      onSuccess: () => signedOut(queryClient),
     },
   });
   return { ...mutation, mutateAsync: () => mutation.mutateAsync(undefined) };
@@ -102,9 +110,7 @@ export function useCustomerSignOutAll() {
   const queryClient = useQueryClient();
   const mutation = useCustomerSignOutAllMutation({
     mutation: {
-      onSuccess: () => {
-        queryClient.clear();
-      },
+      onSuccess: () => signedOut(queryClient),
     },
   });
   return { ...mutation, mutateAsync: () => mutation.mutateAsync(undefined) };
