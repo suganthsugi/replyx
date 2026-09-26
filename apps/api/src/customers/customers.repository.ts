@@ -40,6 +40,7 @@ const TICKET_COLUMNS = [
   'tickets.last_customer_message_at',
   'tickets.last_agent_reply_at',
   'tickets.first_agent_reply_at',
+  'tickets.reminder_notified_at',
   'tickets.created_at',
   'tickets.updated_at',
 ] as const;

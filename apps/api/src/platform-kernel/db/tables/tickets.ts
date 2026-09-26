@@ -29,6 +29,8 @@ export interface TicketsTable {
   last_customer_message_at: Timestamp | null;
   last_agent_reply_at: Timestamp | null;
   first_agent_reply_at: Timestamp | null;
+  /** The `pending_until` the sweeper last fired `ticket.reminder_reached` for (0009c, T144). */
+  reminder_notified_at: Timestamp | null;
   created_at: GeneratedTimestamp;
   updated_at: GeneratedTimestamp;
 }

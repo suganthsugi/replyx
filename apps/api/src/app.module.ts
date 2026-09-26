@@ -27,6 +27,7 @@ import { TagsHttpModule, TagsModule } from './tags/tags.module.js';
 import { TenancyHttpModule } from './tenancy/tenancy-http.module.js';
 import { TenancyModule } from './tenancy/tenant-provisioning.service.js';
 import { TicketsJobsModule } from './tickets/access-loss.consumer.js';
+import { TicketSweeperModule } from './tickets/sweeper.job.js';
 import { TicketsHttpModule, TicketsModule } from './tickets/tickets.module.js';
 import { ViewsModule } from './views/views.module.js';
 
@@ -84,6 +85,7 @@ export class AppModule {
       MessagingJobsModule,
       AttachmentJobsModule,
       TicketsJobsModule,
+      TicketSweeperModule,
     ];
 
     return {
