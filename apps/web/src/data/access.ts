@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { meKeys } from './auth';
 import { groupKeys } from './groups';
 import { roleKeys } from './roles';
+import { viewKeys } from './views';
 
 import type { RealtimeClient } from './socket';
 
@@ -15,9 +16,6 @@ import type { RealtimeClient } from './socket';
  *   showing those tickets or groups close, and the area tells the user why.
  */
 
-/** Query keys of saved views; the views module (US7) owns them. */
-const VIEW_KEYS = ['views'] as const;
-
 export interface AccessRevoked {
   ticketIds: string[];
   /** `null` is Ungrouped. */
@@ -28,7 +26,7 @@ export function useAccessChanges(client: RealtimeClient | undefined): void {
   useEffect(() => {
     if (!client) return undefined;
     return client.onEvent('access.changed', (_envelope, queryClient) => {
-      for (const queryKey of [meKeys.all, VIEW_KEYS, roleKeys.all, groupKeys.all]) {
+      for (const queryKey of [meKeys.all, viewKeys.all, roleKeys.all, groupKeys.all]) {
         void queryClient.invalidateQueries({ queryKey });
       }
     });
