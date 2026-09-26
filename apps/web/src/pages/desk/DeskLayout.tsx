@@ -9,17 +9,13 @@ import Typography from '@mui/material/Typography';
 import { useCallback, useMemo, useState } from 'react';
 import { Navigate, Outlet, useNavigate, useParams } from 'react-router';
 
-// The command bar's ticket-number jump has no dedicated data hook yet (data-hooks rule 6 would
-// normally route this through `data/tickets.ts`); this calls the generated client the same way
-// that file does, scoped to this one lookup, until a helper lands there.
-import { listTickets } from '../../api/generated/tickets/tickets';
 import { CommandBar } from '../../components/shell/CommandBar';
 import { DesignSystemScope } from '../../components/shell/DesignSystemScope';
 import { useToast } from '../../components/shell/Toast';
 import { useMe, useUpdateMe } from '../../data/auth';
 import { mapError } from '../../data/errors';
 import { useRealtime } from '../../data/realtime';
-import { useTicketListEvents } from '../../data/tickets';
+import { findTicketByNumber, useTicketListEvents } from '../../data/tickets';
 import { useViewEvents, useViews } from '../../data/views';
 import { WORKSPACE_BASE } from '../../routes/area';
 
@@ -58,8 +54,7 @@ export default function DeskLayout() {
   const onOpenTicketNumber = useCallback(
     async (ticketNumber: number) => {
       try {
-        const result = await listTickets({ number: ticketNumber, limit: 1 });
-        const ticket = result.items[0];
+        const ticket = await findTicketByNumber(ticketNumber);
         const viewId = routeParams.viewId ?? views.data?.[0]?.id;
         if (ticket === undefined || viewId === undefined) {
           toast({ message: `No ticket #${ticketNumber} you can open`, severity: 'info' });
