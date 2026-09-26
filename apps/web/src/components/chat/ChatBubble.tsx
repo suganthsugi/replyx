@@ -75,7 +75,6 @@ export function ChatBubble({ message, onRetry }: ChatBubbleProps) {
           ...(mine
             ? { bgcolor: 'primary.main', color: 'primary.contrastText', borderBottomRightRadius: '4px' }
             : { bgcolor: 'background.paper', color: 'text.primary', border: 1, borderColor: 'divider', borderBottomLeftRadius: '4px' }),
-          ...(message.delivery === 'failed' && { opacity: 0.85 }),
         }}
       >
         {mine ? (
@@ -95,7 +94,8 @@ export function ChatBubble({ message, onRetry }: ChatBubbleProps) {
             ))}
           </Box>
         )}
-        <Typography variant="caption" component="p" sx={{ mt: 1, fontSize: '0.625rem', opacity: 0.8 }}>
+        {/* Full-strength colors: faded 10px text fails contrast on the accent bubble. */}
+        <Typography variant="caption" component="p" sx={{ mt: 1, fontSize: '0.625rem', color: mine ? 'inherit' : 'text.secondary' }}>
           <time dateTime={message.createdAt}>{time}</time>
           {mine && (
             <>
