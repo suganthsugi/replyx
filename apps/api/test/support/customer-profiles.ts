@@ -13,12 +13,12 @@ import { createUser, type TestTenant, type TestUser } from './factories.js';
  */
 
 class CustomerProfileRepository extends TenantRepository {
-  insertProfile(
+  async insertProfile(
     tx: TenantTransaction,
     userId: string,
     values: { phone?: string; company?: string; lastMessageAt?: Date },
   ): Promise<void> {
-    return this.insertInto(tx, 'customer_profiles', {
+    await this.insertInto(tx, 'customer_profiles', {
       user_id: userId,
       ...(values.phone === undefined ? {} : { phone: values.phone }),
       ...(values.company === undefined ? {} : { company: values.company }),
