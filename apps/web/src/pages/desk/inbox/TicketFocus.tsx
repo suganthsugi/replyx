@@ -127,6 +127,21 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
     [staffUsers.data],
   );
 
+  const currentOwner = ticketQuery.data?.owner;
+  const currentGroup = ticketQuery.data?.group;
+  const historyNames = useMemo(() => {
+    const userNameById = new Map<string, string>();
+    if (currentOwner) userNameById.set(currentOwner.id, currentOwner.name);
+    for (const owner of eligibleOwners.data ?? []) userNameById.set(owner.id, owner.name);
+    for (const page of staffUsers.data?.pages ?? []) {
+      for (const user of page.items) userNameById.set(user.id, user.name);
+    }
+    const groupNameById = new Map<string, string>();
+    if (currentGroup) groupNameById.set(currentGroup.id, currentGroup.name);
+    for (const group of groups.data ?? []) groupNameById.set(group.id, group.name);
+    return { userNameById, groupNameById };
+  }, [currentOwner, currentGroup, eligibleOwners.data, staffUsers.data, groups.data]);
+
   if (ticketQuery.isPending) {
     return (
       <Box sx={{ p: 4 }}>
@@ -157,7 +172,7 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
     ...typingRaw.map((user) => ('id' in user ? { id: user.id, name: user.name, status: 'typing' as const } : { id: `customer:${user.name}`, name: user.name, status: 'typing' as const })),
   ];
 
-  const historyEvents = (history.items ?? []).map((entry) => ({ id: entry.id, text: formatHistoryEntry(entry), createdAt: entry.occurredAt }));
+  const historyEvents = (history.items ?? []).map((entry) => ({ id: entry.id, text: formatHistoryEntry(entry, historyNames), createdAt: entry.occurredAt }));
 
   const conversationItems = messages.items.map((message) => ({ kind: 'message' as const, id: message.id, message }));
 
@@ -457,22 +472,42 @@ const FIELD_LABELS: Record<string, string> = {
   title: 'Title',
   tags: 'Tags',
   pending_until: 'Pending until',
+  waiting_on: 'Waiting on',
+  last_agent_reply_at: 'Last agent reply',
+  last_customer_message_at: 'Last customer message',
+  message_moved: 'Message moved',
 };
 
-function formatValue(value: unknown): string {
+/** Turns an unmapped snake_case field name into a readable label, e.g. `follow_up_at` -> `Follow up at`. */
+function readableFieldLabel(field: string): string {
+  return FIELD_LABELS[field] ?? field.split('_').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+}
+
+interface HistoryNames {
+  userNameById: Map<string, string>;
+  groupNameById: Map<string, string>;
+}
+
+function formatValue(field: string, value: unknown, names: HistoryNames): string {
   if (value === null || value === undefined) return 'none';
+  if (field === 'owner_id' && typeof value === 'string') {
+    return names.userNameById.get(value) ?? 'Unknown user';
+  }
+  if (field === 'group_id' && typeof value === 'string') {
+    return names.groupNameById.get(value) ?? 'a removed group';
+  }
   if (typeof value === 'string') return value;
   if (typeof value === 'number' || typeof value === 'boolean') return String(value);
   return JSON.stringify(value);
 }
 
-function formatHistoryEntry(entry: HistoryEntry): string {
-  const label = FIELD_LABELS[entry.field] ?? entry.field;
+function formatHistoryEntry(entry: HistoryEntry, names: HistoryNames): string {
+  const label = readableFieldLabel(entry.field);
   const by = actorName(entry.actor);
   if (entry.oldValue === null || entry.oldValue === undefined) {
-    return `${label} set to ${formatValue(entry.newValue)} by ${by}`;
+    return `${label} set to ${formatValue(entry.field, entry.newValue, names)} by ${by}`;
   }
-  return `${label} changed from ${formatValue(entry.oldValue)} to ${formatValue(entry.newValue)} by ${by}`;
+  return `${label} changed from ${formatValue(entry.field, entry.oldValue, names)} to ${formatValue(entry.field, entry.newValue, names)} by ${by}`;
 }
 
 /** Whether `client`'s socket is connected right now (false while reconnecting); local to this page. */
