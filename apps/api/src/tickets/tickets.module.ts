@@ -2,12 +2,14 @@ import { Global, Injectable, Module } from '@nestjs/common';
 
 import { GROUP_TICKET_STATS, type GroupTicketStats } from '../groups/groups.service.js';
 import { USER_HISTORY_CHECKS, type UserHistoryCheck } from '../identity/users.service.js';
+import { MessagingHttpModule } from '../messaging/messaging.module.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { tenantScopeOf, UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
 import { RealtimeModule } from '../platform-kernel/realtime/gateway.js';
 import { TICKET_GROUP_LOOKUP, type TicketGroupLookup } from '../platform-kernel/realtime/socket-context.js';
 import { ViewCompiler } from '../views/view-compiler.js';
 
+import { StaffStartedTicketService } from './staff-started-ticket.service.js';
 import { TicketPresenceGateway, TicketPresenceHandler } from './ticket-events.js';
 import { TicketHistoryService } from './ticket-history.service.js';
 import { TicketNumberService } from './ticket-number.service.js';
@@ -89,8 +91,8 @@ export class TicketsModule {}
 
 /** HTTP side of tickets (api process only, contracts/tickets.yaml `/tickets*`). */
 @Module({
-  imports: [RealtimeModule],
+  imports: [RealtimeModule, MessagingHttpModule],
   controllers: [TicketsController],
-  providers: [TicketsService, TicketQueryService, ViewCompiler, TicketPresenceHandler, TicketPresenceGateway],
+  providers: [TicketsService, TicketQueryService, ViewCompiler, TicketPresenceHandler, TicketPresenceGateway, StaffStartedTicketService],
 })
 export class TicketsHttpModule {}

@@ -106,40 +106,50 @@ export class StaffMessagesService {
       const locked = await tickets.lock(tx, ticketId);
       if (locked === undefined) throw notFound('ticket');
       require(access, 'ticket.edit', locked.group_id);
-
-      const messages = new MessagesRepository(ctx);
-      const existing = await messages.findByClientMessageId(tx, authorId, input.clientMessageId);
-      if (existing !== undefined) return toMessageDto(existing, await this.refs(ctx, tx, [existing]));
-
-      const mentions = [...new Set(input.mentionIds)];
-      if (input.visibility === 'public' && mentions.length > 0) throw validationFailed([{ path: 'mentionIds', issue: 'invalid' }]);
-      if (!(await new StaffRepository(ctx).allActiveStaff(tx, mentions))) throw validationFailed([{ path: 'mentionIds', issue: 'invalid' }]);
-
-      const now = this.clock.now();
-      const message = await messages.insert(tx, {
-        id: uuidv7(),
-        ticket_id: locked.id,
-        author_id: authorId,
-        author_kind: 'staff',
-        visibility: input.visibility,
-        body: input.body,
-        client_message_id: input.clientMessageId,
-        mentions,
-        created_at: now,
-        updated_at: now,
-      });
-      const attachmentIds = [...new Set(input.attachmentIds)];
-      const bound = await messages.bindAttachments(tx, message.id, authorId, attachmentIds, new Date(now.getTime() - ATTACHMENT_TTL_MS));
-      if (bound !== attachmentIds.length) throw validationFailed([{ path: 'attachmentIds', issue: 'invalid' }]);
-
-      const dto = toMessageDto(message, await this.refs(ctx, tx, [message]));
-      if (input.visibility === 'internal') {
-        await this.outbox.append(tx, { type: 'message.created', payload: dto, streams: [ticketStream(locked.id)] });
-        return dto;
-      }
-      await this.publicReply(ctx, tx, locked, message, dto, now);
-      return dto;
+      return this.insertMessage(ctx, tx, authorId, locked, input);
     });
+  }
+
+  /**
+   * Inserts a message on an already-locked (or just-created) ticket, within the caller's
+   * transaction. `post` above gates this with `ticket.edit` on the ticket's group; a ticket the
+   * caller just created (`staff-started-ticket.service.ts`, gated by `ticket.create` instead)
+   * calls this directly, so the customer projection and offline email still fire for its first
+   * message exactly as they do for any other public reply.
+   */
+  async insertMessage(ctx: TenantContext, tx: TenantTransaction, authorId: string, locked: TicketRow, input: StaffMessageInput): Promise<MessageDto> {
+    const messages = new MessagesRepository(ctx);
+    const existing = await messages.findByClientMessageId(tx, authorId, input.clientMessageId);
+    if (existing !== undefined) return toMessageDto(existing, await this.refs(ctx, tx, [existing]));
+
+    const mentions = [...new Set(input.mentionIds)];
+    if (input.visibility === 'public' && mentions.length > 0) throw validationFailed([{ path: 'mentionIds', issue: 'invalid' }]);
+    if (!(await new StaffRepository(ctx).allActiveStaff(tx, mentions))) throw validationFailed([{ path: 'mentionIds', issue: 'invalid' }]);
+
+    const now = this.clock.now();
+    const message = await messages.insert(tx, {
+      id: uuidv7(),
+      ticket_id: locked.id,
+      author_id: authorId,
+      author_kind: 'staff',
+      visibility: input.visibility,
+      body: input.body,
+      client_message_id: input.clientMessageId,
+      mentions,
+      created_at: now,
+      updated_at: now,
+    });
+    const attachmentIds = [...new Set(input.attachmentIds)];
+    const bound = await messages.bindAttachments(tx, message.id, authorId, attachmentIds, new Date(now.getTime() - ATTACHMENT_TTL_MS));
+    if (bound !== attachmentIds.length) throw validationFailed([{ path: 'attachmentIds', issue: 'invalid' }]);
+
+    const dto = toMessageDto(message, await this.refs(ctx, tx, [message]));
+    if (input.visibility === 'internal') {
+      await this.outbox.append(tx, { type: 'message.created', payload: dto, streams: [ticketStream(locked.id)] });
+      return dto;
+    }
+    await this.publicReply(ctx, tx, locked, message, dto, now);
+    return dto;
   }
 
   private async publicReply(ctx: TenantContext, tx: TenantTransaction, before: TicketRow, message: MessageRow, dto: MessageDto, now: Date) {

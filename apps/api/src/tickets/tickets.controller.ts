@@ -1,11 +1,14 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Headers, HttpCode, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import { z } from 'zod';
 
 import { RequirePermission } from '../authorization/registry/module-permissions.js';
+import { MAX_ATTACHMENTS, MessageBody } from '../messaging/customer.controller.js';
+import { validationFailed } from '../platform-kernel/http/app-error.js';
 import { paginationQuery, type Page } from '../platform-kernel/http/pagination.js';
 import { tenantContextOf } from '../platform-kernel/http/request-context.js';
-import { ZodValidationPipe } from '../platform-kernel/http/validation.pipe.js';
+import { toDetails, ZodValidationPipe } from '../platform-kernel/http/validation.pipe.js';
 
+import { StaffStartedTicketService } from './staff-started-ticket.service.js';
 import { TicketQueryService } from './ticket-query.service.js';
 import { TicketsService } from './tickets.service.js';
 
@@ -57,17 +60,51 @@ const PatchBody = z
   })
   .strict();
 
+const CreateBody = z
+  .object({
+    customerId: z.uuid(),
+    groupId: z.uuid(),
+    title: z.string().min(1).max(200),
+    message: z.object({ body: MessageBody, attachmentIds: z.array(z.uuid()).max(MAX_ATTACHMENTS).default([]) }).strict(),
+    ownerId: z.uuid().optional(),
+    priority: Priority.optional(),
+    tagIds: z.array(z.uuid()).optional(),
+  })
+  .strict();
+
+const IdempotencyKeyHeader = z.string().min(1).max(100).optional();
+
+/** `@Headers()` has no pipe overload (unlike `@Body`/`@Query`/`@Param`), so this validates by hand. */
+function idempotencyKeyOf(value: string | undefined): string | undefined {
+  const result = IdempotencyKeyHeader.safeParse(value);
+  if (!result.success) throw validationFailed(toDetails(result.error.issues, value));
+  return result.data;
+}
+
 @Controller('tickets')
 export class TicketsController {
   constructor(
     private readonly tickets: TicketsService,
     private readonly query: TicketQueryService,
+    private readonly staffStarted: StaffStartedTicketService,
   ) {}
 
   @Get()
   @RequirePermission('ticket.view')
   list(@Req() req: Request, @Query(new ZodValidationPipe(ListQuery)) query: z.infer<typeof ListQuery>): Promise<Page<TicketSummaryDto>> {
     return this.query.list(tenantContextOf(req), query);
+  }
+
+  /** Start a ticket for an existing, active customer (FR-038a); skips routing. */
+  @Post()
+  @RequirePermission('ticket.create')
+  @HttpCode(201)
+  create(
+    @Req() req: Request,
+    @Body(new ZodValidationPipe(CreateBody)) body: z.infer<typeof CreateBody>,
+    @Headers('idempotency-key') idempotencyKeyHeader: string | undefined,
+  ): Promise<TicketDto> {
+    return this.staffStarted.create(tenantContextOf(req), body, idempotencyKeyOf(idempotencyKeyHeader));
   }
 
   @Patch(':id')
