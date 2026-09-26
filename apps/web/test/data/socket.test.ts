@@ -180,4 +180,38 @@ describe('RealtimeClient', () => {
     expect(closing).toHaveBeenCalledWith('SESSION_REVOKED');
     expect(socket.disconnect).toHaveBeenCalled();
   });
+
+  it('starts a stream cursor from a snapshot seq without ever moving it back', () => {
+    const { client } = setup();
+    client.seedCursor('conversation', 10);
+    expect(client.cursor('conversation')).toBe(10);
+    client.seedCursor('conversation', 4);
+    expect(client.cursor('conversation')).toBe(10);
+  });
+
+  it('hands ephemeral signals to listeners by type and never tracks them as events', () => {
+    const { socket, client } = setup();
+    const typing = vi.fn();
+    const events = vi.fn();
+    client.onEphemeral('conversation.typing', typing);
+    client.onEvent('*', events);
+    socket.fire('ephemeral', { type: 'conversation.typing', stream: 'conversation', data: { name: 'Ann', state: 'start' } });
+    socket.fire('ephemeral', { type: 'presence', stream: 'ticket:1', data: {} });
+    expect(typing).toHaveBeenCalledTimes(1);
+    expect(events).not.toHaveBeenCalled();
+    expect(client.cursor('conversation')).toBeUndefined();
+  });
+
+  it('sends client messages only while connected and reports connection changes', async () => {
+    const { socket, client } = setup();
+    const changes: boolean[] = [];
+    client.onConnectionChange((connected) => changes.push(connected));
+    client.send('customer.typing', { state: 'start' });
+    expect(socket.emitted).toEqual([]);
+    await socket.open();
+    client.send('customer.typing', { state: 'start' });
+    expect(socket.emitted).toContainEqual(['customer.typing', { state: 'start' }]);
+    socket.fire('disconnect');
+    expect(changes).toEqual([true, false]);
+  });
 });

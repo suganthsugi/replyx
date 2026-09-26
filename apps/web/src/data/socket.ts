@@ -20,6 +20,11 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query';
  *
  * Feature hooks register how a stream maps to query keys (`registerStreamKeys`) and listen for
  * event types (`onEvent`) to patch the cache; components never open sockets.
+ *
+ * Ephemeral signals (typing) arrive as `ephemeral { type, stream, data }` with no id or seq: they
+ * go to `onEphemeral` listeners as they come and are never replayed. `send` emits one (e.g.
+ * `customer.typing`) when connected and drops it otherwise, since a late typing signal is worse
+ * than none.
  */
 
 export type Namespace = '/' | '/customer';
@@ -42,6 +47,15 @@ export type SubscribeAck = { ok: true } | { ok: false; error: { code: string; me
 
 export type EventListener = (envelope: Envelope, queryClient: QueryClient) => void;
 export type ClosingListener = (code: string) => void;
+
+export interface EphemeralSignal<D = unknown> {
+  type: string;
+  stream: string;
+  data: D;
+}
+
+export type EphemeralListener = (signal: EphemeralSignal) => void;
+export type ConnectionListener = (connected: boolean) => void;
 
 /** The socket.io-client surface this module uses (a fake in tests). */
 export interface RealtimeSocket {
@@ -92,6 +106,8 @@ export class RealtimeClient {
   private readonly subscriptions = new Set<string>();
   private readonly listeners = new Map<string, Set<EventListener>>();
   private readonly closingListeners = new Set<ClosingListener>();
+  private readonly ephemeralListeners = new Map<string, Set<EphemeralListener>>();
+  private readonly connectionListeners = new Set<ConnectionListener>();
   private readonly streamKeys = new Map<string, (stream: string) => QueryKey[]>();
   private closed = false;
   /** Envelopes received while a `sync` is in flight; applied once it is answered. */
@@ -103,7 +119,14 @@ export class RealtimeClient {
     this.storageKey = storageKey(options.namespace, options.userId);
     this.cursors = loadCursors(this.storageKey);
     this.socket = (options.createSocket ?? defaultSocket)(options.namespace);
-    this.socket.on('connect', () => void this.onConnect());
+    this.socket.on('connect', () => {
+      this.notifyConnection(true);
+      void this.onConnect();
+    });
+    this.socket.on('disconnect', () => this.notifyConnection(false));
+    this.socket.on('ephemeral', (signal: EphemeralSignal) => {
+      for (const listener of this.ephemeralListeners.get(signal.type) ?? []) listener(signal);
+    });
     this.socket.on('event', (envelope: Envelope) => this.onEnvelope(envelope));
     this.socket.on('closing', (body: { code?: string }) => this.handleClosing(body.code ?? 'UNAUTHENTICATED'));
     // A handshake the server refuses is final (Socket.IO does not retry middleware errors).
@@ -119,6 +142,37 @@ export class RealtimeClient {
     set.add(listener);
     this.listeners.set(type, set);
     return () => set.delete(listener);
+  }
+
+  /** Called with every ephemeral signal of `type` (typing). Returns an unsubscribe. */
+  onEphemeral(type: string, listener: EphemeralListener): () => void {
+    const set = this.ephemeralListeners.get(type) ?? new Set();
+    set.add(listener);
+    this.ephemeralListeners.set(type, set);
+    return () => set.delete(listener);
+  }
+
+  /** Called with `true`/`false` as the socket connects and drops. Returns an unsubscribe. */
+  onConnectionChange(listener: ConnectionListener): () => void {
+    this.connectionListeners.add(listener);
+    return () => this.connectionListeners.delete(listener);
+  }
+
+  get connected(): boolean {
+    return this.socket.connected;
+  }
+
+  /** Emits a fire-and-forget client message (`customer.typing`); dropped while disconnected. */
+  send(event: string, payload: unknown): void {
+    if (this.socket.connected) this.socket.emit(event, payload);
+  }
+
+  /**
+   * Starts a stream's cursor at the `seq` a snapshot was read at (the conversation's `streamSeq`),
+   * so the next reconnect replays only what came after it. Never moves a cursor back.
+   */
+  seedCursor(stream: string, seq: number): void {
+    if ((this.cursors.get(stream) ?? -1) < seq) this.setCursor(stream, seq);
   }
 
   /** Called with the code when the server ends this session (`SESSION_REVOKED`, ...). */
@@ -207,6 +261,10 @@ export class RealtimeClient {
     this.buffered = undefined;
     held.sort((a, b) => a.seq - b.seq);
     for (const envelope of held) this.apply(envelope, syncFrom.get(envelope.stream));
+  }
+
+  private notifyConnection(connected: boolean): void {
+    for (const listener of this.connectionListeners) listener(connected);
   }
 
   private handleClosing(code: string): void {
