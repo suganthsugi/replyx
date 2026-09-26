@@ -22,6 +22,7 @@ import { OutboxModule } from './platform-kernel/outbox/outbox.service.js';
 import { OutboxRelayModule } from './platform-kernel/outbox/relay.js';
 import { RealtimeModule } from './platform-kernel/realtime/gateway.js';
 import { RedisModule } from './platform-kernel/redis/redis.module.js';
+import { TagsHttpModule, TagsModule } from './tags/tags.module.js';
 import { TenancyHttpModule } from './tenancy/tenancy-http.module.js';
 import { TenancyModule } from './tenancy/tenant-provisioning.service.js';
 import { TicketsHttpModule, TicketsModule } from './tickets/tickets.module.js';
@@ -52,6 +53,7 @@ export class AppModule {
       AuthorizationModule.forRoot({ syncOnBootstrap: options.role === 'api' }),
       TenancyModule,
       AuditModule,
+      TagsModule,
       TicketsModule,
       MessagingModule,
       FileStorageModule,
@@ -67,6 +69,7 @@ export class AppModule {
       MessagingHttpModule,
       AttachmentsHttpModule,
       TicketsHttpModule,
+      TagsHttpModule,
     ];
     // Outbox relay, queue consumers and sweepers (worker only).
     const workerOnly: ModuleImports = [JobsModule, OutboxRelayModule, IdentityJobsModule, MessagingJobsModule, AttachmentJobsModule];
