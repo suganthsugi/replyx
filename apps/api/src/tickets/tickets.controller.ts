@@ -45,6 +45,7 @@ const ListQuery = z
     groupId: z.string().min(1).optional(),
     ownerId: z.string().min(1).optional(),
     customerId: z.uuid().optional(),
+    number: z.coerce.number().int().positive().optional(),
     sort: z
       .enum(['updated_at', '-updated_at', 'created_at', '-created_at', 'priority', '-priority', 'last_customer_message_at', '-last_customer_message_at'])
       .optional(),

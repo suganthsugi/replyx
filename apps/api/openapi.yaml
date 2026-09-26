@@ -1564,6 +1564,13 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: number
+          in: query
+          description: Filters on the ticket's number; a ticket the caller cannot see returns an empty page.
+          schema:
+            type: integer
+            format: int64
+            minimum: 1
         - name: sort
           in: query
           schema:

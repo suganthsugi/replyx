@@ -198,6 +198,7 @@ export class TicketsRepository extends TenantRepository {
       query = params.ownerId === null ? query.where('tickets.owner_id', 'is', null) : query.where('tickets.owner_id', '=', params.ownerId);
     }
     if (params.customerId !== undefined) query = query.where('tickets.customer_id', '=', params.customerId);
+    if (params.number !== undefined) query = query.where('tickets.number', '=', String(params.number));
     if (params.after !== undefined) {
       const op = params.direction === 'asc' ? sql`>` : sql`<`;
       const { sortExpr } = params;
@@ -230,6 +231,7 @@ export interface TicketListParams {
   /** `null` is unassigned; `undefined` is "not filtering". Resolve `me` before calling. */
   ownerId?: string | null;
   customerId?: string;
+  number?: number;
   sortExpr: Expression<Date | number>;
   direction: 'asc' | 'desc';
   after?: { value: Date | number | null; id: string };
