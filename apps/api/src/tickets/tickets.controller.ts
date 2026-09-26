@@ -146,6 +146,7 @@ export class TicketsController {
 
   @Post(':id/messages/:messageId/move')
   @RequirePermission('ticket.move_message')
+  @HttpCode(200)
   moveMessage(
     @Req() req: Request,
     @Param(new ZodValidationPipe(MoveMessageParams)) params: z.infer<typeof MoveMessageParams>,
