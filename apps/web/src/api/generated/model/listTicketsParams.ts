@@ -35,5 +35,10 @@ export type ListTicketsParams = {
    */
   ownerId?: string;
   customerId?: string;
+  /**
+   * Filters on the ticket's number; a ticket the caller cannot see returns an empty page.
+   * @minimum 1
+   */
+  number?: number;
   sort?: ListTicketsSort;
 };
