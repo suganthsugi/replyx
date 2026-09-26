@@ -1,7 +1,7 @@
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 
-import { Priority } from '../../api/generated/model';
+import { Priority } from '../../data/tickets';
 
 /** The ticket's priority, as a small pill-shaped exclusive choice (docs/design-system triage chip). */
 

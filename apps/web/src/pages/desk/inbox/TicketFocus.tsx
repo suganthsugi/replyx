@@ -47,10 +47,9 @@ import {
 } from '../../../data/tickets';
 import { useUsers } from '../../../data/users';
 
-import type { CreateTicketLinkBodyKind, HistoryEntryActor } from '../../../api/generated/model';
 import type { PresenceUser as PresenceRowUser } from '../../../components/tickets/types';
 import type { TagRef } from '../../../data/tags';
-import type { HistoryEntry } from '../../../data/tickets';
+import type { CreateTicketLinkBodyKind, HistoryEntry, HistoryEntryActor } from '../../../data/tickets';
 
 /**
  * A single ticket's working area (docs/design-system "Workspace Inbox" focus pane): a status

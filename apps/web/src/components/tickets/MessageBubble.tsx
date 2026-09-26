@@ -5,8 +5,7 @@ import Typography from '@mui/material/Typography';
 import { formatFileSize } from '../chat/attachment-rules';
 import { formatChatTime } from '../chat/format';
 
-import type { AttachmentSummary } from '../../api/generated/model';
-import type { Message } from '../../data/messages';
+import type { AttachmentSummary, Message } from '../../data/messages';
 
 /**
  * One public message in the ticket's conversation (docs/design-system "Workspace Inbox" bubbles):
