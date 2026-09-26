@@ -26,6 +26,7 @@ import { RedisModule } from './platform-kernel/redis/redis.module.js';
 import { TagsHttpModule, TagsModule } from './tags/tags.module.js';
 import { TenancyHttpModule } from './tenancy/tenancy-http.module.js';
 import { TenancyModule } from './tenancy/tenant-provisioning.service.js';
+import { TicketsJobsModule } from './tickets/access-loss.consumer.js';
 import { TicketsHttpModule, TicketsModule } from './tickets/tickets.module.js';
 
 /**
@@ -74,7 +75,14 @@ export class AppModule {
       CustomersHttpModule,
     ];
     // Outbox relay, queue consumers and sweepers (worker only).
-    const workerOnly: ModuleImports = [JobsModule, OutboxRelayModule, IdentityJobsModule, MessagingJobsModule, AttachmentJobsModule];
+    const workerOnly: ModuleImports = [
+      JobsModule,
+      OutboxRelayModule,
+      IdentityJobsModule,
+      MessagingJobsModule,
+      AttachmentJobsModule,
+      TicketsJobsModule,
+    ];
 
     return {
       module: AppModule,
