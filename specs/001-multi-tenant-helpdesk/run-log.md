@@ -182,6 +182,12 @@ Start commit: b4afe6b
 
 | task | agent | commit | notes |
 |------|-------|--------|-------|
+| T103–T118 | inline | 22fcbc0..0bd0092 | tickets/messages/attachments migration, state machine, router, customer conversation service + controller, staff replies/notes, typing/presence, offline-reply email, file storage (local+S3), uploads, ClamAV scan job, signed downloads, openapi merge + client regen, dev seed |
+| T119–T126 | inline | 60cf57d..3dafe53 | state-machine unit tests, router branch tests, customer API tests, concurrency (50 parallel sends), staff message tests, attachment tests, realtime conversation tests, cross-tenant ticket/message/attachment fixtures |
+| T127–T129 | inline | 5ad7d2b, 8d00454, 951fba2, 37ddfc7 (+d2b860e fix) | chat components, ChatPage/ProfileSheet, realtime client signals, conversation/attachments data hooks |
+| T130–T132 | inline | a1e2cda, d40cd55, fa1c9a0, 48c6400 (+3c5e545, f80055e fixes) | chat component tests, customer-chat e2e (desktop+mobile), customer guide + developer doc |
+| T066 follow-up | inline | 97c3cb2 | `USER_HISTORY_CHECKS` now has a real provider (tickets/messages exist); test checks user delete against real history |
+
 | T091 | inline | 0ac1d6e | live-checked on dev: every 4xx path, audit rows (`role.*`, `permission.changed`, `group_access.changed`), outbox `role.updated` + `access.changed` |
 | T092 | inline | 72c0593 | live-checked: Admin-only access on create, case-insensitive 409, eligible owners 200/404 per caller, cross-tenant 404s |
 | T093 | inline | 3776ee6, 7477e50 | merge script recreated in the scratchpad; redocly valid (22 warnings as before); client regenerated |
@@ -200,6 +206,23 @@ Start commit: b4afe6b
 - Chrome live check not possible: the extension refuses scripted cookies and credentials aren't typed into the browser. A temporary Playwright walkthrough (not committed) signed in, screenshotted roles, role editor, Admin (locked), groups and the group dialog on both projects, and ran axe on each. It found and fixed an active-rail contrast failure, teal links on the page background, 24 px radii (sx radius multiplies the 8 px base), a black rail border (a responsive shorthand reset the color) and a mobile page overflow (a `VisuallyHidden` span escaping the table scroller; the table containers are `position: relative` now).
 - Reviewer: PASS, no critical or major findings. Minor: RoleEditorPage runs its own submit/error cycle because `Form` has no confirm-before-submit hook; extend `Form` with one before the next confirm-then-save form. The reviewer also saw one timing flake in role-pages.test.tsx under the full parallel run; it passed on the rerun and alone.
 - Follow-ups: the developer doc's Mermaid diagram renders as a code block (Starlight has no Mermaid plugin); load Sora and Inter when the retheme task lands.
+
+### Phase 6 complete (T103–T132, T066 follow-up) 2026-09-26 (reconstructed from git log; no prior run-log entry)
+- Tickets/messages/attachments schema, state machine, customer message router with per-customer locking, customer conversation + projection (public-only), staff replies/notes, presence/typing, offline-reply email, file storage (local + S3), ClamAV scan, signed downloads; openapi merged and client regenerated; dev seed extended (globex ticket, resolved acme conversation).
+- Tests added alongside: unit (state machine, router branches), integration (customer API, staff messages, attachments), concurrency (50 parallel sends / 10 repeated `clientMessageId`s → 40 messages, one ticket), realtime (echo, typing, no leaking fields), cross-tenant fixtures for ticket/message/attachment (including download).
+- Frontend: chat components (thread/bubble/composer/resolved marker/status/typing), `ChatPage`/`ProfileSheet`, `data/conversation.ts` + `data/attachments.ts`, realtime client extended with ephemeral signals/typing/cursor seeding; component tests + customer-chat e2e (desktop and mobile) + customer guide + developer doc (conversation routing).
+- Fixes landed in-task: read receipts compared against the stored row (T109), signed-out customers return to sign-in (T128), chat timestamps/failed bubbles kept at contrast (T131).
+- Follow-up landed after the story: `USER_HISTORY_CHECKS` (Phase 3 follow-up) now has a real provider since tickets/messages exist; a test (T066) confirms user delete is blocked by real ticket history.
+- No explicit reviewer PASS commit found in git log for this phase (reviewer runs are not committed); full suite/coverage/e2e state at Phase 6 end not recorded separately — verify at Phase 7's own checkpoint.
+- Since Phase 6, `.claude/agents/*.md`, `.claude/skills/ui-components/SKILL.md` and `CLAUDE.md` were edited by the user (uncommitted) and `docs/design-system/` was added (uncommitted, untracked): these are the ui-components skill's new Phase 5+ design-system pointer. Not part of any task; left untouched.
+
+### Resume notes (Phase 7) 2026-09-26
+- User scope: run Phase 7 (US6, T133–T158) through to a reviewer PASS, then stop for approval.
+- No Jira tracking (removed from the orchestrator workflow in 7f369ba).
+- Checks: `docker compose run --rm -T tools bash -c 'set -o pipefail; pnpm turbo run lint typecheck test --continue'`; coverage `./scripts/check-coverage.sh`; e2e `docker compose --profile e2e run --rm -T playwright bash -c 'cd /repo && pnpm --filter web exec playwright test e2e/'` after `pnpm --filter api seed:dev`. `docker compose restart api worker` after backend changes, `restart web` after frontend changes.
+- Merge script for openapi (T145 needs it): scratchpad `merge-openapi.js`, run `docker compose run --rm -T -e PLAN='<json>' tools node - < merge-openapi.js`; not in the repo — recreate if the scratchpad is gone (see the Phase 5 recreation at 3776ee6).
+- T151–T154 (frontend): tell frontend-agent to follow `docs/design-system/` (uncommitted user addition) per the updated `ui-components` skill, for any Phase 5+ screen. Do not stage/commit `docs/design-system/` or the edited agent/skill/CLAUDE.md files — they are the user's own uncommitted changes, out of scope for this run.
+- docs-style skill is still `planned`; create it via skill-writer before T158 (agent guide) if not done by then.
 
 ### Resume notes (Phase 4) 2026-09-25
 - User scope: finish Phase 3 and Phase 4, then stop. Phase 3 is done; Phase 4 (T074–T090) is next, starting at T074.
