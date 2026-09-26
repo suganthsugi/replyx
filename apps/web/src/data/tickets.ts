@@ -71,6 +71,16 @@ export function useTickets(filters: TicketFilters) {
   return { ...query, items, error: query.error ? mapError(query.error) : undefined };
 }
 
+/**
+ * One-off lookup for "open ticket #N" (the command bar): not a query hook since it's an imperative
+ * action, not something a screen renders. Empty (not an error) when the number doesn't exist or
+ * isn't visible to the caller.
+ */
+export async function findTicketByNumber(number: number): Promise<TicketSummary | undefined> {
+  const result = await listTickets({ number, limit: 1 });
+  return result.items[0];
+}
+
 /** A ticket with its `allowedActions`, links and customer summary. */
 export function useTicket(id: string | undefined) {
   const query = useQuery({
