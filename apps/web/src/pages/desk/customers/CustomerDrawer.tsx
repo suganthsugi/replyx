@@ -6,7 +6,7 @@ import List from '@mui/material/List';
 import ListItemButton from '@mui/material/ListItemButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { EmptyState } from '../../../components/foundations/EmptyState';
 import { Skeleton } from '../../../components/foundations/Skeleton';
@@ -23,6 +23,7 @@ import { type TicketSummary } from '../../../data/tickets';
 
 import type { CustomerProfile } from '../../../data/customers';
 import type { TagRef } from '../../../data/tags';
+import type { RefObject } from 'react';
 
 /**
  * The customer profile sheet (FR-069): contact details and tags (editable with `user.edit`), and
@@ -68,13 +69,36 @@ export function CustomerDrawer({ customerId, open, onClose, onOpenTicket }: Cust
 function CustomerDrawerBody({ customer, onOpenTicket }: { customer: CustomerProfile; onOpenTicket: (ticketId: string) => void }) {
   const permissions = new Set(useMe().data?.permissions ?? []);
   const [editing, setEditing] = useState(false);
+  const editButtonRef = useRef<HTMLButtonElement>(null);
+  const nameFieldRef = useRef<HTMLInputElement>(null);
+  const hasMountedRef = useRef(false);
+
+  // The two modes unmount each other's focused control (the "Edit" button, the first field), so
+  // move focus explicitly instead of letting it fall through to <body>. Skip the very first
+  // mount, when nothing has "returned" yet.
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+    if (editing) {
+      nameFieldRef.current?.focus();
+    } else {
+      editButtonRef.current?.focus();
+    }
+  }, [editing]);
 
   return (
     <Stack spacing={5}>
       {editing ? (
-        <CustomerEditForm customer={customer} permissions={permissions} onDone={() => setEditing(false)} />
+        <CustomerEditForm customer={customer} permissions={permissions} nameFieldRef={nameFieldRef} onDone={() => setEditing(false)} />
       ) : (
-        <CustomerSummary customer={customer} canEdit={permissions.has('user.edit')} onEdit={() => setEditing(true)} />
+        <CustomerSummary
+          customer={customer}
+          canEdit={permissions.has('user.edit')}
+          editButtonRef={editButtonRef}
+          onEdit={() => setEditing(true)}
+        />
       )}
       <Divider />
       <TicketSection title="Open tickets" tickets={customer.openTickets} onOpenTicket={onOpenTicket} emptyMessage="No open tickets." />
@@ -83,7 +107,17 @@ function CustomerDrawerBody({ customer, onOpenTicket }: { customer: CustomerProf
   );
 }
 
-function CustomerSummary({ customer, canEdit, onEdit }: { customer: CustomerProfile; canEdit: boolean; onEdit: () => void }) {
+function CustomerSummary({
+  customer,
+  canEdit,
+  editButtonRef,
+  onEdit,
+}: {
+  customer: CustomerProfile;
+  canEdit: boolean;
+  editButtonRef: RefObject<HTMLButtonElement | null>;
+  onEdit: () => void;
+}) {
   return (
     <Stack spacing={3}>
       <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 2 }}>
@@ -101,7 +135,7 @@ function CustomerSummary({ customer, canEdit, onEdit }: { customer: CustomerProf
           />
         </Stack>
         {canEdit && (
-          <Button size="small" onClick={onEdit}>
+          <Button ref={editButtonRef} size="small" onClick={onEdit}>
             Edit
           </Button>
         )}
@@ -148,10 +182,12 @@ function SectionLabel({ children }: { children: string }) {
 function CustomerEditForm({
   customer,
   permissions,
+  nameFieldRef,
   onDone,
 }: {
   customer: CustomerProfile;
   permissions: Set<string>;
+  nameFieldRef: RefObject<HTMLInputElement | null>;
   onDone: () => void;
 }) {
   const updateCustomer = useUpdateCustomer();
@@ -187,6 +223,7 @@ function CustomerEditForm({
         value={name}
         onChange={(event) => setName(event.target.value)}
         required
+        inputRef={nameFieldRef}
         slotProps={{ htmlInput: { maxLength: 120 } }}
       />
       <FormField name="phone" label="Phone" value={phone} onChange={(event) => setPhone(event.target.value)} slotProps={{ htmlInput: { maxLength: 40 } }} />
