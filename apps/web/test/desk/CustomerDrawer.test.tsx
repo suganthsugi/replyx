@@ -1,5 +1,6 @@
-import { screen } from '@testing-library/react';
-import { http } from 'msw';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { HttpResponse, http } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CustomerDrawer } from '../../src/pages/desk/customers/CustomerDrawer';
@@ -7,7 +8,9 @@ import { API, errorResponse } from '../msw/handlers';
 import { renderWithProviders } from '../render';
 import { server, expectNoAxeViolations  } from '../setup';
 
-import { customerHandler, makeCustomerProfile, makeMe, makeTicket, meHandler } from './fixtures';
+import { customerHandler, makeCustomerProfile, makeMe, makeTicket, meHandler, tagsHandler } from './fixtures';
+
+import type { CustomerProfile } from '../../src/api/generated/model';
 
 describe('CustomerDrawer', () => {
   it('shows nothing selected until a customer is chosen', () => {
@@ -41,5 +44,41 @@ describe('CustomerDrawer', () => {
     const { container } = renderWithProviders(<CustomerDrawer customerId="customer-1" open onClose={vi.fn()} onOpenTicket={vi.fn()} />);
     expect(await screen.findByText("Couldn't load this customer")).toBeInTheDocument();
     await expectNoAxeViolations(container);
+  });
+
+  it('moves focus to the Name field when Edit is activated, and back to Edit on Cancel', async () => {
+    const user = userEvent.setup();
+    server.use(meHandler(makeMe()), customerHandler(makeCustomerProfile({ id: 'customer-1' })), tagsHandler([]));
+    renderWithProviders(<CustomerDrawer customerId="customer-1" open onClose={vi.fn()} onOpenTicket={vi.fn()} />);
+
+    const editButton = await screen.findByRole('button', { name: 'Edit' });
+    await user.click(editButton);
+
+    const nameField = await screen.findByRole('textbox', { name: 'Name' });
+    await waitFor(() => expect(nameField).toHaveFocus());
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+
+    const editButtonAgain = await screen.findByRole('button', { name: 'Edit' });
+    await waitFor(() => expect(editButtonAgain).toHaveFocus());
+  });
+
+  it('returns focus to Edit after a successful save', async () => {
+    const user = userEvent.setup();
+    const profile = makeCustomerProfile({ id: 'customer-1', name: 'Cara Customer' });
+    server.use(
+      meHandler(makeMe()),
+      customerHandler(profile),
+      tagsHandler([]),
+      http.patch(`${API}/customers/customer-1`, () => HttpResponse.json<CustomerProfile>({ ...profile, name: 'Cara Customerson' })),
+    );
+    renderWithProviders(<CustomerDrawer customerId="customer-1" open onClose={vi.fn()} onOpenTicket={vi.fn()} />);
+
+    await user.click(await screen.findByRole('button', { name: 'Edit' }));
+    await screen.findByRole('textbox', { name: 'Name' });
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    const editButtonAgain = await screen.findByRole('button', { name: 'Edit' });
+    await waitFor(() => expect(editButtonAgain).toHaveFocus());
   });
 });
