@@ -306,7 +306,7 @@ reply as staff through the API, and confirm the customer sees it live with no ti
 
 ### Frontend tests and docs
 
-- [ ] T130 [P] [US1] Component tests `apps/web/test/chat/*.test.tsx`: no ticket numbers, states, groups, owners or internal notes render for any fixture; rate-limit countdown; attachment errors; screen-reader announcements; axe
+- [X] T130 [P] [US1] Component tests `apps/web/test/chat/*.test.tsx`: no ticket numbers, states, groups, owners or internal notes render for any fixture; rate-limit countdown; attachment errors; screen-reader announcements; axe
 - [ ] T131 [P] [US1] E2E `apps/web/e2e/customer-chat.spec.ts` (desktop and mobile projects): link sign-in → send → staff replies via API → reply appears with typing indicator; second tab stays in sync
 - [ ] T132 [P] [US1] Customer guide `apps/docs/src/content/docs/guides/customer-chat.md` and developer doc `apps/docs/src/content/docs/developers/conversation-routing.md`
 
