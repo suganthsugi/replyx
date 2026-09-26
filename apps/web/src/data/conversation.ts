@@ -40,14 +40,21 @@ const STREAM = 'conversation';
 
 type ThreadData = InfiniteData<GetConversation200, string | undefined>;
 
-/** A message the customer sent that the API hasn't confirmed yet (or refused). */
+/**
+ * A message the customer sent that the API hasn't confirmed yet (or refused). `sent` keeps the
+ * entry around (with the server's `message`) until `buildItems` sees a message in the fetched
+ * thread with the same `clientMessageId` — the thread query may still be loading, or its cached
+ * snapshot may predate the POST, so removing the entry as soon as the POST resolves can drop the
+ * message from the UI until a `conversation.message` event arrives.
+ */
 export interface OutboxEntry {
   clientMessageId: string;
   body: string;
   attachments: AttachmentSummary[];
   createdAt: string;
-  status: 'sending' | 'failed';
+  status: 'sending' | 'sent' | 'failed';
   error?: string;
+  message?: ConversationMessage;
 }
 
 export function useConversation() {
@@ -70,6 +77,18 @@ export function useConversation() {
 
   const items = useMemo(() => buildItems(query.data, outbox), [query.data, outbox]);
   const status: ChatStatus | undefined = query.data?.pages[0]?.status;
+
+  // Once the thread actually contains a `sent` entry's message, `buildItems` already dedupes it;
+  // drop it from the outbox too so it doesn't linger forever in memory.
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    if (query.data === undefined) return;
+    const present = new Set(
+      [...query.data.pages].reverse().flatMap((page) => page.items).flatMap((item) => (item.type === 'message' && item.message.clientMessageId ? [item.message.clientMessageId] : [])),
+    );
+    const stale = outbox.some((entry) => entry.status === 'sent' && present.has(entry.clientMessageId));
+    if (stale) setOutbox(queryClient, (entries) => entries.filter((entry) => !(entry.status === 'sent' && present.has(entry.clientMessageId))));
+  }, [query.data, outbox, queryClient]);
 
   return {
     items,
@@ -117,8 +136,15 @@ export function useSendMessage() {
           clientMessageId: entry.clientMessageId,
           ...(entry.attachments.length === 0 ? {} : { attachmentIds: entry.attachments.map((attachment) => attachment.id) }),
         });
-        patchThread(queryClient, (data) => upsertMessage(data, message));
-        setOutbox(queryClient, (entries) => entries.filter((existing) => existing.clientMessageId !== entry.clientMessageId));
+        const applied = patchThread(queryClient, (data) => upsertMessage(data, message));
+        // Keep the entry as `sent` (with the server message) rather than removing it outright:
+        // the thread query may still be loading, or its cached snapshot may predate this send, so
+        // `patchThread` was a no-op and the message would otherwise vanish until a socket event
+        // catches up. `buildItems`'s `sent` dedupe drops it once the thread has it.
+        setOutbox(queryClient, (entries) =>
+          entries.map((existing) => (existing.clientMessageId === entry.clientMessageId ? { ...existing, status: 'sent', message, error: undefined } : existing)),
+        );
+        if (!applied) void queryClient.invalidateQueries({ queryKey: conversationKeys.thread() });
       } catch (caught) {
         const error = mapError(caught);
         if (error.code === 'RATE_LIMITED') setRateLimitedUntil(Date.now() + (error.retryAfter ?? 30) * 1000);
@@ -292,8 +318,15 @@ export function useConnection(): boolean {
 
 // Cache helpers. Pages are newest first; items within a page are oldest first.
 
-function patchThread(queryClient: QueryClient, update: (data: ThreadData) => ThreadData): void {
-  queryClient.setQueryData<ThreadData>(conversationKeys.thread(), (data) => (data === undefined ? data : update(data)));
+/** Returns whether the thread cache had data to patch. */
+function patchThread(queryClient: QueryClient, update: (data: ThreadData) => ThreadData): boolean {
+  let applied = false;
+  queryClient.setQueryData<ThreadData>(conversationKeys.thread(), (data) => {
+    if (data === undefined) return data;
+    applied = true;
+    return update(data);
+  });
+  return applied;
 }
 
 function withFirstPage(data: ThreadData, update: (page: GetConversation200) => GetConversation200): ThreadData {
@@ -363,6 +396,10 @@ function buildItems(data: ThreadData | undefined, outbox: OutboxEntry[]): ChatIt
   }
   for (const entry of outbox) {
     if (sent.has(entry.clientMessageId)) continue;
+    if (entry.status === 'sent' && entry.message) {
+      items.push(toChatMessage(entry.message));
+      continue;
+    }
     items.push({
       kind: 'message',
       id: entry.clientMessageId,
