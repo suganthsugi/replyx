@@ -1,5 +1,7 @@
+import { sql } from 'kysely';
 import { beforeEach, describe, expect, it } from 'vitest';
 
+import { createDatabase } from '../../../src/platform-kernel/db/database.js';
 import { TenantContext } from '../../../src/platform-kernel/db/tenant-context.js';
 import { TenantRepository } from '../../../src/platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../../../src/platform-kernel/db/unit-of-work.js';
@@ -260,6 +262,64 @@ describe('ticket access loss and the timer sweeper', () => {
 
       const ticketIds = await ticketsForClientMessageId(tenant, clientMessageId);
       expect(ticketIds).toHaveLength(1);
+    });
+
+    it('sweeps every active tenant once each and leaves a suspended tenant untouched', async () => {
+      const { clock } = await getTestApp();
+      const [tenantA, tenantB, suspendedTenant] = await Promise.all([createTenant(), createTenant(), createTenant()]);
+
+      async function seed(t: TestTenant) {
+        const group = await createGroup(t);
+        const owner = await createUser(t, { roles: ['admin'] });
+        const customer = await createUser(t, { roles: ['customer'] });
+        const reminderTicket = await createTicket(t, { customer, group: group.id, owner: owner.id, state: 'pending_reminder' });
+        const closeTicket = await createTicket(t, { customer, group: group.id, owner: owner.id, state: 'pending_close' });
+        return { reminderTicket, closeTicket };
+      }
+
+      const [seededA, seededB, seededSuspended] = await Promise.all([seed(tenantA), seed(tenantB), seed(suspendedTenant)]);
+
+      // Sign in fresh happens above (all before the big clock jump); suspend the third tenant
+      // through the platform connection, the way kernel.test.ts does, then run one sweep.
+      const platform = createDatabase(process.env.DATABASE_URL_PLATFORM as string, 'platform');
+      try {
+        await sql`UPDATE tenants SET status = 'suspended', suspended_at = now() WHERE id = ${suspendedTenant.id}`.execute(platform);
+      } finally {
+        await platform.destroy();
+      }
+
+      clock.advanceHours(73); // past every factory's 72 h pending_until
+      const job = await sweeperJob();
+      await job.process();
+
+      for (const [activeTenant, seeded] of [
+        [tenantA, seededA],
+        [tenantB, seededB],
+      ] as const) {
+        const reminderRow = await ticketRow(activeTenant, seeded.reminderTicket.id);
+        expect(reminderRow.state).toBe('pending_reminder');
+        expect(reminderRow.reminderNotifiedAt).not.toBeNull();
+        expect(await countEventsOfType(activeTenant.id, 'ticket.reminder_reached')).toBe(1);
+        expect(await historyRows(activeTenant, seeded.reminderTicket.id)).toHaveLength(0);
+
+        const closeRow = await ticketRow(activeTenant, seeded.closeTicket.id);
+        expect(closeRow.state).toBe('closed');
+        expect(closeRow.closedAt).not.toBeNull();
+        expect(await countEventsOfType(activeTenant.id, 'ticket.closed')).toBe(1);
+        const closeHistory = await historyRows(activeTenant, seeded.closeTicket.id);
+        expect(closeHistory).toContainEqual(expect.objectContaining({ field: 'state', actorKind: 'system', newValue: 'closed' }));
+      }
+
+      // The suspended tenant's due tickets are left exactly as they were.
+      const suspendedReminderRow = await ticketRow(suspendedTenant, seededSuspended.reminderTicket.id);
+      expect(suspendedReminderRow.state).toBe('pending_reminder');
+      expect(suspendedReminderRow.reminderNotifiedAt).toBeNull();
+      expect(await countEventsOfType(suspendedTenant.id, 'ticket.reminder_reached')).toBe(0);
+
+      const suspendedCloseRow = await ticketRow(suspendedTenant, seededSuspended.closeTicket.id);
+      expect(suspendedCloseRow.state).toBe('pending_close');
+      expect(suspendedCloseRow.closedAt).toBeNull();
+      expect(await countEventsOfType(suspendedTenant.id, 'ticket.closed')).toBe(0);
     });
   });
 });
