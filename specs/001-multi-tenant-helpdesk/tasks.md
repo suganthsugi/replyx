@@ -339,7 +339,7 @@ verified once US8 adds notifications.
 - [X] T142 [US6] Implement `apps/api/src/tickets/access-loss.consumer.ts`: on `role.updated` / `access.changed` and `user.deactivated`, unassign tickets whose owner no longer has edit on the ticket's group, writing history as `system` (FR-026, FR-008)
 - [X] T143 [US6] Implement staff ticket streams in `apps/api/src/tickets/ticket-events.ts`: publish `ticket.created`, `ticket.updated`, `ticket.removed_from_view` to `tickets:group:*` rooms and `message.created`/`message.moved`/`typing`/`presence` to `ticket:{id}`; join staff sockets to their group rooms on connect
 - [X] T144 [US6] Implement the sweeper `apps/api/src/tickets/sweeper.job.ts` (repeatable every 30 s; batches with `FOR UPDATE SKIP LOCKED` across tenants, each row in its own tenant unit of work): `pending_reminder` due → emit `ticket.reminder_reached` (state unchanged); `pending_close` due → close under the customer's advisory lock after re-checking state (research D11)
-- [ ] T145 [US6] Merge the remaining `/tickets*`, `/tags*`, `/customers/{id}`, `/views`, `/views/{id}` paths from `contracts/tickets.yaml` into `apps/api/openapi.yaml`
+- [X] T145 [US6] Merge the remaining `/tickets*`, `/tags*`, `/customers/{id}`, `/views`, `/views/{id}` paths from `contracts/tickets.yaml` into `apps/api/openapi.yaml`
 
 ### Tests
 
