@@ -4,9 +4,11 @@ import { GROUP_TICKET_STATS, type GroupTicketStats } from '../groups/groups.serv
 import { USER_HISTORY_CHECKS, type UserHistoryCheck } from '../identity/users.service.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { tenantScopeOf, UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
+import { RealtimeModule } from '../platform-kernel/realtime/gateway.js';
 import { TICKET_GROUP_LOOKUP, type TicketGroupLookup } from '../platform-kernel/realtime/socket-context.js';
 import { ViewCompiler } from '../views/view-compiler.js';
 
+import { TicketPresenceGateway, TicketPresenceHandler } from './ticket-events.js';
 import { TicketHistoryService } from './ticket-history.service.js';
 import { TicketNumberService } from './ticket-number.service.js';
 import { TicketQueryService } from './ticket-query.service.js';
@@ -86,5 +88,9 @@ class AuthoredRecordsRepository extends TenantRepository {
 export class TicketsModule {}
 
 /** HTTP side of tickets (api process only, contracts/tickets.yaml `/tickets*`). */
-@Module({ controllers: [TicketsController], providers: [TicketsService, TicketQueryService, ViewCompiler] })
+@Module({
+  imports: [RealtimeModule],
+  controllers: [TicketsController],
+  providers: [TicketsService, TicketQueryService, ViewCompiler, TicketPresenceHandler, TicketPresenceGateway],
+})
 export class TicketsHttpModule {}
