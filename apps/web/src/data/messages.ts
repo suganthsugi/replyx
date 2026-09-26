@@ -7,7 +7,7 @@ import { mapError } from './errors';
 import { ticketKeys } from './tickets';
 
 import type { RealtimeClient } from './socket';
-import type { ListTicketMessages200, Message, PostTicketMessageBodyVisibility } from '../api/generated/model';
+import type { AttachmentSummary, ListTicketMessages200, Message, PostTicketMessageBodyVisibility } from '../api/generated/model';
 
 /**
  * A ticket's message timeline (US6): public replies, internal notes and the customer's own
@@ -285,4 +285,4 @@ function buildItems(data: MessagesData | undefined, outbox: OutboxEntry[]): Mess
   ];
 }
 
-export type { Message };
+export type { AttachmentSummary, Message };
