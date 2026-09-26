@@ -4,9 +4,11 @@ import { TenantRepository } from '../../src/platform-kernel/db/tenant-repository
 import { UnitOfWork, type TenantTransaction } from '../../src/platform-kernel/db/unit-of-work.js';
 import { uuidv7 } from '../../src/platform-kernel/ids.js';
 import { getTestApp, service } from '../support/app.js';
+import { createCustomer } from '../support/customer-profiles.js';
 import { createGroup, createRole, createTicket, createUser, type RoleRef, type TestTenant, type TestUser } from '../support/factories.js';
 import { asGuest, asUser } from '../support/http.js';
-import { connectResult } from '../support/socket.js';
+import { connectResult, connectSocket } from '../support/socket.js';
+import { createView } from '../support/view-factory.js';
 
 /**
  * Cross-tenant fixtures (research D25, SC-010, testing-conventions rule 7). Every registry
@@ -105,7 +107,9 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
     async create(tenant) {
       const customer = await createUser(tenant, { roles: ['customer'] });
       const ticket = await createTicket(tenant, { customer, messages: [{ body: 'Hello from tenant A' }] });
-      return { params: { id: ticket.id }, ids: [ticket.id] };
+      const target = await createTicket(tenant, { customer, messages: [{ body: 'Target ticket from tenant A' }] });
+      const { linkId, messageId } = await insertLinkAndMessageId(tenant, ticket.id, target.id);
+      return { params: { id: ticket.id, linkId, messageId }, ids: [ticket.id, target.id] };
     },
     bodies: {
       'StaffMessagesController.post': () => ({
@@ -113,6 +117,42 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
         body: 'Reply from another tenant',
         clientMessageId: uuidv7(),
       }),
+      'TicketsController.update': () => ({ title: 'Renamed by another tenant' }),
+      'TicketLinksController.create': (resource) => ({ targetTicketId: resource.ids[1] ?? uuidv7(), kind: 'related' }),
+      'TicketsController.moveMessage': (resource) => ({ targetTicketId: resource.ids[1] ?? uuidv7() }),
+    },
+  },
+  tag: {
+    async create(tenant) {
+      const id = await insertTag(tenant, `Tag ${uuidv7()}`);
+      return { params: { id }, ids: [id] };
+    },
+    bodies: {
+      'TagsController.update': () => ({ name: 'Renamed by another tenant' }),
+    },
+  },
+  view: {
+    async create(tenant) {
+      const view = await createView(tenant, { name: 'Tenant A view' });
+      return { params: { id: view.id }, ids: [view.id] };
+    },
+  },
+  // Keyed by route: getCustomer/updateCustomer need `user.view`/`user.edit` (the resource is the
+  // registry key `user`, shared with UsersController), but the fixture needs a real customer (a
+  // `customer_profiles` row), not the plain staff `user` fixture's user.
+  'CustomersController.get': {
+    async create(tenant) {
+      const customer = await createCustomer(tenant);
+      return { params: { id: customer.id }, ids: [customer.id] };
+    },
+  },
+  'CustomersController.update': {
+    async create(tenant) {
+      const customer = await createCustomer(tenant);
+      return { params: { id: customer.id }, ids: [customer.id] };
+    },
+    bodies: {
+      'CustomersController.update': () => ({ name: 'Renamed by another tenant' }),
     },
   },
   'customer:conversation': {
@@ -188,6 +228,55 @@ class AttachmentFixtureRepository extends TenantRepository {
   }
 }
 
+/** A tenant's tag, inserted directly (no create-tag call needed for the fixture). */
+async function insertTag(tenant: TestTenant, name: string): Promise<string> {
+  const unitOfWork = await service(UnitOfWork);
+  const ctx = TenantContext.create({ tenantId: tenant.id, actor: { kind: 'system' }, requestId: 'cross-tenant-fixture' });
+  return unitOfWork.withTenant(ctx, (tx) => new TagFixtureRepository(ctx).insert(tx, name));
+}
+
+class TagFixtureRepository extends TenantRepository {
+  async insert(tx: TenantTransaction, name: string): Promise<string> {
+    const row = await this.insertInto(tx, 'tags', { name }).returning('id').executeTakeFirstOrThrow();
+    return row.id;
+  }
+}
+
+/**
+ * A link between the ticket fixture's two tickets, plus the id of the source ticket's first
+ * message, so `/tickets/{id}/links/{linkId}` and `/tickets/{id}/messages/{messageId}/move` have
+ * real path parameters. The tenant mismatch is caught on the source ticket lookup before either
+ * id is used, so neither needs to resolve to anything for the cross-tenant 404 to match.
+ */
+async function insertLinkAndMessageId(tenant: TestTenant, ticketId: string, targetTicketId: string): Promise<{ linkId: string; messageId: string }> {
+  const unitOfWork = await service(UnitOfWork);
+  const ctx = TenantContext.create({ tenantId: tenant.id, actor: { kind: 'system' }, requestId: 'cross-tenant-fixture' });
+  const repo = new TicketFixtureRepository(ctx);
+  return unitOfWork.withTenant(ctx, async (tx) => ({
+    linkId: await repo.insertLink(tx, ticketId, targetTicketId),
+    messageId: await repo.firstMessageId(tx, ticketId),
+  }));
+}
+
+class TicketFixtureRepository extends TenantRepository {
+  async insertLink(tx: TenantTransaction, fromTicketId: string, toTicketId: string): Promise<string> {
+    const row = await this.insertInto(tx, 'ticket_links', {
+      from_ticket_id: fromTicketId,
+      to_ticket_id: toTicketId,
+      kind: 'related',
+      created_by: null,
+    })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    return row.id;
+  }
+
+  async firstMessageId(tx: TenantTransaction, ticketId: string): Promise<string> {
+    const row = await this.selectFrom(tx, 'ticket_messages').where('ticket_id', '=', ticketId).select('id').executeTakeFirstOrThrow();
+    return row.id;
+  }
+}
+
 /**
  * Extra cross-tenant checks added by later stories: real-time subscriptions (a tenant B socket
  * subscribing to a tenant A stream acks NOT_FOUND) and attachment downloads.
@@ -199,6 +288,21 @@ export const REALTIME_CHECKS: Record<string, CrossTenantCheck> = {
   'socket handshake on another tenant host': async (a, _b, callerB) => {
     const { expect } = await import('vitest');
     expect(await connectResult(callerB, { host: a.host })).toBe('UNAUTHENTICATED');
+  },
+  /** A tenant B socket, connected on its own host, may not subscribe to a tenant A ticket room (US6). */
+  'socket subscribes to another tenant’s ticket room': async (a, _b, callerB) => {
+    const { expect } = await import('vitest');
+    const customer = await createUser(a, { roles: ['customer'] });
+    const ticket = await createTicket(a, { customer, messages: [{ body: 'Hello from tenant A' }] });
+    const socket = await connectSocket(callerB);
+    try {
+      expect(await socket.emitWithAck('subscribe', { stream: `ticket:${ticket.id}` })).toEqual({
+        ok: false,
+        error: { code: 'NOT_FOUND', message: 'Not found' },
+      });
+    } finally {
+      socket.close();
+    }
   },
 };
 export const ATTACHMENT_CHECKS: Record<string, CrossTenantCheck> = {
