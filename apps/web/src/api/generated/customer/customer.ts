@@ -23,15 +23,24 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AttachmentSummary,
   Branding,
+  ConversationMessage,
   CustomerMe,
   CustomerSignInBody,
   ErrorResponse,
+  GetConversation200,
+  GetConversationParams,
+  MarkConversationReadBody,
+  NotFoundResponse,
   RateLimitedResponse,
   RedeemSignInLinkBody,
   RequestSignInLinkBody,
+  SendCustomerMessageBody,
   UnauthenticatedResponse,
   UpdateCustomerMeBody,
+  UploadCustomerAttachmentBody,
+  ValidationFailedResponse,
 } from '.././model';
 
 import { http } from '../../../data/http';
@@ -619,6 +628,549 @@ export const useUpdateCustomerMe = <TError = unknown, TContext = unknown>(
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * @summary The customer's single thread (all tickets, public content only), newest page first
+ */
+export const getGetConversationUrl = (params?: GetConversationParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/customer/conversation?${stringifiedParams}`
+    : `/customer/conversation`;
+};
+
+export const getConversation = async (
+  params?: GetConversationParams,
+  options?: RequestInit,
+): Promise<GetConversation200> => {
+  return http<GetConversation200>(getGetConversationUrl(params), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetConversationQueryKey = (params?: GetConversationParams) => {
+  return [`/customer/conversation`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetConversationQueryOptions = <
+  TData = Awaited<ReturnType<typeof getConversation>>,
+  TError = UnauthenticatedResponse,
+>(
+  params?: GetConversationParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getConversation>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetConversationQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getConversation>>> = ({ signal }) =>
+    getConversation(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getConversation>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetConversationQueryResult = NonNullable<Awaited<ReturnType<typeof getConversation>>>;
+export type GetConversationQueryError = UnauthenticatedResponse;
+
+export function useGetConversation<
+  TData = Awaited<ReturnType<typeof getConversation>>,
+  TError = UnauthenticatedResponse,
+>(
+  params: undefined | GetConversationParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getConversation>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getConversation>>,
+          TError,
+          Awaited<ReturnType<typeof getConversation>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetConversation<
+  TData = Awaited<ReturnType<typeof getConversation>>,
+  TError = UnauthenticatedResponse,
+>(
+  params?: GetConversationParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getConversation>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getConversation>>,
+          TError,
+          Awaited<ReturnType<typeof getConversation>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetConversation<
+  TData = Awaited<ReturnType<typeof getConversation>>,
+  TError = UnauthenticatedResponse,
+>(
+  params?: GetConversationParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getConversation>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary The customer's single thread (all tickets, public content only), newest page first
+ */
+
+export function useGetConversation<
+  TData = Awaited<ReturnType<typeof getConversation>>,
+  TError = UnauthenticatedResponse,
+>(
+  params?: GetConversationParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getConversation>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetConversationQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * A repeated clientMessageId returns the message already stored for it.
+ * @summary Send a message — routed to exactly one ticket, idempotent by clientMessageId
+ */
+export const getSendCustomerMessageUrl = () => {
+  return `/customer/messages`;
+};
+
+export const sendCustomerMessage = async (
+  sendCustomerMessageBody: SendCustomerMessageBody,
+  options?: RequestInit,
+): Promise<ConversationMessage> => {
+  return http<ConversationMessage>(getSendCustomerMessageUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(sendCustomerMessageBody),
+  });
+};
+
+export const getSendCustomerMessageMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | RateLimitedResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof sendCustomerMessage>>,
+    TError,
+    { data: SendCustomerMessageBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof sendCustomerMessage>>,
+  TError,
+  { data: SendCustomerMessageBody },
+  TContext
+> => {
+  const mutationKey = ['sendCustomerMessage'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof sendCustomerMessage>>,
+    { data: SendCustomerMessageBody }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return sendCustomerMessage(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SendCustomerMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof sendCustomerMessage>>
+>;
+export type SendCustomerMessageMutationBody = SendCustomerMessageBody;
+export type SendCustomerMessageMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | RateLimitedResponse;
+
+/**
+ * @summary Send a message — routed to exactly one ticket, idempotent by clientMessageId
+ */
+export const useSendCustomerMessage = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | RateLimitedResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof sendCustomerMessage>>,
+      TError,
+      { data: SendCustomerMessageBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof sendCustomerMessage>>,
+  TError,
+  { data: SendCustomerMessageBody },
+  TContext
+> => {
+  const mutationOptions = getSendCustomerMessageMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Mark support replies up to a message as read (drives read receipts)
+ */
+export const getMarkConversationReadUrl = () => {
+  return `/customer/messages/read`;
+};
+
+export const markConversationRead = async (
+  markConversationReadBody: MarkConversationReadBody,
+  options?: RequestInit,
+): Promise<void> => {
+  return http<void>(getMarkConversationReadUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(markConversationReadBody),
+  });
+};
+
+export const getMarkConversationReadMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markConversationRead>>,
+    TError,
+    { data: MarkConversationReadBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof markConversationRead>>,
+  TError,
+  { data: MarkConversationReadBody },
+  TContext
+> => {
+  const mutationKey = ['markConversationRead'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof markConversationRead>>,
+    { data: MarkConversationReadBody }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return markConversationRead(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MarkConversationReadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof markConversationRead>>
+>;
+export type MarkConversationReadMutationBody = MarkConversationReadBody;
+export type MarkConversationReadMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | NotFoundResponse;
+
+/**
+ * @summary Mark support replies up to a message as read (drives read receipts)
+ */
+export const useMarkConversationRead = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof markConversationRead>>,
+      TError,
+      { data: MarkConversationReadBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof markConversationRead>>,
+  TError,
+  { data: MarkConversationReadBody },
+  TContext
+> => {
+  const mutationOptions = getMarkConversationReadMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Upload a file for a later message (25 MB max; allowed types only)
+ */
+export const getUploadCustomerAttachmentUrl = () => {
+  return `/customer/attachments`;
+};
+
+export const uploadCustomerAttachment = async (
+  uploadCustomerAttachmentBody: UploadCustomerAttachmentBody,
+  options?: RequestInit,
+): Promise<AttachmentSummary> => {
+  const formData = new FormData();
+  formData.append(`file`, uploadCustomerAttachmentBody.file);
+
+  return http<AttachmentSummary>(getUploadCustomerAttachmentUrl(), {
+    ...options,
+    method: 'POST',
+    body: formData,
+  });
+};
+
+export const getUploadCustomerAttachmentMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof uploadCustomerAttachment>>,
+    TError,
+    { data: UploadCustomerAttachmentBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof uploadCustomerAttachment>>,
+  TError,
+  { data: UploadCustomerAttachmentBody },
+  TContext
+> => {
+  const mutationKey = ['uploadCustomerAttachment'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof uploadCustomerAttachment>>,
+    { data: UploadCustomerAttachmentBody }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return uploadCustomerAttachment(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UploadCustomerAttachmentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof uploadCustomerAttachment>>
+>;
+export type UploadCustomerAttachmentMutationBody = UploadCustomerAttachmentBody;
+export type UploadCustomerAttachmentMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | ErrorResponse;
+
+/**
+ * @summary Upload a file for a later message (25 MB max; allowed types only)
+ */
+export const useUploadCustomerAttachment = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof uploadCustomerAttachment>>,
+      TError,
+      { data: UploadCustomerAttachmentBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof uploadCustomerAttachment>>,
+  TError,
+  { data: UploadCustomerAttachmentBody },
+  TContext
+> => {
+  const mutationOptions = getUploadCustomerAttachmentMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Only an attachment on a public message in the customer's own conversation, or the customer's own not-yet-sent upload, is reachable; anything else is 404.
+ * @summary Authorize, then redirect to a private URL valid for 15 minutes
+ */
+export const getDownloadCustomerAttachmentUrl = (id: string) => {
+  return `/customer/attachments/${id}/download`;
+};
+
+export const downloadCustomerAttachment = async (
+  id: string,
+  options?: RequestInit,
+): Promise<unknown> => {
+  return http<unknown>(getDownloadCustomerAttachmentUrl(id), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getDownloadCustomerAttachmentQueryKey = (id?: string) => {
+  return [`/customer/attachments/${id}/download`] as const;
+};
+
+export const getDownloadCustomerAttachmentQueryOptions = <
+  TData = Awaited<ReturnType<typeof downloadCustomerAttachment>>,
+  TError = void | UnauthenticatedResponse | NotFoundResponse | ErrorResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof downloadCustomerAttachment>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getDownloadCustomerAttachmentQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof downloadCustomerAttachment>>> = ({
+    signal,
+  }) => downloadCustomerAttachment(id, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof downloadCustomerAttachment>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type DownloadCustomerAttachmentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof downloadCustomerAttachment>>
+>;
+export type DownloadCustomerAttachmentQueryError =
+  void | UnauthenticatedResponse | NotFoundResponse | ErrorResponse;
+
+export function useDownloadCustomerAttachment<
+  TData = Awaited<ReturnType<typeof downloadCustomerAttachment>>,
+  TError = void | UnauthenticatedResponse | NotFoundResponse | ErrorResponse,
+>(
+  id: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof downloadCustomerAttachment>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadCustomerAttachment>>,
+          TError,
+          Awaited<ReturnType<typeof downloadCustomerAttachment>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useDownloadCustomerAttachment<
+  TData = Awaited<ReturnType<typeof downloadCustomerAttachment>>,
+  TError = void | UnauthenticatedResponse | NotFoundResponse | ErrorResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof downloadCustomerAttachment>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof downloadCustomerAttachment>>,
+          TError,
+          Awaited<ReturnType<typeof downloadCustomerAttachment>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useDownloadCustomerAttachment<
+  TData = Awaited<ReturnType<typeof downloadCustomerAttachment>>,
+  TError = void | UnauthenticatedResponse | NotFoundResponse | ErrorResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof downloadCustomerAttachment>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Authorize, then redirect to a private URL valid for 15 minutes
+ */
+
+export function useDownloadCustomerAttachment<
+  TData = Awaited<ReturnType<typeof downloadCustomerAttachment>>,
+  TError = void | UnauthenticatedResponse | NotFoundResponse | ErrorResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof downloadCustomerAttachment>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getDownloadCustomerAttachmentQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
 /**
  * @summary Public chat branding and availability; answers even while the tenant is suspended
  */
