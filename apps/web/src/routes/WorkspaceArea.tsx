@@ -1,8 +1,6 @@
-import Box from '@mui/material/Box';
-import Typography from '@mui/material/Typography';
 import { useQueryClient } from '@tanstack/react-query';
 import { lazy, Suspense, useCallback } from 'react';
-import { Route, Routes, useNavigate } from 'react-router';
+import { Navigate, Route, Routes, useNavigate } from 'react-router';
 
 import { Skeleton } from '../components/foundations/Skeleton';
 import { useToast } from '../components/shell/Toast';
@@ -13,6 +11,7 @@ import AcceptInvitationPage from '../pages/desk/auth/AcceptInvitationPage';
 import ForgotPasswordPage from '../pages/desk/auth/ForgotPasswordPage';
 import ResetPasswordPage from '../pages/desk/auth/ResetPasswordPage';
 import SignInPage from '../pages/desk/auth/SignInPage';
+import DeskLayout from '../pages/desk/DeskLayout';
 import ProfilePage from '../pages/desk/me/ProfilePage';
 
 import { WORKSPACE_BASE } from './area';
@@ -27,6 +26,8 @@ const RolesPage = lazy(() => import('../pages/admin/roles/RolesPage'));
 const RoleEditorPage = lazy(() => import('../pages/admin/roles/RoleEditorPage'));
 const GroupsPage = lazy(() => import('../pages/admin/groups/GroupsPage'));
 const SupportAccessPage = lazy(() => import('../pages/admin/support-access/SupportAccessPage'));
+// The inbox (US6) is most of the workspace's code; its own chunk keeps admin-only visits light.
+const InboxPage = lazy(() => import('../pages/desk/inbox/InboxPage'));
 
 /**
  * The agent/admin workspace (`/desk/*` on a tenant host), loaded lazily. Paths here are relative
@@ -37,25 +38,35 @@ export default function WorkspaceArea() {
     <AreaShell>
       <StaffRealtime>
         <Routes>
-          <Route index element={<WorkspaceHome />} />
           <Route path="sign-in" element={<SignInPage />} />
           <Route path="accept-invitation" element={<AcceptInvitationPage />} />
           <Route path="forgot-password" element={<ForgotPasswordPage />} />
           <Route path="reset-password" element={<ResetPasswordPage />} />
-          <Route path="me" element={<ProfilePage />} />
-          <Route
-            path="admin"
-            element={
-              <Suspense fallback={<Skeleton variant="block" label="admin area" />}>
-                <AdminLayout />
-              </Suspense>
-            }
-          >
-            <Route path="users" element={<UsersPage />} />
-            <Route path="roles" element={<RolesPage />} />
-            <Route path="roles/:id" element={<RoleEditorPage />} />
-            <Route path="groups" element={<GroupsPage />} />
-            <Route path="support-access" element={<SupportAccessPage />} />
+          <Route element={<DeskLayout />}>
+            <Route index element={<Navigate to="inbox" replace />} />
+            <Route path="me" element={<ProfilePage />} />
+            <Route
+              path="inbox/:viewId?/:ticketId?"
+              element={
+                <Suspense fallback={<Skeleton variant="block" label="inbox" />}>
+                  <InboxPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="admin"
+              element={
+                <Suspense fallback={<Skeleton variant="block" label="admin area" />}>
+                  <AdminLayout />
+                </Suspense>
+              }
+            >
+              <Route path="users" element={<UsersPage />} />
+              <Route path="roles" element={<RolesPage />} />
+              <Route path="roles/:id" element={<RoleEditorPage />} />
+              <Route path="groups" element={<GroupsPage />} />
+              <Route path="support-access" element={<SupportAccessPage />} />
+            </Route>
           </Route>
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
@@ -104,14 +115,4 @@ function StaffSessionEvents() {
     ),
   );
   return null;
-}
-
-function WorkspaceHome() {
-  return (
-    <Box component="main" sx={{ px: 6, py: 6 }}>
-      <Typography component="h1" variant="h4">
-        Inbox
-      </Typography>
-    </Box>
-  );
 }
