@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box';
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 import { EmptyState } from '../foundations/EmptyState';
 
@@ -43,13 +43,40 @@ export function TicketList({
   const { containerRef, onScroll, range, scrollToRow } = useVirtualRows({ count: tickets.length, rowHeight });
   const [activeIndex, setActiveIndex] = useState(0);
   const rowRefs = useRef(new Map<number, HTMLDivElement>());
+  const containerElRef = useRef<HTMLDivElement | null>(null);
+  const pendingFocusRef = useRef(false);
+
+  // Keep the roving tab stop in range when the list shrinks (a view switch, a live update
+  // removing a ticket, a refetch). If focus was inside the list when its target row disappeared,
+  // flag that focus should follow the clamped row instead of falling through to <body>.
+  useLayoutEffect(() => {
+    const maxIndex = Math.max(0, tickets.length - 1);
+    if (activeIndex > maxIndex) {
+      if (containerElRef.current?.contains(document.activeElement) === true) {
+        pendingFocusRef.current = true;
+      }
+      setActiveIndex(maxIndex);
+    }
+  }, [tickets.length, activeIndex]);
+
+  // Focus the active row once it has a mounted ref. Keyboard navigation (or the clamp above) may
+  // target a row outside the currently virtualized range; this retries as `range` grows to
+  // include it, instead of assuming a fixed scroll timing.
+  useLayoutEffect(() => {
+    if (!pendingFocusRef.current) return;
+    const node = rowRefs.current.get(activeIndex);
+    if (node !== undefined) {
+      node.focus();
+      pendingFocusRef.current = false;
+    }
+  }, [activeIndex, range]);
 
   const focusRow = (index: number) => {
     if (tickets.length === 0) return;
     const clamped = Math.max(0, Math.min(index, tickets.length - 1));
+    pendingFocusRef.current = true;
     setActiveIndex(clamped);
     scrollToRow(clamped);
-    requestAnimationFrame(() => rowRefs.current.get(clamped)?.focus());
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -81,7 +108,10 @@ export function TicketList({
 
   return (
     <Box
-      ref={containerRef}
+      ref={(node: HTMLDivElement | null) => {
+        containerRef(node);
+        containerElRef.current = node;
+      }}
       role="listbox"
       aria-label={label}
       onScroll={onScroll}
@@ -102,6 +132,8 @@ export function TicketList({
                 }}
                 role="option"
                 aria-selected={selected}
+                aria-setsize={tickets.length}
+                aria-posinset={index + 1}
                 tabIndex={index === activeIndex ? 0 : -1}
                 onFocus={() => setActiveIndex(index)}
                 onClick={() => {

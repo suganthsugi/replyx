@@ -1,5 +1,5 @@
 import Box from '@mui/material/Box';
-import { useRef, useState } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 
 import { useVirtualRows } from './virtualization';
 
@@ -49,15 +49,40 @@ export function DataTable<T>({
   const { containerRef, onScroll, range, scrollToRow } = useVirtualRows({ count: rows.length, rowHeight, overscan });
   const [activeIndex, setActiveIndex] = useState(0);
   const rowRefs = useRef(new Map<number, HTMLDivElement>());
+  const containerElRef = useRef<HTMLDivElement | null>(null);
+  const pendingFocusRef = useRef(false);
+
+  // Keep the roving tab stop in range when the row set shrinks (a view switch, a live update
+  // removing a row, a refetch). If focus was inside the grid when its target row disappeared,
+  // flag that focus should follow the clamped row instead of falling through to <body>.
+  useLayoutEffect(() => {
+    const maxIndex = Math.max(0, rows.length - 1);
+    if (activeIndex > maxIndex) {
+      if (containerElRef.current?.contains(document.activeElement) === true) {
+        pendingFocusRef.current = true;
+      }
+      setActiveIndex(maxIndex);
+    }
+  }, [rows.length, activeIndex]);
+
+  // Focus the active row once it has a mounted ref. Keyboard navigation (or the clamp above) may
+  // target a row outside the currently virtualized range; this retries as `range` grows to
+  // include it, instead of assuming a fixed scroll timing.
+  useLayoutEffect(() => {
+    if (!pendingFocusRef.current) return;
+    const node = rowRefs.current.get(activeIndex);
+    if (node !== undefined) {
+      node.focus();
+      pendingFocusRef.current = false;
+    }
+  }, [activeIndex, range]);
 
   const focusRow = (index: number) => {
     if (rows.length === 0) return;
     const clamped = Math.max(0, Math.min(index, rows.length - 1));
+    pendingFocusRef.current = true;
     setActiveIndex(clamped);
     scrollToRow(clamped);
-    // The target row may not exist in the DOM yet on the frame the scroll lands; focus it once
-    // the next render has mounted it.
-    requestAnimationFrame(() => rowRefs.current.get(clamped)?.focus());
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -104,7 +129,14 @@ export function DataTable<T>({
           </Box>
         ))}
       </Box>
-      <Box ref={containerRef} onScroll={onScroll} sx={{ height, overflowY: 'auto', position: 'relative' }}>
+      <Box
+        ref={(node: HTMLDivElement | null) => {
+          containerRef(node);
+          containerElRef.current = node;
+        }}
+        onScroll={onScroll}
+        sx={{ height, overflowY: 'auto', position: 'relative' }}
+      >
         <Box sx={{ height: range.totalHeight, position: 'relative' }}>
           <Box sx={{ position: 'absolute', top: range.offsetY, left: 0, right: 0 }}>
             {rows.slice(range.startIndex, range.endIndex).map((row, offset) => {
