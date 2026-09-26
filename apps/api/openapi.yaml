@@ -1519,6 +1519,90 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+  /tickets:
+    get:
+      operationId: listTickets
+      tags:
+        - tickets
+      summary: Tickets visible to the caller, by view or by ad-hoc filter (ticket.view always applied)
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: viewId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: state
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/TicketState"
+        - name: priority
+          in: query
+          style: form
+          explode: false
+          schema:
+            type: array
+            items:
+              $ref: "#/components/schemas/Priority"
+        - name: groupId
+          in: query
+          description: "'ungrouped' for no group"
+          schema:
+            type: string
+        - name: ownerId
+          in: query
+          description: "'me' or 'unassigned' allowed"
+          schema:
+            type: string
+        - name: customerId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum:
+              - updated_at
+              - -updated_at
+              - created_at
+              - -created_at
+              - priority
+              - -priority
+              - last_customer_message_at
+              - -last_customer_message_at
+      responses:
+        "200":
+          description: Page of tickets
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PageMeta"
+                  - type: object
+                    required:
+                      - items
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/TicketSummary"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          description: Unknown or invisible viewId
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tickets/{id}:
     parameters:
       - $ref: "#/components/parameters/IdPath"

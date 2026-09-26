@@ -5,9 +5,11 @@ import { USER_HISTORY_CHECKS, type UserHistoryCheck } from '../identity/users.se
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { tenantScopeOf, UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
 import { TICKET_GROUP_LOOKUP, type TicketGroupLookup } from '../platform-kernel/realtime/socket-context.js';
+import { ViewCompiler } from '../views/view-compiler.js';
 
 import { TicketHistoryService } from './ticket-history.service.js';
 import { TicketNumberService } from './ticket-number.service.js';
+import { TicketQueryService } from './ticket-query.service.js';
 import { TicketsController } from './tickets.controller.js';
 import { TicketsRepository } from './tickets.repository.js';
 import { TicketsService } from './tickets.service.js';
@@ -83,6 +85,6 @@ class AuthoredRecordsRepository extends TenantRepository {
 })
 export class TicketsModule {}
 
-/** HTTP side of tickets (api process only, contracts/tickets.yaml `/tickets/{id}` PATCH/DELETE). */
-@Module({ controllers: [TicketsController], providers: [TicketsService] })
+/** HTTP side of tickets (api process only, contracts/tickets.yaml `/tickets*`). */
+@Module({ controllers: [TicketsController], providers: [TicketsService, TicketQueryService, ViewCompiler] })
 export class TicketsHttpModule {}
