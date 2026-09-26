@@ -20,3 +20,27 @@ export function WarningIcon(props: SvgIconProps) {
     </SvgIcon>
   );
 }
+
+export function AttachIcon(props: SvgIconProps) {
+  return (
+    <SvgIcon {...props} aria-hidden="true">
+      <path d="M16.5 6v11.5a4 4 0 0 1-8 0V5a2.5 2.5 0 0 1 5 0v10.5a1 1 0 0 1-2 0V6H10v9.5a2.5 2.5 0 0 0 5 0V5a4 4 0 0 0-8 0v12.5a5.5 5.5 0 0 0 11 0V6h-1.5z" />
+    </SvgIcon>
+  );
+}
+
+export function MoreIcon(props: SvgIconProps) {
+  return (
+    <SvgIcon {...props} aria-hidden="true">
+      <path d="M6 10a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4zm6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4z" />
+    </SvgIcon>
+  );
+}
+
+export function ChatIcon(props: SvgIconProps) {
+  return (
+    <SvgIcon {...props} aria-hidden="true">
+      <path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm0 14H5.17L4 17.17V4h16v12z" />
+    </SvgIcon>
+  );
+}
