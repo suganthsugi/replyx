@@ -28,6 +28,7 @@ import { TenancyHttpModule } from './tenancy/tenancy-http.module.js';
 import { TenancyModule } from './tenancy/tenant-provisioning.service.js';
 import { TicketsJobsModule } from './tickets/access-loss.consumer.js';
 import { TicketsHttpModule, TicketsModule } from './tickets/tickets.module.js';
+import { ViewsModule } from './views/views.module.js';
 
 /**
  * The same codebase runs as two processes (research D1):
@@ -73,6 +74,7 @@ export class AppModule {
       TicketsHttpModule,
       TagsHttpModule,
       CustomersHttpModule,
+      ViewsModule,
     ];
     // Outbox relay, queue consumers and sweepers (worker only).
     const workerOnly: ModuleImports = [
