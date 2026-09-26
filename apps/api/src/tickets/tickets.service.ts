@@ -5,12 +5,13 @@ import { AccessRepository, decide, PolicyService, type EffectiveAccess } from '.
 import { Clock } from '../platform-kernel/clock.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
-import { conflict, notFound, permissionDenied, validationFailed } from '../platform-kernel/http/app-error.js';
+import { conflict, notFound, permissionDenied } from '../platform-kernel/http/app-error.js';
 import { OutboxService } from '../platform-kernel/outbox/outbox.service.js';
+import { TagsService } from '../tags/tags.service.js';
 import { TenantSettingsRepository } from '../tenancy/tenant-settings.js';
 
 import { transition, type TransitionResult } from './state-machine.js';
-import { allowedActions, TicketRefsRepository, toTicketDto, type TicketDto } from './ticket-dto.js';
+import { allowedActions, TicketRefsRepository, toTicketDto, type RefDto, type TicketDto } from './ticket-dto.js';
 import { groupStream, summaryOf, ticketStream } from './ticket-events.js';
 import { TicketHistoryService, historyValue, type FieldChange } from './ticket-history.service.js';
 import { TicketsRepository, type TicketPatch, type TicketRow } from './tickets.repository.js';
@@ -31,8 +32,9 @@ import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
  * - The ticket row is locked (`SELECT ... FOR UPDATE`) for the rest of the transaction, so
  *   concurrent edits serialize: the later commit wins and diffs against the true previous value,
  *   and each changed field gets its own `ticket_history` row.
- * - `tagIds`, when sent, replaces the ticket's tag set. The tags module (T138) owns tag CRUD and
- *   will complete the ticket summary's `tags` field and any tag-specific history/events.
+ * - `tagIds`, when sent, replaces the ticket's tag set through `TagsService` (validated there,
+ *   404 `TAG_NOT_FOUND` for an unknown id); the returned and broadcast ticket summary's `tags`
+ *   comes from `TagsService.tagsByTicketIds`.
  */
 
 export interface TicketUpdateInput {
@@ -91,6 +93,7 @@ export class TicketsService {
     private readonly clock: Clock,
     private readonly history: TicketHistoryService,
     private readonly audit: AuditService,
+    private readonly tags: TagsService,
   ) {}
 
   async update(ctx: TenantContext, ticketId: string, input: TicketUpdateInput): Promise<TicketDto> {
@@ -148,14 +151,15 @@ export class TicketsService {
         changes.push(...transitionChanges(before, moved));
       }
 
-      if (input.tagIds !== undefined) await this.replaceTags(ctx, tx, ticketId, input.tagIds);
+      if (input.tagIds !== undefined) await this.replaceTags(tx, ticketId, input.tagIds);
 
       const ticket = Object.keys(patch).length === 0 ? before : await tickets.update(tx, ticketId, patch);
+      const tagRefs = (await this.tags.tagsByTicketIds(tx, [ticket.id])).get(ticket.id) ?? [];
 
       if (changes.length > 0) {
         const eventId = await this.outbox.append(tx, {
           type: 'ticket.updated',
-          payload: { ticket: await summaryOf(ctx, tx, ticket), changes },
+          payload: { ticket: await summaryOf(ctx, tx, ticket, tagRefs), changes },
           streams: groupChanged
             ? [ticketStream(ticket.id), groupStream(ticket.group_id), groupStream(before.group_id)]
             : [ticketStream(ticket.id), groupStream(ticket.group_id)],
@@ -179,6 +183,13 @@ export class TicketsService {
         if (moved?.closed) {
           await this.outbox.append(tx, { type: 'ticket.closed', payload: { ticketId: ticket.id }, streams: [ticketStream(ticket.id)] });
         }
+        if (moved?.reopened) {
+          await this.outbox.append(tx, {
+            type: 'ticket.reopened',
+            payload: { ticketId: ticket.id, from: moved.from },
+            streams: [ticketStream(ticket.id)],
+          });
+        }
         if (groupChanged) {
           await this.outbox.append(tx, {
             type: 'ticket.removed_from_view',
@@ -188,7 +199,7 @@ export class TicketsService {
         }
       }
 
-      return this.toDto(ctx, tx, access, ticket);
+      return this.toDto(ctx, tx, access, ticket, tagRefs);
     });
   }
 
@@ -200,6 +211,9 @@ export class TicketsService {
       if (row === undefined || !canView(access, row.group_id)) throw notFound('ticket');
       require(access, 'ticket.delete', row.group_id);
 
+      // Not a retention tombstone: drop other tickets' links to this one outright (see
+      // `deleteIncomingLinks`) instead of leaving them for the FK's `ON DELETE SET NULL`.
+      await tickets.deleteIncomingLinks(tx, ticketId);
       await tickets.delete(tx, ticketId);
       await this.audit.record(tx, {
         action: 'ticket.deleted',
@@ -230,14 +244,16 @@ export class TicketsService {
     }
   }
 
-  private async replaceTags(ctx: TenantContext, tx: TenantTransaction, ticketId: string, tagIds: readonly string[]): Promise<void> {
-    await new TicketTagsRepository(ctx).replace(tx, ticketId, tagIds);
+  private async replaceTags(tx: TenantTransaction, ticketId: string, tagIds: readonly string[]): Promise<void> {
+    const unique = [...new Set(tagIds)];
+    await this.tags.assertTagsExist(tx, unique);
+    await this.tags.setTicketTags(tx, ticketId, unique);
   }
 
-  private async toDto(ctx: TenantContext, tx: TenantTransaction, access: Viewer, row: TicketRow): Promise<TicketDto> {
+  private async toDto(ctx: TenantContext, tx: TenantTransaction, access: Viewer, row: TicketRow, tags: readonly RefDto[]): Promise<TicketDto> {
     const refs = new TicketRefsRepository(ctx);
     const [names, links] = await Promise.all([refs.load(tx, [row]), refs.links(tx, row.id, (groupId) => canView(access, groupId))]);
-    return toTicketDto(row, names, links, access === SUPPORT ? [] : allowedActions(access, row.group_id));
+    return toTicketDto(row, names, links, access === SUPPORT ? [] : allowedActions(access, row.group_id), tags);
   }
 
   /** Operators under a support-access grant are read-only (FR-001a): writes are always denied. */
@@ -252,20 +268,5 @@ class GroupStatusRepository extends TenantRepository {
   async status(tx: TenantTransaction, groupId: string): Promise<'active' | 'inactive' | undefined> {
     const row = await this.selectFrom(tx, 'groups').select('groups.status').where('groups.id', '=', groupId).executeTakeFirst();
     return row?.status;
-  }
-}
-
-/** A simple replace-set on `ticket_tags`; the tags module (T138) owns tag CRUD and validation UX. */
-class TicketTagsRepository extends TenantRepository {
-  async replace(tx: TenantTransaction, ticketId: string, tagIds: readonly string[]): Promise<void> {
-    const unique = [...new Set(tagIds)];
-    if (unique.length > 0) {
-      const existing = await this.selectFrom(tx, 'tags').select('tags.id').where('tags.id', 'in', unique).execute();
-      if (existing.length !== unique.length) throw validationFailed([{ path: 'tagIds', issue: 'invalid' }]);
-    }
-    await this.deleteFrom(tx, 'ticket_tags').where('ticket_tags.ticket_id', '=', ticketId).execute();
-    if (unique.length > 0) {
-      await this.insertInto(tx, 'ticket_tags', unique.map((tagId) => ({ ticket_id: ticketId, tag_id: tagId }))).execute();
-    }
   }
 }
