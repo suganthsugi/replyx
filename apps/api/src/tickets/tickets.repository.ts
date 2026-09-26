@@ -83,6 +83,11 @@ export class TicketsRepository extends TenantRepository {
     return toRow(row);
   }
 
+  /** Hard delete (spec Assumptions): cascades to messages, links, history, attachments and tags. */
+  async delete(tx: TenantTransaction, id: string): Promise<void> {
+    await this.deleteFrom(tx, 'tickets').where('tickets.id', '=', id).execute();
+  }
+
   /** The customer's most recently updated active, unmerged ticket, locked. */
   async lockActiveForCustomer(tx: TenantTransaction, customerId: string): Promise<TicketRow | undefined> {
     const row = await this.selectFrom(tx, 'tickets')

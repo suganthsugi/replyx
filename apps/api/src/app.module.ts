@@ -24,7 +24,7 @@ import { RealtimeModule } from './platform-kernel/realtime/gateway.js';
 import { RedisModule } from './platform-kernel/redis/redis.module.js';
 import { TenancyHttpModule } from './tenancy/tenancy-http.module.js';
 import { TenancyModule } from './tenancy/tenant-provisioning.service.js';
-import { TicketsModule } from './tickets/tickets.module.js';
+import { TicketsHttpModule, TicketsModule } from './tickets/tickets.module.js';
 
 /**
  * The same codebase runs as two processes (research D1):
@@ -66,6 +66,7 @@ export class AppModule {
       TenancyHttpModule,
       MessagingHttpModule,
       AttachmentsHttpModule,
+      TicketsHttpModule,
     ];
     // Outbox relay, queue consumers and sweepers (worker only).
     const workerOnly: ModuleImports = [JobsModule, OutboxRelayModule, IdentityJobsModule, MessagingJobsModule, AttachmentJobsModule];

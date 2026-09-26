@@ -1538,6 +1538,88 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "404":
           $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateTicket
+      tags:
+        - tickets
+      summary: Change title, state, priority, group, owner or tags (ticket.edit on the current group)
+      description: >
+        Only the fields sent are changed. A group change needs ticket.create on the destination,
+        which must be active; from Ungrouped, ticket.edit on Ungrouped is enough (FR-041). ownerId
+        must have edit on the (new) group (FR-040). pendingUntil is required to enter or remain in
+        a pending state. State changes go through the ticket state machine.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                state:
+                  $ref: "#/components/schemas/TicketState"
+                pendingUntil:
+                  type:
+                    - string
+                    - "null"
+                  format: date-time
+                priority:
+                  $ref: "#/components/schemas/Priority"
+                groupId:
+                  type:
+                    - string
+                    - "null"
+                  format: uuid
+                ownerId:
+                  type:
+                    - string
+                    - "null"
+                  format: uuid
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: OWNER_NOT_ELIGIBLE, GROUP_INACTIVE or INVALID_TRANSITION
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteTicket
+      tags:
+        - tickets
+      summary: Delete a ticket permanently (ticket.delete on its group)
+      description: A hard delete; the customer's thread loses this ticket's messages. Writes a ticket.deleted audit entry.
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /tickets/{id}/messages:
     parameters:
       - $ref: "#/components/parameters/IdPath"
