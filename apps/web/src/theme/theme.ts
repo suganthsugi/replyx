@@ -247,8 +247,12 @@ export function createDesignSystemTheme(mode: ColorMode, tenantColor?: string | 
   const radius = designSystemTokens.radius;
   const surfaces = { surface: c.surface, onAccentText: c.primaryContrast };
   const { color: resolved } = resolveBrandAccent(tenantColor, mode, surfaces, c.primary);
-  // Links and text buttons sit on the page background too, not only on white panes.
-  const primaryMain = nearestAACompliantShade(resolved, c.pageBg, AA_NORMAL_TEXT_CONTRAST + CONTRAST_SAFETY_MARGIN);
+  // Links and text buttons sit on the page background too, not only on white panes. The same
+  // color is also used as small-text-sized chip labels on `primarySoft` (StatePill's "new"/
+  // "open" pills), which is a touch lighter than `pageBg` and needs slightly more contrast — so
+  // it must clear both surfaces, not just the one it was first tuned against.
+  const primaryMainOnPage = nearestAACompliantShade(resolved, c.pageBg, AA_NORMAL_TEXT_CONTRAST + CONTRAST_SAFETY_MARGIN);
+  const primaryMain = nearestAACompliantShade(primaryMainOnPage, c.primarySoft, AA_NORMAL_TEXT_CONTRAST + CONTRAST_SAFETY_MARGIN);
   const focusRing = { outline: `2px solid ${primaryMain}`, outlineOffset: 2 };
   const heading = { fontFamily: type.heading, fontWeight: 600, lineHeight: 1.3 };
 
