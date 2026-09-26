@@ -2121,6 +2121,247 @@ paths:
                 format: binary
         "404":
           $ref: "#/components/responses/NotFound"
+  /tags:
+    get:
+      operationId: listTags
+      tags:
+        - tickets
+      summary: Tenant tag list (tag.view)
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+            maxLength: 60
+      responses:
+        "200":
+          description: Tags
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/TagRef"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    post:
+      operationId: createTag
+      tags:
+        - tickets
+      summary: Create a tag (tag.create)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagRef"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "409":
+          description: TAG_NAME_TAKEN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /tags/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    patch:
+      operationId: updateTag
+      tags:
+        - tickets
+      summary: Rename a tag (tag.edit)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 40
+      responses:
+        "200":
+          description: Renamed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagRef"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: TAG_NAME_TAKEN
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteTag
+      tags:
+        - tickets
+      summary: Delete a tag (tag.delete); removes it from tickets and customers
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /customers/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: getCustomer
+      tags:
+        - tickets
+      summary: Customer profile (FR-069); ticket lists limited to the caller's access (user.view)
+      responses:
+        "200":
+          description: Profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerProfile"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: updateCustomer
+      tags:
+        - tickets
+      summary: Edit contact details and tags (user.edit)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              properties:
+                name:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                phone:
+                  type: string
+                  maxLength: 40
+                company:
+                  type: string
+                  maxLength: 120
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerProfile"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          description: Unknown customer, or an unknown tag id (TAG_NOT_FOUND)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /views:
+    get:
+      operationId: listViews
+      tags:
+        - tickets
+      summary: Views visible to the caller, in order, with live ticket counts (view.view)
+      description: Needs Triage is additionally hidden from viewers without view access to Ungrouped (FR-077).
+      responses:
+        "200":
+          description: Views
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/View"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+  /views/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: getView
+      tags:
+        - tickets
+      summary: Get a view definition, with its live ticket count (view.view)
+      responses:
+        "200":
+          description: View
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/View"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   securitySchemes:
     session:
@@ -2403,6 +2644,7 @@ components:
             - created_at
             - updated_at
             - last_customer_message_at
+            - pending_until
             - sla_status
         operator:
           type: string
@@ -2413,7 +2655,12 @@ components:
             - before
             - after
             - within_last
-        value: {}
+        value:
+          description: >
+            Shape depends on field/operator (validated server-side, not by this open schema): an id,
+            enum value or array of either for `is`/`is_not`/`contains`; an ISO 8601 duration string
+            for `within_last`; an ISO 8601 date-time, or the literal "now", for `before`/`after` on a
+            date field (`created_at`, `updated_at`, `last_customer_message_at`, `pending_until`).
     Me:
       type: object
       required:
@@ -3298,3 +3545,130 @@ components:
         createdAt:
           type: string
           format: date-time
+    CustomerProfile:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - status
+        - phone
+        - company
+        - tags
+        - createdAt
+        - lastMessageAt
+        - openTickets
+        - closedTickets
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        status:
+          $ref: "#/components/schemas/UserStatus"
+        phone:
+          type:
+            - string
+            - "null"
+        company:
+          type:
+            - string
+            - "null"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/TagRef"
+        createdAt:
+          type: string
+          format: date-time
+        lastMessageAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        openTickets:
+          type: array
+          items:
+            $ref: "#/components/schemas/TicketSummary"
+        closedTickets:
+          type: array
+          items:
+            $ref: "#/components/schemas/TicketSummary"
+    View:
+      type: object
+      required:
+        - id
+        - name
+        - description
+        - visibility
+        - sharedRoleIds
+        - sharedGroupIds
+        - conditions
+        - sort
+        - columns
+        - system
+        - count
+        - position
+        - hidden
+        - editable
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+        description:
+          type:
+            - string
+            - "null"
+        visibility:
+          type: string
+          enum:
+            - personal
+            - all_staff
+            - roles
+            - groups
+        sharedRoleIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Id"
+        sharedGroupIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Id"
+        conditions:
+          $ref: "#/components/schemas/ConditionGroup"
+        sort:
+          type: array
+          items:
+            type: object
+            required:
+              - field
+              - direction
+            properties:
+              field:
+                type: string
+              direction:
+                type: string
+                enum:
+                  - asc
+                  - desc
+        columns:
+          type: array
+          items:
+            type: string
+        system:
+          type:
+            - string
+            - "null"
+          description: 'Default view key, e.g. needs_triage'
+        count:
+          type: integer
+        position:
+          type: integer
+        hidden:
+          type: boolean
+        editable:
+          type: boolean
