@@ -12,5 +12,7 @@ import type { ConditionOperator } from './conditionOperator';
 export interface Condition {
   field: ConditionField;
   operator: ConditionOperator;
+  /** Shape depends on field/operator (validated server-side, not by this open schema): an id, enum value or array of either for `is`/`is_not`/`contains`; an ISO 8601 duration string for `within_last`; an ISO 8601 date-time, or the literal "now", for `before`/`after` on a date field (`created_at`, `updated_at`, `last_customer_message_at`, `pending_until`).
+   */
   value: unknown;
 }

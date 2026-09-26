@@ -21,5 +21,6 @@ export const ConditionField = {
   created_at: 'created_at',
   updated_at: 'updated_at',
   last_customer_message_at: 'last_customer_message_at',
+  pending_until: 'pending_until',
   sla_status: 'sla_status',
 } as const;
