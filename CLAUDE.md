@@ -15,7 +15,7 @@ Status: planned = not yet written; ready = in `.claude/skills/<name>/SKILL.md`.
 | ui-components | ready | MUI theme and tokens, shared component system, route areas (`AreaShell`), accessibility (loading/empty/error, focus, LiveRegion), no ticket concepts in the customer UI | frontend-agent |
 | data-hooks | ready | Wrapping the orval generated client, http mutator and CSRF, query keys, socket stream cache updates, error mapping | frontend-connector |
 | web-testing | ready | `renderWithProviders`, RTL role queries, typed MSW handlers, axe checks, Playwright projects, axe fixture and Mailpit | frontend-automator |
-| docs-style | planned | Starlight guide/concept/developer page style and sidebar groups | documentator, dev-documentator |
+| docs-style | ready | Starlight guide/concept/developer page style and sidebar groups | documentator, dev-documentator |
 | conventional-commit | ready | Commit one Spec Kit task as `type(scope): Txxx Summary`, staging only the task's files | committer |
 | writing-skills | ready | How to write or update a skill in `.claude/skills/` | skill-writer |
 | speckit-* | ready | Spec Kit workflow: specify, clarify, plan, tasks, analyze, checklist, converge, implement, constitution, taskstoissues | orchestrator |
