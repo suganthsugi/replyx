@@ -2,7 +2,7 @@ import Autocomplete from '@mui/material/Autocomplete';
 import Chip from '@mui/material/Chip';
 import TextField from '@mui/material/TextField';
 
-import type { TagRef } from '../../api/generated/model';
+import type { TagRef } from '../../data/tags';
 
 /**
  * The ticket's tags (docs/design-system "Tags: billing, refund"): a free-solo multi-select over

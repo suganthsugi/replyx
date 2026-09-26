@@ -11,7 +11,7 @@ import { InternalNoteCard } from './InternalNoteCard';
 import { MessageBubble } from './MessageBubble';
 
 import type { HistoryEvent } from './types';
-import type { Message } from '../../api/generated/model';
+import type { Message } from '../../data/messages';
 import type { ReactNode } from 'react';
 
 /**

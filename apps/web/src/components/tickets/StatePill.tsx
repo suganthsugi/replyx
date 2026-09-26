@@ -1,6 +1,6 @@
 import Chip from '@mui/material/Chip';
 
-import type { TicketState } from '../../api/generated/model';
+import type { TicketState } from '../../data/tickets';
 
 /**
  * A ticket's state as a soft-background pill with strong, uppercase text (docs/design-system

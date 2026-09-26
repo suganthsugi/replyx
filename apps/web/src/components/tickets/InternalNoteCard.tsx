@@ -3,7 +3,7 @@ import Typography from '@mui/material/Typography';
 
 import { formatChatTime } from '../chat/format';
 
-import type { Message } from '../../api/generated/model';
+import type { Message } from '../../data/messages';
 
 /**
  * An internal note in the ticket's conversation (docs/design-system "Internal note"): a

@@ -16,7 +16,7 @@ import { WORKSPACE_BASE } from '../../../routes/area';
 
 import { ViewRail } from './ViewRail';
 
-import type { TicketSummary } from '../../../api/generated/model';
+import type { TicketSummary } from '../../../data/tickets';
 
 const MOBILE_QUERY = '(max-width:1023.95px)';
 
