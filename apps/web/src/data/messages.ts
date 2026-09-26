@@ -29,7 +29,13 @@ const PAGE_SIZE = 50;
 
 type MessagesData = InfiniteData<ListTicketMessages200, string | undefined>;
 
-/** A message being sent that the API hasn't confirmed yet (or refused). */
+/**
+ * A message being sent that the API hasn't confirmed yet (or refused). `sent` keeps the entry
+ * around (with the server's `message`) until `buildItems` sees a message in the fetched list with
+ * the same `clientMessageId` — the list query may still be loading, or its snapshot may predate
+ * the POST, so removing the entry as soon as the POST resolves can drop the reply from the UI
+ * until a `message.created` event arrives.
+ */
 export interface OutboxEntry {
   clientMessageId: string;
   visibility: PostTicketMessageBodyVisibility;
@@ -37,11 +43,13 @@ export interface OutboxEntry {
   attachmentIds: string[];
   mentionIds: string[];
   createdAt: string;
-  status: 'sending' | 'failed';
+  status: 'sending' | 'sent' | 'failed';
   error?: string;
+  message?: Message;
 }
 
 export function useTicketMessages(ticketId: string | undefined, includeMerged = false) {
+  const queryClient = useQueryClient();
   const query = useInfiniteQuery<ListTicketMessages200, Error, MessagesData, ReturnType<typeof messageKeys.list>, string | undefined>({
     queryKey: messageKeys.list(ticketId ?? '', includeMerged),
     queryFn: ({ pageParam, signal }) =>
@@ -52,6 +60,15 @@ export function useTicketMessages(ticketId: string | undefined, includeMerged = 
   });
   const outbox = useOutbox(ticketId ?? '');
   const items = useMemo(() => buildItems(query.data, outbox), [query.data, outbox]);
+
+  // Once the list actually contains a `sent` entry's message, `buildItems` already dedupes it via
+  // `sentClientIds`; drop it from the outbox too so it doesn't linger forever in memory.
+  useEffect(() => {
+    if (ticketId === undefined || query.data === undefined) return;
+    const present = new Set(flattenAscending(query.data).map((item) => item.clientMessageId).filter((id): id is string => id !== null && id !== undefined));
+    const stale = outbox.some((entry) => entry.status === 'sent' && present.has(entry.clientMessageId));
+    if (stale) setOutbox(queryClient, ticketId, (entries) => entries.filter((entry) => !(entry.status === 'sent' && present.has(entry.clientMessageId))));
+  }, [ticketId, query.data, outbox, queryClient]);
 
   return {
     items,
@@ -108,8 +125,15 @@ export function useSendTicketMessage(ticketId: string) {
           ...(entry.attachmentIds.length === 0 ? {} : { attachmentIds: entry.attachmentIds }),
           ...(entry.mentionIds.length === 0 ? {} : { mentionIds: entry.mentionIds }),
         });
-        patchMessages(queryClient, ticketId, (data) => upsertMessage(data, message));
-        setOutbox(queryClient, ticketId, (entries) => entries.filter((existing) => existing.clientMessageId !== entry.clientMessageId));
+        const applied = patchMessages(queryClient, ticketId, (data) => upsertMessage(data, message));
+        // Keep the entry as `sent` (with the server message) rather than removing it outright:
+        // the list query may still be loading, or its cached snapshot may predate this send, so
+        // `patchMessages` was a no-op and the reply would otherwise vanish until a socket event
+        // catches up. `buildItems`'s `sentClientIds` dedupe drops it once the list has it.
+        setOutbox(queryClient, ticketId, (entries) =>
+          entries.map((existing) => (existing.clientMessageId === entry.clientMessageId ? { ...existing, status: 'sent', message, error: undefined } : existing)),
+        );
+        if (!applied) void queryClient.invalidateQueries({ queryKey: [...messageKeys.all, ticketId] });
       } catch (caught) {
         const error = mapError(caught);
         setOutbox(queryClient, ticketId, (entries) =>
@@ -188,10 +212,17 @@ export function useTicketMessageEvents(client: RealtimeClient | undefined, ticke
 
 // Cache helpers. Pages are newest-chunk-first; items within a page are oldest first.
 
-function patchMessages(queryClient: QueryClient, ticketId: string, update: (data: MessagesData) => MessagesData): void {
+/** Returns whether at least one of the (`includeMerged`) list caches had data to patch. */
+function patchMessages(queryClient: QueryClient, ticketId: string, update: (data: MessagesData) => MessagesData): boolean {
+  let applied = false;
   for (const includeMerged of [false, true]) {
-    queryClient.setQueryData<MessagesData>(messageKeys.list(ticketId, includeMerged), (data) => (data === undefined ? data : update(data)));
+    queryClient.setQueryData<MessagesData>(messageKeys.list(ticketId, includeMerged), (data) => {
+      if (data === undefined) return data;
+      applied = true;
+      return update(data);
+    });
   }
+  return applied;
 }
 
 function withFirstPage(data: MessagesData, update: (page: ListTicketMessages200) => ListTicketMessages200): MessagesData {
@@ -246,7 +277,10 @@ function toOutboxMessage(entry: OutboxEntry): Message {
 function buildItems(data: MessagesData | undefined, outbox: OutboxEntry[]): Message[] {
   const items = data === undefined ? [] : flattenAscending(data);
   const sentClientIds = new Set(items.map((item) => item.clientMessageId).filter((id): id is string => id !== null && id !== undefined));
-  return [...items, ...outbox.filter((entry) => !sentClientIds.has(entry.clientMessageId)).map(toOutboxMessage)];
+  return [
+    ...items,
+    ...outbox.filter((entry) => !sentClientIds.has(entry.clientMessageId)).map((entry) => (entry.status === 'sent' && entry.message ? entry.message : toOutboxMessage(entry))),
+  ];
 }
 
 export type { Message };
