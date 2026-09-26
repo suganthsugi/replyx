@@ -25,6 +25,6 @@ export class MessagingModule {}
   imports: [MessagingModule, RealtimeModule],
   controllers: [CustomerController, StaffMessagesController],
   providers: [CustomerConversationService, StaffMessagesService, ConversationTyping, StaffTypingGateway, CustomerTypingGateway],
-  exports: [CustomerConversationService],
+  exports: [CustomerConversationService, StaffMessagesService],
 })
 export class MessagingHttpModule {}

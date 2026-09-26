@@ -1603,6 +1603,83 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+    post:
+      operationId: createTicket
+      tags:
+        - tickets
+      summary: Start a ticket for an existing customer (FR-038a) — needs create on the group
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - customerId
+                - groupId
+                - title
+                - message
+              additionalProperties: false
+              properties:
+                customerId:
+                  type: string
+                  format: uuid
+                groupId:
+                  type: string
+                  format: uuid
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+                message:
+                  type: object
+                  required:
+                    - body
+                  additionalProperties: false
+                  properties:
+                    body:
+                      type: string
+                      minLength: 1
+                      maxLength: 10000
+                    attachmentIds:
+                      type: array
+                      maxItems: 10
+                      items:
+                        type: string
+                        format: uuid
+                ownerId:
+                  type: string
+                  format: uuid
+                priority:
+                  $ref: "#/components/schemas/Priority"
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "201":
+          description: Created (state open, waiting on customer)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: CUSTOMER_INACTIVE, GROUP_INACTIVE or OWNER_NOT_ELIGIBLE
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tickets/{id}:
     parameters:
       - $ref: "#/components/parameters/IdPath"
