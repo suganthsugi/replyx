@@ -99,6 +99,6 @@ test('a customer signs in with an emailed link', async ({ page, request, axe }) 
   await page.goto(linkPath(mail, '/sign-in/redeem'));
   await page.getByRole('button', { name: 'Continue' }).click();
 
-  await expect(page.getByRole('heading', { level: 1, name: 'Support' })).toBeVisible();
+  await expect(page.getByRole('heading', { level: 1, name: 'Acme Support' })).toBeVisible();
   await axe.check();
 });
