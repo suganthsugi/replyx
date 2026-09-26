@@ -6,21 +6,19 @@
 
  * OpenAPI spec version: 0.1.0
  */
+import type { CreateTicketBodyMessage } from './createTicketBodyMessage';
+import type { Priority } from './priority';
 
-export type ConditionField = (typeof ConditionField)[keyof typeof ConditionField];
-
-// eslint-disable-next-line @typescript-eslint/no-redeclare
-export const ConditionField = {
-  state: 'state',
-  priority: 'priority',
-  group: 'group',
-  owner: 'owner',
-  customer: 'customer',
-  tags: 'tags',
-  waiting_on: 'waiting_on',
-  created_at: 'created_at',
-  updated_at: 'updated_at',
-  last_customer_message_at: 'last_customer_message_at',
-  pending_until: 'pending_until',
-  sla_status: 'sla_status',
-} as const;
+export type CreateTicketBody = {
+  customerId: string;
+  groupId: string;
+  /**
+   * @minLength 1
+   * @maxLength 200
+   */
+  title: string;
+  message: CreateTicketBodyMessage;
+  ownerId?: string;
+  priority?: Priority;
+  tagIds?: string[];
+};

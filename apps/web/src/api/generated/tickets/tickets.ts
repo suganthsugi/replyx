@@ -24,23 +24,285 @@ import type {
 
 import type {
   AttachmentSummary,
+  CreateTagBody,
+  CreateTicketBody,
+  CreateTicketLinkBody,
+  CustomerProfile,
   ErrorResponse,
+  ListTags200,
+  ListTagsParams,
+  ListTicketHistory200,
+  ListTicketHistoryParams,
   ListTicketMessages200,
   ListTicketMessagesParams,
+  ListTickets200,
+  ListTicketsParams,
+  ListViews200,
   Message,
+  MoveTicketMessageBody,
   NotFoundResponse,
   PermissionDeniedResponse,
   PostTicketMessageBody,
+  TagRef,
   Ticket,
+  TicketLink,
   UnauthenticatedResponse,
+  UpdateCustomerBody,
+  UpdateTagBody,
+  UpdateTicketBody,
   UploadAttachmentBody,
   ValidationFailedResponse,
+  View,
 } from '.././model';
 
 import { http } from '../../../data/http';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
+/**
+ * @summary Tickets visible to the caller, by view or by ad-hoc filter (ticket.view always applied)
+ */
+export const getListTicketsUrl = (params?: ListTicketsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    const explodeParameters = ['state', 'priority'];
+
+    if (Array.isArray(value) && explodeParameters.includes(key)) {
+      value.forEach((v) => {
+        normalizedParams.append(key, v === null ? 'null' : v.toString());
+      });
+      return;
+    }
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/tickets?${stringifiedParams}` : `/tickets`;
+};
+
+export const listTickets = async (
+  params?: ListTicketsParams,
+  options?: RequestInit,
+): Promise<ListTickets200> => {
+  return http<ListTickets200>(getListTicketsUrl(params), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListTicketsQueryKey = (params?: ListTicketsParams) => {
+  return [`/tickets`, ...(params ? [params] : [])] as const;
+};
+
+export const getListTicketsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTickets>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | ErrorResponse,
+>(
+  params?: ListTicketsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTickets>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListTicketsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listTickets>>> = ({ signal }) =>
+    listTickets(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTickets>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListTicketsQueryResult = NonNullable<Awaited<ReturnType<typeof listTickets>>>;
+export type ListTicketsQueryError =
+  ValidationFailedResponse | UnauthenticatedResponse | ErrorResponse;
+
+export function useListTickets<
+  TData = Awaited<ReturnType<typeof listTickets>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | ErrorResponse,
+>(
+  params: undefined | ListTicketsParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTickets>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTickets>>,
+          TError,
+          Awaited<ReturnType<typeof listTickets>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListTickets<
+  TData = Awaited<ReturnType<typeof listTickets>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | ErrorResponse,
+>(
+  params?: ListTicketsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTickets>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTickets>>,
+          TError,
+          Awaited<ReturnType<typeof listTickets>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListTickets<
+  TData = Awaited<ReturnType<typeof listTickets>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | ErrorResponse,
+>(
+  params?: ListTicketsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTickets>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Tickets visible to the caller, by view or by ad-hoc filter (ticket.view always applied)
+ */
+
+export function useListTickets<
+  TData = Awaited<ReturnType<typeof listTickets>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | ErrorResponse,
+>(
+  params?: ListTicketsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTickets>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListTicketsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Start a ticket for an existing customer (FR-038a) — needs create on the group
+ */
+export const getCreateTicketUrl = () => {
+  return `/tickets`;
+};
+
+export const createTicket = async (
+  createTicketBody: CreateTicketBody,
+  options?: RequestInit,
+): Promise<Ticket> => {
+  return http<Ticket>(getCreateTicketUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createTicketBody),
+  });
+};
+
+export const getCreateTicketMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTicket>>,
+    TError,
+    { data: CreateTicketBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createTicket>>,
+  TError,
+  { data: CreateTicketBody },
+  TContext
+> => {
+  const mutationKey = ['createTicket'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createTicket>>,
+    { data: CreateTicketBody }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createTicket(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateTicketMutationResult = NonNullable<Awaited<ReturnType<typeof createTicket>>>;
+export type CreateTicketMutationBody = CreateTicketBody;
+export type CreateTicketMutationError =
+  | ValidationFailedResponse
+  | UnauthenticatedResponse
+  | PermissionDeniedResponse
+  | NotFoundResponse
+  | ErrorResponse;
+
+/**
+ * @summary Start a ticket for an existing customer (FR-038a) — needs create on the group
+ */
+export const useCreateTicket = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createTicket>>,
+      TError,
+      { data: CreateTicketBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createTicket>>,
+  TError,
+  { data: CreateTicketBody },
+  TContext
+> => {
+  const mutationOptions = getCreateTicketMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * @summary Ticket with properties, links and customer summary (ticket.view on the ticket's group)
  */
@@ -161,6 +423,192 @@ export function useGetTicket<
   return query;
 }
 
+/**
+ * Only the fields sent are changed. A group change needs ticket.create on the destination, which must be active; from Ungrouped, ticket.edit on Ungrouped is enough (FR-041). ownerId must have edit on the (new) group (FR-040). pendingUntil is required to enter or remain in a pending state. State changes go through the ticket state machine.
+
+ * @summary Change title, state, priority, group, owner or tags (ticket.edit on the current group)
+ */
+export const getUpdateTicketUrl = (id: string) => {
+  return `/tickets/${id}`;
+};
+
+export const updateTicket = async (
+  id: string,
+  updateTicketBody: UpdateTicketBody,
+  options?: RequestInit,
+): Promise<Ticket> => {
+  return http<Ticket>(getUpdateTicketUrl(id), {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateTicketBody),
+  });
+};
+
+export const getUpdateTicketMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTicket>>,
+    TError,
+    { id: string; data: UpdateTicketBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateTicket>>,
+  TError,
+  { id: string; data: UpdateTicketBody },
+  TContext
+> => {
+  const mutationKey = ['updateTicket'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateTicket>>,
+    { id: string; data: UpdateTicketBody }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateTicket(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateTicketMutationResult = NonNullable<Awaited<ReturnType<typeof updateTicket>>>;
+export type UpdateTicketMutationBody = UpdateTicketBody;
+export type UpdateTicketMutationError =
+  | ValidationFailedResponse
+  | UnauthenticatedResponse
+  | PermissionDeniedResponse
+  | NotFoundResponse
+  | ErrorResponse;
+
+/**
+ * @summary Change title, state, priority, group, owner or tags (ticket.edit on the current group)
+ */
+export const useUpdateTicket = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateTicket>>,
+      TError,
+      { id: string; data: UpdateTicketBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateTicket>>,
+  TError,
+  { id: string; data: UpdateTicketBody },
+  TContext
+> => {
+  const mutationOptions = getUpdateTicketMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * A hard delete; the customer's thread loses this ticket's messages. Writes a ticket.deleted audit entry.
+ * @summary Delete a ticket permanently (ticket.delete on its group)
+ */
+export const getDeleteTicketUrl = (id: string) => {
+  return `/tickets/${id}`;
+};
+
+export const deleteTicket = async (id: string, options?: RequestInit): Promise<void> => {
+  return http<void>(getDeleteTicketUrl(id), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteTicketMutationOptions = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTicket>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteTicket>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ['deleteTicket'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTicket>>, { id: string }> = (
+    props,
+  ) => {
+    const { id } = props ?? {};
+
+    return deleteTicket(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteTicketMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTicket>>>;
+
+export type DeleteTicketMutationError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Delete a ticket permanently (ticket.delete on its group)
+ */
+export const useDeleteTicket = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteTicket>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteTicket>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationOptions = getDeleteTicketMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * @summary Timeline — customer messages, public replies and internal notes (ticket.view on group)
  */
@@ -402,6 +850,446 @@ export const usePostTicketMessage = <
   TContext
 > => {
   const mutationOptions = getPostTicketMessageMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Move a customer message to another of the same customer's tickets (ticket.move_message)
+ */
+export const getMoveTicketMessageUrl = (id: string, messageId: string) => {
+  return `/tickets/${id}/messages/${messageId}/move`;
+};
+
+export const moveTicketMessage = async (
+  id: string,
+  messageId: string,
+  moveTicketMessageBody: MoveTicketMessageBody,
+  options?: RequestInit,
+): Promise<Message> => {
+  return http<Message>(getMoveTicketMessageUrl(id, messageId), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(moveTicketMessageBody),
+  });
+};
+
+export const getMoveTicketMessageMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof moveTicketMessage>>,
+    TError,
+    { id: string; messageId: string; data: MoveTicketMessageBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof moveTicketMessage>>,
+  TError,
+  { id: string; messageId: string; data: MoveTicketMessageBody },
+  TContext
+> => {
+  const mutationKey = ['moveTicketMessage'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof moveTicketMessage>>,
+    { id: string; messageId: string; data: MoveTicketMessageBody }
+  > = (props) => {
+    const { id, messageId, data } = props ?? {};
+
+    return moveTicketMessage(id, messageId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MoveTicketMessageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof moveTicketMessage>>
+>;
+export type MoveTicketMessageMutationBody = MoveTicketMessageBody;
+export type MoveTicketMessageMutationError =
+  | ValidationFailedResponse
+  | UnauthenticatedResponse
+  | PermissionDeniedResponse
+  | NotFoundResponse
+  | ErrorResponse;
+
+/**
+ * @summary Move a customer message to another of the same customer's tickets (ticket.move_message)
+ */
+export const useMoveTicketMessage = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof moveTicketMessage>>,
+      TError,
+      { id: string; messageId: string; data: MoveTicketMessageBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof moveTicketMessage>>,
+  TError,
+  { id: string; messageId: string; data: MoveTicketMessageBody },
+  TContext
+> => {
+  const mutationOptions = getMoveTicketMessageMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Change history, newest first (ticket.view on the ticket's group)
+ */
+export const getListTicketHistoryUrl = (id: string, params?: ListTicketHistoryParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/tickets/${id}/history?${stringifiedParams}`
+    : `/tickets/${id}/history`;
+};
+
+export const listTicketHistory = async (
+  id: string,
+  params?: ListTicketHistoryParams,
+  options?: RequestInit,
+): Promise<ListTicketHistory200> => {
+  return http<ListTicketHistory200>(getListTicketHistoryUrl(id, params), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListTicketHistoryQueryKey = (id?: string, params?: ListTicketHistoryParams) => {
+  return [`/tickets/${id}/history`, ...(params ? [params] : [])] as const;
+};
+
+export const getListTicketHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTicketHistory>>,
+  TError = UnauthenticatedResponse | NotFoundResponse,
+>(
+  id: string,
+  params?: ListTicketHistoryParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTicketHistory>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListTicketHistoryQueryKey(id, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listTicketHistory>>> = ({ signal }) =>
+    listTicketHistory(id, params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTicketHistory>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListTicketHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listTicketHistory>>
+>;
+export type ListTicketHistoryQueryError = UnauthenticatedResponse | NotFoundResponse;
+
+export function useListTicketHistory<
+  TData = Awaited<ReturnType<typeof listTicketHistory>>,
+  TError = UnauthenticatedResponse | NotFoundResponse,
+>(
+  id: string,
+  params: undefined | ListTicketHistoryParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTicketHistory>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTicketHistory>>,
+          TError,
+          Awaited<ReturnType<typeof listTicketHistory>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListTicketHistory<
+  TData = Awaited<ReturnType<typeof listTicketHistory>>,
+  TError = UnauthenticatedResponse | NotFoundResponse,
+>(
+  id: string,
+  params?: ListTicketHistoryParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTicketHistory>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTicketHistory>>,
+          TError,
+          Awaited<ReturnType<typeof listTicketHistory>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListTicketHistory<
+  TData = Awaited<ReturnType<typeof listTicketHistory>>,
+  TError = UnauthenticatedResponse | NotFoundResponse,
+>(
+  id: string,
+  params?: ListTicketHistoryParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTicketHistory>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Change history, newest first (ticket.view on the ticket's group)
+ */
+
+export function useListTicketHistory<
+  TData = Awaited<ReturnType<typeof listTicketHistory>>,
+  TError = UnauthenticatedResponse | NotFoundResponse,
+>(
+  id: string,
+  params?: ListTicketHistoryParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTicketHistory>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListTicketHistoryQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Link to another ticket (ticket.edit on this ticket's group, ticket.view on the other)
+ */
+export const getCreateTicketLinkUrl = (id: string) => {
+  return `/tickets/${id}/links`;
+};
+
+export const createTicketLink = async (
+  id: string,
+  createTicketLinkBody: CreateTicketLinkBody,
+  options?: RequestInit,
+): Promise<TicketLink> => {
+  return http<TicketLink>(getCreateTicketLinkUrl(id), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createTicketLinkBody),
+  });
+};
+
+export const getCreateTicketLinkMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTicketLink>>,
+    TError,
+    { id: string; data: CreateTicketLinkBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createTicketLink>>,
+  TError,
+  { id: string; data: CreateTicketLinkBody },
+  TContext
+> => {
+  const mutationKey = ['createTicketLink'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createTicketLink>>,
+    { id: string; data: CreateTicketLinkBody }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return createTicketLink(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateTicketLinkMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createTicketLink>>
+>;
+export type CreateTicketLinkMutationBody = CreateTicketLinkBody;
+export type CreateTicketLinkMutationError =
+  | ValidationFailedResponse
+  | UnauthenticatedResponse
+  | PermissionDeniedResponse
+  | NotFoundResponse
+  | ErrorResponse;
+
+/**
+ * @summary Link to another ticket (ticket.edit on this ticket's group, ticket.view on the other)
+ */
+export const useCreateTicketLink = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createTicketLink>>,
+      TError,
+      { id: string; data: CreateTicketLinkBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createTicketLink>>,
+  TError,
+  { id: string; data: CreateTicketLinkBody },
+  TContext
+> => {
+  const mutationOptions = getCreateTicketLinkMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Remove a link (ticket.edit on this ticket's group)
+ */
+export const getDeleteTicketLinkUrl = (id: string, linkId: string) => {
+  return `/tickets/${id}/links/${linkId}`;
+};
+
+export const deleteTicketLink = async (
+  id: string,
+  linkId: string,
+  options?: RequestInit,
+): Promise<void> => {
+  return http<void>(getDeleteTicketLinkUrl(id, linkId), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteTicketLinkMutationOptions = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTicketLink>>,
+    TError,
+    { id: string; linkId: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteTicketLink>>,
+  TError,
+  { id: string; linkId: string },
+  TContext
+> => {
+  const mutationKey = ['deleteTicketLink'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteTicketLink>>,
+    { id: string; linkId: string }
+  > = (props) => {
+    const { id, linkId } = props ?? {};
+
+    return deleteTicketLink(id, linkId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteTicketLinkMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteTicketLink>>
+>;
+
+export type DeleteTicketLinkMutationError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Remove a link (ticket.edit on this ticket's group)
+ */
+export const useDeleteTicketLink = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteTicketLink>>,
+      TError,
+      { id: string; linkId: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteTicketLink>>,
+  TError,
+  { id: string; linkId: string },
+  TContext
+> => {
+  const mutationOptions = getDeleteTicketLinkMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
@@ -735,6 +1623,848 @@ export function useDownloadFile<
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
   const queryOptions = getDownloadFileQueryOptions(token, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Tenant tag list (tag.view)
+ */
+export const getListTagsUrl = (params?: ListTagsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/tags?${stringifiedParams}` : `/tags`;
+};
+
+export const listTags = async (
+  params?: ListTagsParams,
+  options?: RequestInit,
+): Promise<ListTags200> => {
+  return http<ListTags200>(getListTagsUrl(params), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListTagsQueryKey = (params?: ListTagsParams) => {
+  return [`/tags`, ...(params ? [params] : [])] as const;
+};
+
+export const getListTagsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listTags>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params?: ListTagsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTags>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListTagsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listTags>>> = ({ signal }) =>
+    listTags(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listTags>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListTagsQueryResult = NonNullable<Awaited<ReturnType<typeof listTags>>>;
+export type ListTagsQueryError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useListTags<
+  TData = Awaited<ReturnType<typeof listTags>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params: undefined | ListTagsParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTags>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTags>>,
+          TError,
+          Awaited<ReturnType<typeof listTags>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListTags<
+  TData = Awaited<ReturnType<typeof listTags>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params?: ListTagsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTags>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listTags>>,
+          TError,
+          Awaited<ReturnType<typeof listTags>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListTags<
+  TData = Awaited<ReturnType<typeof listTags>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params?: ListTagsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTags>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Tenant tag list (tag.view)
+ */
+
+export function useListTags<
+  TData = Awaited<ReturnType<typeof listTags>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params?: ListTagsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listTags>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListTagsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Create a tag (tag.create)
+ */
+export const getCreateTagUrl = () => {
+  return `/tags`;
+};
+
+export const createTag = async (
+  createTagBody: CreateTagBody,
+  options?: RequestInit,
+): Promise<TagRef> => {
+  return http<TagRef>(getCreateTagUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(createTagBody),
+  });
+};
+
+export const getCreateTagMutationOptions = <
+  TError =
+    ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createTag>>,
+    TError,
+    { data: CreateTagBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createTag>>,
+  TError,
+  { data: CreateTagBody },
+  TContext
+> => {
+  const mutationKey = ['createTag'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createTag>>,
+    { data: CreateTagBody }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createTag(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateTagMutationResult = NonNullable<Awaited<ReturnType<typeof createTag>>>;
+export type CreateTagMutationBody = CreateTagBody;
+export type CreateTagMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ErrorResponse;
+
+/**
+ * @summary Create a tag (tag.create)
+ */
+export const useCreateTag = <
+  TError =
+    ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createTag>>,
+      TError,
+      { data: CreateTagBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createTag>>,
+  TError,
+  { data: CreateTagBody },
+  TContext
+> => {
+  const mutationOptions = getCreateTagMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Rename a tag (tag.edit)
+ */
+export const getUpdateTagUrl = (id: string) => {
+  return `/tags/${id}`;
+};
+
+export const updateTag = async (
+  id: string,
+  updateTagBody: UpdateTagBody,
+  options?: RequestInit,
+): Promise<TagRef> => {
+  return http<TagRef>(getUpdateTagUrl(id), {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateTagBody),
+  });
+};
+
+export const getUpdateTagMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTag>>,
+    TError,
+    { id: string; data: UpdateTagBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateTag>>,
+  TError,
+  { id: string; data: UpdateTagBody },
+  TContext
+> => {
+  const mutationKey = ['updateTag'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateTag>>,
+    { id: string; data: UpdateTagBody }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateTag(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateTagMutationResult = NonNullable<Awaited<ReturnType<typeof updateTag>>>;
+export type UpdateTagMutationBody = UpdateTagBody;
+export type UpdateTagMutationError =
+  | ValidationFailedResponse
+  | UnauthenticatedResponse
+  | PermissionDeniedResponse
+  | NotFoundResponse
+  | ErrorResponse;
+
+/**
+ * @summary Rename a tag (tag.edit)
+ */
+export const useUpdateTag = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateTag>>,
+      TError,
+      { id: string; data: UpdateTagBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateTag>>,
+  TError,
+  { id: string; data: UpdateTagBody },
+  TContext
+> => {
+  const mutationOptions = getUpdateTagMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Delete a tag (tag.delete); removes it from tickets and customers
+ */
+export const getDeleteTagUrl = (id: string) => {
+  return `/tags/${id}`;
+};
+
+export const deleteTag = async (id: string, options?: RequestInit): Promise<void> => {
+  return http<void>(getDeleteTagUrl(id), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteTagMutationOptions = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteTag>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<Awaited<ReturnType<typeof deleteTag>>, TError, { id: string }, TContext> => {
+  const mutationKey = ['deleteTag'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTag>>, { id: string }> = (
+    props,
+  ) => {
+    const { id } = props ?? {};
+
+    return deleteTag(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteTagMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTag>>>;
+
+export type DeleteTagMutationError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Delete a tag (tag.delete); removes it from tickets and customers
+ */
+export const useDeleteTag = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteTag>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<Awaited<ReturnType<typeof deleteTag>>, TError, { id: string }, TContext> => {
+  const mutationOptions = getDeleteTagMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Customer profile (FR-069); ticket lists limited to the caller's access (user.view)
+ */
+export const getGetCustomerUrl = (id: string) => {
+  return `/customers/${id}`;
+};
+
+export const getCustomer = async (id: string, options?: RequestInit): Promise<CustomerProfile> => {
+  return http<CustomerProfile>(getGetCustomerUrl(id), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetCustomerQueryKey = (id?: string) => {
+  return [`/customers/${id}`] as const;
+};
+
+export const getGetCustomerQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCustomer>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomer>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCustomerQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getCustomer>>> = ({ signal }) =>
+    getCustomer(id, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCustomer>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetCustomerQueryResult = NonNullable<Awaited<ReturnType<typeof getCustomer>>>;
+export type GetCustomerQueryError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+export function useGetCustomer<
+  TData = Awaited<ReturnType<typeof getCustomer>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomer>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCustomer>>,
+          TError,
+          Awaited<ReturnType<typeof getCustomer>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCustomer<
+  TData = Awaited<ReturnType<typeof getCustomer>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomer>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getCustomer>>,
+          TError,
+          Awaited<ReturnType<typeof getCustomer>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetCustomer<
+  TData = Awaited<ReturnType<typeof getCustomer>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomer>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Customer profile (FR-069); ticket lists limited to the caller's access (user.view)
+ */
+
+export function useGetCustomer<
+  TData = Awaited<ReturnType<typeof getCustomer>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getCustomer>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetCustomerQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Edit contact details and tags (user.edit)
+ */
+export const getUpdateCustomerUrl = (id: string) => {
+  return `/customers/${id}`;
+};
+
+export const updateCustomer = async (
+  id: string,
+  updateCustomerBody: UpdateCustomerBody,
+  options?: RequestInit,
+): Promise<CustomerProfile> => {
+  return http<CustomerProfile>(getUpdateCustomerUrl(id), {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(updateCustomerBody),
+  });
+};
+
+export const getUpdateCustomerMutationOptions = <
+  TError =
+    ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateCustomer>>,
+    TError,
+    { id: string; data: UpdateCustomerBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateCustomer>>,
+  TError,
+  { id: string; data: UpdateCustomerBody },
+  TContext
+> => {
+  const mutationKey = ['updateCustomer'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateCustomer>>,
+    { id: string; data: UpdateCustomerBody }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateCustomer(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateCustomerMutationResult = NonNullable<Awaited<ReturnType<typeof updateCustomer>>>;
+export type UpdateCustomerMutationBody = UpdateCustomerBody;
+export type UpdateCustomerMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ErrorResponse;
+
+/**
+ * @summary Edit contact details and tags (user.edit)
+ */
+export const useUpdateCustomer = <
+  TError =
+    ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateCustomer>>,
+      TError,
+      { id: string; data: UpdateCustomerBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateCustomer>>,
+  TError,
+  { id: string; data: UpdateCustomerBody },
+  TContext
+> => {
+  const mutationOptions = getUpdateCustomerMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Needs Triage is additionally hidden from viewers without view access to Ungrouped (FR-077).
+ * @summary Views visible to the caller, in order, with live ticket counts (view.view)
+ */
+export const getListViewsUrl = () => {
+  return `/views`;
+};
+
+export const listViews = async (options?: RequestInit): Promise<ListViews200> => {
+  return http<ListViews200>(getListViewsUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListViewsQueryKey = () => {
+  return [`/views`] as const;
+};
+
+export const getListViewsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listViews>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listViews>>, TError, TData>>;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListViewsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listViews>>> = ({ signal }) =>
+    listViews({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listViews>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListViewsQueryResult = NonNullable<Awaited<ReturnType<typeof listViews>>>;
+export type ListViewsQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useListViews<
+  TData = Awaited<ReturnType<typeof listViews>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listViews>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listViews>>,
+          TError,
+          Awaited<ReturnType<typeof listViews>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListViews<
+  TData = Awaited<ReturnType<typeof listViews>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listViews>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listViews>>,
+          TError,
+          Awaited<ReturnType<typeof listViews>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListViews<
+  TData = Awaited<ReturnType<typeof listViews>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listViews>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Views visible to the caller, in order, with live ticket counts (view.view)
+ */
+
+export function useListViews<
+  TData = Awaited<ReturnType<typeof listViews>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listViews>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListViewsQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary Get a view definition, with its live ticket count (view.view)
+ */
+export const getGetViewUrl = (id: string) => {
+  return `/views/${id}`;
+};
+
+export const getView = async (id: string, options?: RequestInit): Promise<View> => {
+  return http<View>(getGetViewUrl(id), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetViewQueryKey = (id?: string) => {
+  return [`/views/${id}`] as const;
+};
+
+export const getGetViewQueryOptions = <
+  TData = Awaited<ReturnType<typeof getView>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getView>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetViewQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getView>>> = ({ signal }) =>
+    getView(id, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getView>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetViewQueryResult = NonNullable<Awaited<ReturnType<typeof getView>>>;
+export type GetViewQueryError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+export function useGetView<
+  TData = Awaited<ReturnType<typeof getView>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getView>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getView>>,
+          TError,
+          Awaited<ReturnType<typeof getView>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetView<
+  TData = Awaited<ReturnType<typeof getView>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getView>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getView>>,
+          TError,
+          Awaited<ReturnType<typeof getView>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetView<
+  TData = Awaited<ReturnType<typeof getView>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getView>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Get a view definition, with its live ticket count (view.view)
+ */
+
+export function useGetView<
+  TData = Awaited<ReturnType<typeof getView>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+>(
+  id: string,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getView>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetViewQueryOptions(id, options);
 
   const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
     queryKey: DataTag<QueryKey, TData, TError>;
