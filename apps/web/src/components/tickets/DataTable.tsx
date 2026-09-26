@@ -3,7 +3,7 @@ import { useLayoutEffect, useRef, useState } from 'react';
 
 import { useVirtualRows } from './virtualization';
 
-import type { KeyboardEvent, ReactNode } from 'react';
+import type { FocusEvent, KeyboardEvent, ReactNode } from 'react';
 
 /**
  * A virtualized, keyboard-navigable data table (plan.md "Shared component system"): an ARIA grid
@@ -51,6 +51,11 @@ export function DataTable<T>({
   const rowRefs = useRef(new Map<number, HTMLDivElement>());
   const containerElRef = useRef<HTMLDivElement | null>(null);
   const pendingFocusRef = useRef(false);
+  // Whether focus is currently inside the grid, tracked via focusin/focusout (bubbling)
+  // instead of `document.activeElement`: when a shrink removes the focused row in the same
+  // commit, the browser has already moved `document.activeElement` to <body> by the time our
+  // layout effect below runs, so that check can never see the row was focused.
+  const focusWithinRef = useRef(false);
 
   // Keep the roving tab stop in range when the row set shrinks (a view switch, a live update
   // removing a row, a refetch). If focus was inside the grid when its target row disappeared,
@@ -58,7 +63,7 @@ export function DataTable<T>({
   useLayoutEffect(() => {
     const maxIndex = Math.max(0, rows.length - 1);
     if (activeIndex > maxIndex) {
-      if (containerElRef.current?.contains(document.activeElement) === true) {
+      if (focusWithinRef.current) {
         pendingFocusRef.current = true;
       }
       setActiveIndex(maxIndex);
@@ -135,6 +140,18 @@ export function DataTable<T>({
           containerElRef.current = node;
         }}
         onScroll={onScroll}
+        onFocus={() => {
+          focusWithinRef.current = true;
+        }}
+        onBlur={(event: FocusEvent<HTMLDivElement>) => {
+          const related = event.relatedTarget as Node | null;
+          // Only treat this as "focus left the grid" when we know focus landed somewhere else
+          // outside it. A `null` relatedTarget is ambiguous (it also happens when the focused
+          // row is removed from the DOM), so it's left as still-inside rather than cleared.
+          if (related !== null && containerElRef.current?.contains(related) !== true) {
+            focusWithinRef.current = false;
+          }
+        }}
         sx={{ height, overflowY: 'auto', position: 'relative' }}
       >
         <Box sx={{ height: range.totalHeight, position: 'relative' }}>
