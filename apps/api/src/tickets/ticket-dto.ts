@@ -69,7 +69,7 @@ function person(refs: TicketRefs, id: string): PersonRefDto {
   return { id, name: refs.people.get(id)?.name ?? 'Unknown', avatarUrl: null };
 }
 
-export function toTicketSummary(row: TicketRow, refs: TicketRefs): TicketSummaryDto {
+export function toTicketSummary(row: TicketRow, refs: TicketRefs, tags: readonly RefDto[] = []): TicketSummaryDto {
   return {
     id: row.id,
     number: row.number,
@@ -80,8 +80,8 @@ export function toTicketSummary(row: TicketRow, refs: TicketRefs): TicketSummary
     group: row.group_id === null ? null : (refs.groups.get(row.group_id) ?? { id: row.group_id, name: 'Unknown' }),
     owner: row.owner_id === null ? null : person(refs, row.owner_id),
     customer: person(refs, row.customer_id),
-    // Tags (US6) and SLA (US12) join the summary with their modules.
-    tags: [],
+    tags: [...tags],
+    // SLA (US12) joins the summary with its module.
     sla: { status: 'none' },
     lastCustomerMessageAt: iso(row.last_customer_message_at),
     createdAt: row.created_at.toISOString(),
@@ -106,9 +106,15 @@ export function allowedActions(access: EffectiveAccess, groupId: string | null):
   return ACTION_KEYS.filter(([, key]) => decide(access, key, { type: 'ticket', groupId }) === 'allow').map(([action]) => action);
 }
 
-export function toTicketDto(row: TicketRow, refs: TicketRefs, links: TicketLinkDto[], actions: AllowedAction[]): TicketDto {
+export function toTicketDto(
+  row: TicketRow,
+  refs: TicketRefs,
+  links: TicketLinkDto[],
+  actions: AllowedAction[],
+  tags: readonly RefDto[] = [],
+): TicketDto {
   return {
-    ...toTicketSummary(row, refs),
+    ...toTicketSummary(row, refs, tags),
     pendingUntil: iso(row.pending_until),
     autoCloseAt: iso(row.auto_close_at),
     resolvedAt: iso(row.resolved_at),

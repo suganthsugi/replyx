@@ -3,7 +3,7 @@ import { sql, type Expression, type Selectable, type SqlBool, type Updateable } 
 import { TenantRepository, type TenantInsert } from '../platform-kernel/db/tenant-repository.js';
 
 import type { Database } from '../platform-kernel/db/database.js';
-import type { TicketState } from '../platform-kernel/db/tables/tickets.js';
+import type { TicketPriority, TicketState } from '../platform-kernel/db/tables/tickets.js';
 import type { TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
 
 /**
@@ -83,6 +83,16 @@ export class TicketsRepository extends TenantRepository {
     return toRow(row);
   }
 
+  /**
+   * Other tickets' links pointing at this one (migration 0008 `ticket_links_to_fk`), removed
+   * outright before a hard delete: `ON DELETE SET NULL` would null `to_ticket_id` without setting
+   * `removed_reason`, and the `ticket_links_tombstone` CHECK only allows that combination for a
+   * retention tombstone (`removed_reason = 'retention'`), not a plain hard delete.
+   */
+  async deleteIncomingLinks(tx: TenantTransaction, id: string): Promise<void> {
+    await this.deleteFrom(tx, 'ticket_links').where('ticket_links.to_ticket_id', '=', id).execute();
+  }
+
   /** Hard delete (spec Assumptions): cascades to messages, links, history, attachments and tags. */
   async delete(tx: TenantTransaction, id: string): Promise<void> {
     await this.deleteFrom(tx, 'tickets').where('tickets.id', '=', id).execute();
@@ -160,4 +170,55 @@ export class TicketsRepository extends TenantRepository {
     const row = await this.selectFrom(tx, 'tickets').select('tickets.id').where('tickets.customer_id', '=', userId).limit(1).executeTakeFirst();
     return row !== undefined;
   }
+
+  /**
+   * `GET /tickets` (contracts/tickets.yaml, T135): `access` (`PolicyService.ticketAccessFilter`)
+   * is always applied; `extra` is the compiled view condition when the caller passed `viewId`.
+   * `groupId`/`ownerId` are already resolved by the caller (`null` = Ungrouped/unassigned,
+   * `undefined` = not filtering). `after` is the previous page's last row's sort key, keyset-style
+   * (`sortExpr`/`tickets.id`, both in `direction`), so a row equal to the cursor's key ties on id.
+   */
+  async list(tx: TenantTransaction, params: TicketListParams): Promise<TicketRow[]> {
+    let query = this.selectFrom(tx, 'tickets').select(TICKET_COLUMNS).where(params.access);
+    if (params.extra !== undefined) query = query.where(params.extra);
+    if (params.state !== undefined) query = query.where('tickets.state', 'in', params.state as TicketState[]);
+    if (params.priority !== undefined) query = query.where('tickets.priority', 'in', params.priority as TicketPriority[]);
+    if (params.groupId !== undefined) {
+      query = params.groupId === null ? query.where('tickets.group_id', 'is', null) : query.where('tickets.group_id', '=', params.groupId);
+    }
+    if (params.ownerId !== undefined) {
+      query = params.ownerId === null ? query.where('tickets.owner_id', 'is', null) : query.where('tickets.owner_id', '=', params.ownerId);
+    }
+    if (params.customerId !== undefined) query = query.where('tickets.customer_id', '=', params.customerId);
+    if (params.after !== undefined) {
+      const op = params.direction === 'asc' ? sql`>` : sql`<`;
+      const { sortExpr } = params;
+      const value = sql.val(params.after.value);
+      query = query.where(sql<SqlBool>`(${sortExpr} ${op} ${value} OR (${sortExpr} = ${value} AND tickets.id ${op} ${sql.val(params.after.id)}))`);
+    }
+    const rows = await query
+      .orderBy(params.sortExpr, params.direction)
+      .orderBy('tickets.id', params.direction)
+      .limit(params.limit + 1)
+      .execute();
+    return rows.map(toRow);
+  }
+}
+
+export interface TicketListParams {
+  /** `PolicyService.ticketAccessFilter(ctx, 'view')`: always applied. */
+  access: Expression<SqlBool>;
+  /** The compiled view condition (`ViewCompiler.filterFor`), when listing by `viewId`. */
+  extra?: Expression<SqlBool>;
+  state?: readonly TicketState[];
+  priority?: readonly TicketPriority[];
+  /** `null` is Ungrouped; `undefined` is "not filtering". */
+  groupId?: string | null;
+  /** `null` is unassigned; `undefined` is "not filtering". Resolve `me` before calling. */
+  ownerId?: string | null;
+  customerId?: string;
+  sortExpr: Expression<Date | number>;
+  direction: 'asc' | 'desc';
+  after?: { value: Date | number; id: string };
+  limit: number;
 }

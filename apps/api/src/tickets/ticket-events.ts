@@ -1,4 +1,4 @@
-import { TicketRefsRepository, toTicketSummary, type TicketSummaryDto } from './ticket-dto.js';
+import { TicketRefsRepository, toTicketSummary, type RefDto, type TicketSummaryDto } from './ticket-dto.js';
 
 import type { TicketRow } from './tickets.repository.js';
 import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
@@ -16,6 +16,6 @@ export function ticketStream(ticketId: string): StreamKey {
   return `ticket:${ticketId}`;
 }
 
-export async function summaryOf(ctx: TenantContext, tx: TenantTransaction, row: TicketRow): Promise<TicketSummaryDto> {
-  return toTicketSummary(row, await new TicketRefsRepository(ctx).load(tx, [row]));
+export async function summaryOf(ctx: TenantContext, tx: TenantTransaction, row: TicketRow, tags: readonly RefDto[] = []): Promise<TicketSummaryDto> {
+  return toTicketSummary(row, await new TicketRefsRepository(ctx).load(tx, [row]), tags);
 }
