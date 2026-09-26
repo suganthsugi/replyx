@@ -70,6 +70,12 @@ export interface DomainEventMap {
   'ticket.assigned': { ticketId: string; previousOwnerId: string | null; ownerId: string | null };
   /** Left a group's list room: moved, deleted or merged (contract "Staff events"). */
   'ticket.removed_from_view': { ticketId: string; reason: 'moved' | 'deleted' | 'merged' };
+  /**
+   * A `pending_reminder` date passed; the state stays `pending_reminder` (T144, FR-034,
+   * research D11). Fires once per `pending_until` (`tickets.reminder_notified_at`, migration
+   * 0009c) — not on every 30 s sweep — and again if a later date is set while still pending.
+   */
+  'ticket.reminder_reached': { ticketId: string; ownerId: string | null };
   /** A message or internal note was added; the staff payload is the full `Message`. */
   'message.created': MessageDto;
   /** The customer read support's replies up to a message (FR-053). */

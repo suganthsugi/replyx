@@ -90,7 +90,7 @@ export class CustomerMessageRouter {
   /** `customerId` is the signed-in customer (never taken from input). */
   accept(ctx: TenantContext, customerId: string, input: CustomerMessageInput): Promise<AcceptedMessage> {
     return this.unitOfWork.withTenant(ctx, async (tx) => {
-      await sql`SELECT pg_advisory_xact_lock(hashtext(${`${ctx.tenantId}:${customerId}`}))`.execute(tx);
+      await lockCustomer(tx, ctx.tenantId, customerId);
       const customer = await new RoutingRepository(ctx).customer(tx, customerId);
       if (customer === undefined) throw notFound('customer');
 
@@ -269,6 +269,15 @@ export class CustomerMessageRouter {
     const attachments = await new MessagesRepository(ctx).attachmentsFor(tx, [message.id]);
     return toConversationMessage(message, customerId, { authors: new Map(), attachments });
   }
+}
+
+/**
+ * Serializes routing for one customer, and the auto-close sweeper (D10, D11): every send of
+ * theirs, and the sweeper closing one of their tickets, runs one at a time, so a customer message
+ * racing an auto-close lands on exactly one ticket. Released automatically at commit or rollback.
+ */
+export async function lockCustomer(tx: TenantTransaction, tenantId: string, customerId: string): Promise<void> {
+  await sql`SELECT pg_advisory_xact_lock(hashtext(${`${tenantId}:${customerId}`}))`.execute(tx);
 }
 
 export function timersOf(ticket: TicketRow) {
