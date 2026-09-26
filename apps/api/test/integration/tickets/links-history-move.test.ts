@@ -182,6 +182,29 @@ describe('GET /tickets/{id}/history', () => {
     expect(secondPage.nextCursor).toBeNull();
   });
 
+  it('lists owner, priority and state changes sent as separate PATCH requests, the desk UI shape (US6/T157)', async () => {
+    const admin = await createUser(tenant, { roles: ['admin'] });
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const ticket = await createTicket(tenant, { customer, state: 'open' });
+
+    // Matches apps/web/src/pages/desk/inbox/TicketFocus.tsx: "Assign to me", the priority group and
+    // the state selector each fire their own PATCH, not one combined request, and often overlap.
+    const [ownerPatch, priorityPatch, statePatch] = await Promise.all([
+      asUser(admin).patch(`/tickets/${ticket.id}`, { ownerId: admin.id }),
+      asUser(admin).patch(`/tickets/${ticket.id}`, { priority: 'high' }),
+      asUser(admin).patch(`/tickets/${ticket.id}`, { state: 'resolved', pendingUntil: null }),
+    ]);
+    expect(ownerPatch.status).toBe(200);
+    expect(priorityPatch.status).toBe(200);
+    expect(statePatch.status).toBe(200);
+
+    const history = await asUser(admin).get(`/tickets/${ticket.id}/history?limit=50`);
+    expect(history.status).toBe(200);
+    const page = history.body as { items: { field: string }[]; nextCursor: string | null };
+    expect(page.items.map((item) => item.field)).toEqual(expect.arrayContaining(['owner_id', 'priority', 'state']));
+    expect(page.nextCursor).toBeNull();
+  });
+
   it('refuses a staff member without ticket.view (403)', async () => {
     const bystander = await createUser(tenant, { roles: [] });
     const customer = await createUser(tenant, { roles: ['customer'] });
