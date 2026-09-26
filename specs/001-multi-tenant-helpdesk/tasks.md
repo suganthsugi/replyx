@@ -301,7 +301,7 @@ reply as staff through the API, and confirm the customer sees it live with no ti
 ### Implementation (frontend)
 
 - [X] T127 [P] [US1] Create chat components in `apps/web/src/components/chat/`: `ChatThread.tsx` (virtualized, loads older on scroll up, `LiveRegion` announcements for new support messages), `ChatBubble.tsx` (own right with delivery ✓/✓✓, support left with agent name + avatar), `ResolvedMarker.tsx`, `StatusLine.tsx`, `TypingDots.tsx`, `ChatComposer.tsx` (Enter sends, Shift+Enter newline, attach with type/size errors, disabled while rate-limited with countdown)
-- [ ] T128 [P] [US1] Create `apps/web/src/pages/customer/ChatPage.tsx` (branding header, welcome card, thread, composer; mobile-first; max 720 px on desktop) and `apps/web/src/pages/customer/ProfileSheet.tsx` (name, avatar, optional password, email on reply, sign out everywhere)
+- [X] T128 [P] [US1] Create `apps/web/src/pages/customer/ChatPage.tsx` (branding header, welcome card, thread, composer; mobile-first; max 720 px on desktop) and `apps/web/src/pages/customer/ProfileSheet.tsx` (name, avatar, optional password, email on reply, sign out everywhere)
 - [X] T129 [US1] Create `apps/web/src/data/conversation.ts`: conversation query with older-page loading, optimistic send with a stable `clientMessageId` reused on retry, socket stream `conversation` updating the cache, delivery/read receipts, typing; `apps/web/src/data/attachments.ts` (upload with progress)
 
 ### Frontend tests and docs
