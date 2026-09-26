@@ -53,6 +53,8 @@ export interface MessageComposerProps {
   mentionCandidates: readonly MentionCandidate[];
   defaultMode?: ComposerMode;
   disabled?: boolean;
+  /** Called on every keystroke in the body, for a typing signal (`useTicketTypingSignal`). */
+  onTyping?: () => void;
 }
 
 const MAX_BODY = 10_000;
@@ -73,6 +75,7 @@ export function MessageComposer({
   mentionCandidates,
   defaultMode = 'reply',
   disabled = false,
+  onTyping,
 }: MessageComposerProps) {
   const [mode, setMode] = useState<ComposerMode>(defaultMode);
   const [body, setBody] = useState('');
@@ -128,6 +131,7 @@ export function MessageComposer({
     setBody(next);
     const caret = event.target.selectionStart ?? next.length;
     setMention(findMentionQuery(next, caret));
+    onTyping?.();
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
