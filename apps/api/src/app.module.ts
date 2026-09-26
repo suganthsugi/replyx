@@ -6,6 +6,7 @@ import { AttachmentJobsModule } from './attachments/scan.job.js';
 import { AuditModule } from './audit/audit.module.js';
 import { AuthorizationModule } from './authorization/authorization.module.js';
 import { RolesHttpModule } from './authorization/roles.controller.js';
+import { CustomersHttpModule } from './customers/customers.module.js';
 import { GroupsHttpModule } from './groups/groups.controller.js';
 import { IdentityJobsModule } from './identity/erasure.job.js';
 import { MessagingHttpModule, MessagingModule } from './messaging/messaging.module.js';
@@ -70,6 +71,7 @@ export class AppModule {
       AttachmentsHttpModule,
       TicketsHttpModule,
       TagsHttpModule,
+      CustomersHttpModule,
     ];
     // Outbox relay, queue consumers and sweepers (worker only).
     const workerOnly: ModuleImports = [JobsModule, OutboxRelayModule, IdentityJobsModule, MessagingJobsModule, AttachmentJobsModule];
