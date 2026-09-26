@@ -9,7 +9,7 @@ import axe, { type AxeResults } from 'axe-core';
 
 export interface AxeFixture {
   /** Fails the test when the page (or `selector`) has WCAG 2.2 AA violations. */
-  check(options?: { selector?: string }): Promise<void>;
+  check(options?: { selector?: string; page?: Page }): Promise<void>;
 }
 
 async function runAxe(page: Page, selector?: string): Promise<AxeResults> {
@@ -27,7 +27,7 @@ export const test = base.extend<{ axe: AxeFixture }>({
   axe: async ({ page }, use) => {
     await use({
       async check(options = {}) {
-        const results = await runAxe(page, options.selector);
+        const results = await runAxe(options.page ?? page, options.selector);
         const summary = results.violations.map(
           (violation) => `${violation.id}: ${violation.help} (${violation.nodes.map((node) => node.target.join(' ')).join(', ')})`,
         );
