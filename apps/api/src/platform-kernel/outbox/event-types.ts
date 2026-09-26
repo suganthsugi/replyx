@@ -78,6 +78,8 @@ export interface DomainEventMap {
   'ticket.reminder_reached': { ticketId: string; ownerId: string | null };
   /** A message or internal note was added; the staff payload is the full `Message`. */
   'message.created': MessageDto;
+  /** A customer message was moved to another of the same customer's tickets (FR-042). */
+  'message.moved': MessageDto;
   /** The customer read support's replies up to a message (FR-053). */
   'message.read': { ticketId: string; upToMessageId: string; readAt: string };
   /** A customer message's receipt changed: shown as ✓✓ in the chat (FR-053). */

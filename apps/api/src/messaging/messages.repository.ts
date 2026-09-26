@@ -68,6 +68,20 @@ export class MessagesRepository extends TenantRepository {
     return this.selectFrom(tx, 'ticket_messages').select(MESSAGE_COLUMNS).where('ticket_messages.id', '=', id).executeTakeFirst();
   }
 
+  /**
+   * Moves a message to another ticket (FR-042), recording the ticket it was on just before this
+   * move. `moved_from_ticket_id` is set from the row's own (pre-update) `ticket_id`: SQL evaluates
+   * every `SET` expression against the original row, so this is safe even for a message that was
+   * already moved once before.
+   */
+  move(tx: TenantTransaction, id: string, targetTicketId: string): Promise<MessageRow> {
+    return this.updateTable(tx, 'ticket_messages')
+      .set({ ticket_id: targetTicketId, moved_from_ticket_id: sql`ticket_messages.ticket_id` })
+      .where('ticket_messages.id', '=', id)
+      .returning(MESSAGE_COLUMNS)
+      .executeTakeFirstOrThrow();
+  }
+
   /** A ticket's timeline page, oldest first, after `(createdAt, id)`. Staff only: includes notes. */
   listForTicket(
     tx: TenantTransaction,
