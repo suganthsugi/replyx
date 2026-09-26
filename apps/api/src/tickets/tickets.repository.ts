@@ -177,6 +177,13 @@ export class TicketsRepository extends TenantRepository {
    * `groupId`/`ownerId` are already resolved by the caller (`null` = Ungrouped/unassigned,
    * `undefined` = not filtering). `after` is the previous page's last row's sort key, keyset-style
    * (`sortExpr`/`tickets.id`, both in `direction`), so a row equal to the cursor's key ties on id.
+   *
+   * `sortExpr` can be a nullable column (`last_customer_message_at`): it orders nulls last in
+   * both directions, so the keyset condition is NULL-aware too, else a plain `sortExpr < value`
+   * comparison is unknown (neither true nor false) for a null row and silently drops it once
+   * paging moves past the non-null values. `after.value === null` means the cursor row is itself
+   * null (already in the null tail), so only the id tie-break applies; otherwise every null row
+   * still qualifies, because nulls sort after every non-null value regardless of direction.
    */
   async list(tx: TenantTransaction, params: TicketListParams): Promise<TicketRow[]> {
     let query = this.selectFrom(tx, 'tickets').select(TICKET_COLUMNS).where(params.access);
@@ -193,11 +200,16 @@ export class TicketsRepository extends TenantRepository {
     if (params.after !== undefined) {
       const op = params.direction === 'asc' ? sql`>` : sql`<`;
       const { sortExpr } = params;
-      const value = sql.val(params.after.value);
-      query = query.where(sql<SqlBool>`(${sortExpr} ${op} ${value} OR (${sortExpr} = ${value} AND tickets.id ${op} ${sql.val(params.after.id)}))`);
+      const idTieBreak = sql<SqlBool>`tickets.id ${op} ${sql.val(params.after.id)}`;
+      query =
+        params.after.value === null
+          ? query.where(sql<SqlBool>`${sortExpr} is null AND ${idTieBreak}`)
+          : query.where(
+              sql<SqlBool>`${sortExpr} ${op} ${sql.val(params.after.value)} OR (${sortExpr} = ${sql.val(params.after.value)} AND ${idTieBreak}) OR ${sortExpr} is null`,
+            );
     }
     const rows = await query
-      .orderBy(params.sortExpr, params.direction)
+      .orderBy(params.sortExpr, (ob) => (params.direction === 'asc' ? ob.asc() : ob.desc()).nullsLast())
       .orderBy('tickets.id', params.direction)
       .limit(params.limit + 1)
       .execute();
@@ -219,6 +231,6 @@ export interface TicketListParams {
   customerId?: string;
   sortExpr: Expression<Date | number>;
   direction: 'asc' | 'desc';
-  after?: { value: Date | number; id: string };
+  after?: { value: Date | number | null; id: string };
   limit: number;
 }
