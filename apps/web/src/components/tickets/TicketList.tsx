@@ -6,7 +6,7 @@ import { EmptyState } from '../foundations/EmptyState';
 import { TICKET_ROW_HEIGHT, TicketRow } from './TicketRow';
 import { useVirtualRows } from './virtualization';
 
-import type { TicketSummary } from '../../api/generated/model';
+import type { TicketSummary } from '../../data/tickets';
 import type { KeyboardEvent } from 'react';
 
 /**

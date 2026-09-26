@@ -2,7 +2,7 @@ import Box from '@mui/material/Box';
 import SvgIcon, { type SvgIconProps } from '@mui/material/SvgIcon';
 import Typography from '@mui/material/Typography';
 
-import type { Priority } from '../../api/generated/model';
+import type { Priority } from '../../data/tickets';
 
 /**
  * A ticket's priority as a small icon plus its name: an up-chevron for High, two for Urgent, a

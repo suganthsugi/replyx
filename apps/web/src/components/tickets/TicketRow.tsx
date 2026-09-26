@@ -6,7 +6,7 @@ import { VisuallyHidden } from '../foundations/VisuallyHidden';
 import { SlaBadge } from './SlaBadge';
 import { StatePill } from './StatePill';
 
-import type { TicketSummary } from '../../api/generated/model';
+import type { TicketSummary } from '../../data/tickets';
 
 /** Default row height `TicketList` virtualizes at; kept in sync with this row's padding. */
 export const TICKET_ROW_HEIGHT = 84;
