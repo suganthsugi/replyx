@@ -20,8 +20,13 @@ export default defineConfig({
     baseURL: process.env.E2E_BASE_URL ?? 'http://acme.localhost:5173',
     trace: 'retain-on-failure',
   },
+  // Sign-ins are limited per IP (10 a minute) and the whole suite shares one. The customer chat
+  // spec signs in twice per device (customer link, staff), so it runs after the other specs in
+  // its own desktop/mobile projects and waits out whatever is left of the limit.
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] } },
-    { name: 'mobile', use: { ...devices['Pixel 7'] } },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: /customer-chat/ },
+    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: /customer-chat/ },
+    { name: 'desktop-chat', use: { ...devices['Desktop Chrome'] }, testMatch: /customer-chat/, dependencies: ['desktop', 'mobile'] },
+    { name: 'mobile-chat', use: { ...devices['Pixel 7'] }, testMatch: /customer-chat/, dependencies: ['desktop', 'mobile'] },
   ],
 });
