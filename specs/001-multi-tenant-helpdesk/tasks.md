@@ -285,7 +285,7 @@ reply as staff through the API, and confirm the customer sees it live with no ti
 - [X] T115 [US1] Implement `apps/api/src/attachments/scan.job.ts` with `MalwareScanner` interface, `clamav-scanner.ts` (clamd over TCP at `CLAMAV_HOST`) and `passthrough-scanner.ts` (development only; refused in production); clean → move out of quarantine; infected → delete file, `scan_status = 'blocked'`, notify the sender via the message's real-time stream
 - [X] T116 [US1] Implement downloads in `apps/api/src/attachments/download.controller.ts`: `GET /attachments/{id}/download` and `GET /customer/attachments/{id}/download` check "can see the message" (customers: public messages in their own thread), 409 `ATTACHMENT_NOT_READY` / `ATTACHMENT_BLOCKED`, then 302 to `/api/v1/files/{token}`; `GET /files/{token}` (`@Public`) verifies the HMAC token (`FILE_SIGNING_KEY`, tenant + attachment id + expiry 15 min) and host tenant, then streams with `Content-Disposition: attachment` (inline only for safe image types) (research D17)
 - [X] T117 [US1] Merge `/customer/conversation`, `/customer/messages*`, `/customer/attachments*`, `/tickets/{id}` (GET), `/tickets/{id}/messages`, `/attachments*` and `/files/{token}` from contracts into `apps/api/openapi.yaml`
-- [ ] T118 [US1] Extend `apps/api/src/tenancy/dev-seed.ts` with one existing ticket and messages in `globex` and a resolved conversation for `customer@acme.test`
+- [X] T118 [US1] Extend `apps/api/src/tenancy/dev-seed.ts` with one existing ticket and messages in `globex` and a resolved conversation for `customer@acme.test`
 
 ### Tests
 
