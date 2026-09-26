@@ -26,6 +26,7 @@ import { PresenceStack } from '../../../components/tickets/PresenceStack';
 import { PriorityMark } from '../../../components/tickets/PriorityMark';
 import { StatePill } from '../../../components/tickets/StatePill';
 import { TicketConversation } from '../../../components/tickets/TicketConversation';
+import { useAttachmentUploads } from '../../../data/attachments';
 import { useMe } from '../../../data/auth';
 import { useEligibleOwners, useGroups } from '../../../data/groups';
 import { useSendTicketMessage, useTicketMessages, useTicketMessageEvents } from '../../../data/messages';
@@ -108,6 +109,7 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
   const messages = useTicketMessages(ticketId);
   const history = useTicketHistory(ticketId);
   const { send } = useSendTicketMessage(ticketId);
+  const uploads = useAttachmentUploads({ audience: 'staff' });
   const updateTicket = useUpdateTicket();
   const deleteTicket = useDeleteTicket();
   const createLink = useCreateTicketLink();
@@ -314,13 +316,16 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
           <MessageComposer
             onSend={(body, mode) => {
               stopTyping();
-              void send({ visibility: mode === 'note' ? 'internal' : 'public', body });
+              void send({
+                visibility: mode === 'note' ? 'internal' : 'public',
+                body,
+                attachmentIds: uploads.ready.map((attachment) => attachment.id),
+              });
+              uploads.clearReady();
             }}
-            attachments={[]}
-            onAttach={() => {
-              /* Attachments on ticket replies are not wired up in T154 (open issue). */
-            }}
-            onRemoveAttachment={() => undefined}
+            attachments={uploads.attachments}
+            onAttach={uploads.add}
+            onRemoveAttachment={uploads.remove}
             onTyping={onTyping}
             mentionCandidates={mentionCandidates}
             disabled={!canReplyOrNote}
