@@ -8,7 +8,9 @@ import { TICKET_GROUP_LOOKUP, type TicketGroupLookup } from '../platform-kernel/
 
 import { TicketHistoryService } from './ticket-history.service.js';
 import { TicketNumberService } from './ticket-number.service.js';
+import { TicketsController } from './tickets.controller.js';
 import { TicketsRepository } from './tickets.repository.js';
+import { TicketsService } from './tickets.service.js';
 
 import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
 
@@ -80,3 +82,7 @@ class AuthoredRecordsRepository extends TenantRepository {
   exports: [TicketNumberService, TicketHistoryService, GROUP_TICKET_STATS, TICKET_GROUP_LOOKUP, USER_HISTORY_CHECKS],
 })
 export class TicketsModule {}
+
+/** HTTP side of tickets (api process only, contracts/tickets.yaml `/tickets/{id}` PATCH/DELETE). */
+@Module({ controllers: [TicketsController], providers: [TicketsService] })
+export class TicketsHttpModule {}

@@ -8,6 +8,10 @@
  * carry a `customerPayload` built by the messaging projector (research D9): the customer event
  * type (`conversation.*`) and its data, since one domain event can mean different things to a
  * customer (a state change can be `conversation.status` or `conversation.resolved`).
+ *
+ * `ticket.state_changed`, `ticket.assigned` and `ticket.removed_from_view` are for consumers
+ * (webhooks, notifications, SLA, audit) besides the staff `ticket.updated` stream event; the
+ * property change itself is still reported through `ticket.updated`'s `changes` list.
  */
 
 import type { FriendlyStatusCode } from '../../messaging/customer-projection.js';
@@ -60,6 +64,12 @@ export interface DomainEventMap {
   'ticket.reopened': { ticketId: string; from: TicketState };
   /** Entered closed (consumers: CSAT, retention, SLA). */
   'ticket.closed': { ticketId: string };
+  /** An explicit agent state change (data-model.md "Ticket state machine"). */
+  'ticket.state_changed': { ticketId: string; from: TicketState; to: TicketState };
+  /** The owner changed, including to or from unassigned (webhook-events.md `ticket.assigned`). */
+  'ticket.assigned': { ticketId: string; previousOwnerId: string | null; ownerId: string | null };
+  /** Left a group's list room: moved, deleted or merged (contract "Staff events"). */
+  'ticket.removed_from_view': { ticketId: string; reason: 'moved' | 'deleted' | 'merged' };
   /** A message or internal note was added; the staff payload is the full `Message`. */
   'message.created': MessageDto;
   /** The customer read support's replies up to a message (FR-053). */
