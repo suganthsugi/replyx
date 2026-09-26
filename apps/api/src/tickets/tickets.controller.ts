@@ -8,11 +8,14 @@ import { paginationQuery, type Page } from '../platform-kernel/http/pagination.j
 import { tenantContextOf } from '../platform-kernel/http/request-context.js';
 import { toDetails, ZodValidationPipe } from '../platform-kernel/http/validation.pipe.js';
 
+import { MessageMoveService } from './message-move.service.js';
 import { StaffStartedTicketService } from './staff-started-ticket.service.js';
+import { TicketHistoryQueryService, type HistoryEntryDto } from './ticket-history-query.service.js';
 import { TicketQueryService } from './ticket-query.service.js';
 import { TicketsService } from './tickets.service.js';
 
 import type { TicketDto, TicketSummaryDto } from './ticket-dto.js';
+import type { MessageDto } from '../messaging/message-dto.js';
 import type { Request } from 'express';
 
 /**
@@ -72,6 +75,11 @@ const CreateBody = z
   })
   .strict();
 
+const HistoryQuery = z.object({ ...paginationQuery }).strict();
+
+const MoveMessageParams = z.object({ id: z.uuid(), messageId: z.uuid() }).strict();
+const MoveMessageBody = z.object({ targetTicketId: z.uuid() }).strict();
+
 const IdempotencyKeyHeader = z.string().min(1).max(100).optional();
 
 /** `@Headers()` has no pipe overload (unlike `@Body`/`@Query`/`@Param`), so this validates by hand. */
@@ -87,6 +95,8 @@ export class TicketsController {
     private readonly tickets: TicketsService,
     private readonly query: TicketQueryService,
     private readonly staffStarted: StaffStartedTicketService,
+    private readonly historyQuery: TicketHistoryQueryService,
+    private readonly messageMove: MessageMoveService,
   ) {}
 
   @Get()
@@ -122,5 +132,25 @@ export class TicketsController {
   @HttpCode(204)
   async delete(@Req() req: Request, @Param(new ZodValidationPipe(IdParams)) params: z.infer<typeof IdParams>): Promise<void> {
     await this.tickets.delete(tenantContextOf(req), params.id);
+  }
+
+  @Get(':id/history')
+  @RequirePermission('ticket.view')
+  history(
+    @Req() req: Request,
+    @Param(new ZodValidationPipe(IdParams)) params: z.infer<typeof IdParams>,
+    @Query(new ZodValidationPipe(HistoryQuery)) query: z.infer<typeof HistoryQuery>,
+  ): Promise<Page<HistoryEntryDto>> {
+    return this.historyQuery.list(tenantContextOf(req), params.id, query);
+  }
+
+  @Post(':id/messages/:messageId/move')
+  @RequirePermission('ticket.move_message')
+  moveMessage(
+    @Req() req: Request,
+    @Param(new ZodValidationPipe(MoveMessageParams)) params: z.infer<typeof MoveMessageParams>,
+    @Body(new ZodValidationPipe(MoveMessageBody)) body: z.infer<typeof MoveMessageBody>,
+  ): Promise<MessageDto> {
+    return this.messageMove.move(tenantContextOf(req), params.id, params.messageId, body.targetTicketId);
   }
 }

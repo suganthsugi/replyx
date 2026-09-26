@@ -9,9 +9,13 @@ import { RealtimeModule } from '../platform-kernel/realtime/gateway.js';
 import { TICKET_GROUP_LOOKUP, type TicketGroupLookup } from '../platform-kernel/realtime/socket-context.js';
 import { ViewCompiler } from '../views/view-compiler.js';
 
+import { MessageMoveService } from './message-move.service.js';
 import { StaffStartedTicketService } from './staff-started-ticket.service.js';
 import { TicketPresenceGateway, TicketPresenceHandler } from './ticket-events.js';
+import { TicketHistoryQueryService } from './ticket-history-query.service.js';
 import { TicketHistoryService } from './ticket-history.service.js';
+import { TicketLinksController } from './ticket-links.controller.js';
+import { TicketLinksService } from './ticket-links.service.js';
 import { TicketNumberService } from './ticket-number.service.js';
 import { TicketQueryService } from './ticket-query.service.js';
 import { TicketsController } from './tickets.controller.js';
@@ -92,7 +96,17 @@ export class TicketsModule {}
 /** HTTP side of tickets (api process only, contracts/tickets.yaml `/tickets*`). */
 @Module({
   imports: [RealtimeModule, MessagingHttpModule],
-  controllers: [TicketsController],
-  providers: [TicketsService, TicketQueryService, ViewCompiler, TicketPresenceHandler, TicketPresenceGateway, StaffStartedTicketService],
+  controllers: [TicketsController, TicketLinksController],
+  providers: [
+    TicketsService,
+    TicketQueryService,
+    ViewCompiler,
+    TicketPresenceHandler,
+    TicketPresenceGateway,
+    StaffStartedTicketService,
+    TicketLinksService,
+    TicketHistoryQueryService,
+    MessageMoveService,
+  ],
 })
 export class TicketsHttpModule {}

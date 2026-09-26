@@ -1877,6 +1877,157 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+  /tickets/{id}/messages/{messageId}/move:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+      - name: messageId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    post:
+      operationId: moveTicketMessage
+      tags:
+        - tickets
+      summary: Move a customer message to another of the same customer's tickets (ticket.move_message)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - targetTicketId
+              additionalProperties: false
+              properties:
+                targetTicketId:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: Moved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Message"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: DIFFERENT_CUSTOMER, SAME_TICKET or MESSAGE_NOT_MOVABLE
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /tickets/{id}/history:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: listTicketHistory
+      tags:
+        - tickets
+      summary: Change history, newest first (ticket.view on the ticket's group)
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: History entries, newest first
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PageMeta"
+                  - type: object
+                    required:
+                      - items
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/HistoryEntry"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /tickets/{id}/links:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    post:
+      operationId: createTicketLink
+      tags:
+        - tickets
+      summary: Link to another ticket (ticket.edit on this ticket's group, ticket.view on the other)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - targetTicketId
+                - kind
+              additionalProperties: false
+              properties:
+                targetTicketId:
+                  type: string
+                  format: uuid
+                kind:
+                  type: string
+                  enum:
+                    - follow_up_of
+                    - related
+                    - duplicate_of
+      responses:
+        "201":
+          description: Linked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TicketLink"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: SAME_TICKET or LINK_ALREADY_EXISTS
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /tickets/{id}/links/{linkId}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+      - name: linkId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+    delete:
+      operationId: deleteTicketLink
+      tags:
+        - tickets
+      summary: Remove a link (ticket.edit on this ticket's group)
+      responses:
+        "204":
+          description: Removed
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /attachments:
     post:
       operationId: uploadAttachment
@@ -2964,6 +3115,39 @@ components:
             - retention
             - not_visible
             - null
+    HistoryEntry:
+      type: object
+      required:
+        - id
+        - field
+        - occurredAt
+        - actor
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        field:
+          type: string
+        oldValue: {}
+        newValue: {}
+        occurredAt:
+          type: string
+          format: date-time
+        actor:
+          type: object
+          required:
+            - kind
+          properties:
+            kind:
+              type: string
+              enum:
+                - user
+                - system
+                - automation
+                - routing
+            user:
+              $ref: "#/components/schemas/UserRef"
+            ruleName:
+              type: string
     Ticket:
       allOf:
         - $ref: "#/components/schemas/TicketSummary"
