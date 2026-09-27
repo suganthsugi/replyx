@@ -16,6 +16,7 @@
 
 import type { FriendlyStatusCode } from '../../messaging/customer-projection.js';
 import type { MessageDto } from '../../messaging/message-dto.js';
+import type { NotificationDto } from '../../notifications/notification-dto.js';
 import type { TicketSummaryDto } from '../../tickets/ticket-dto.js';
 import type { JsonValue } from '../db/tables/column-types.js';
 import type { TicketState } from '../db/tables/tickets.js';
@@ -95,6 +96,12 @@ export interface DomainEventMap {
    * the counts notifier at most once per 500 ms per viewer, never carries counts itself.
    */
   'views.counts_changed': { viewIds: string[] };
+  /** A new in-app notification on the recipient's `user` stream (research D20). */
+  'notification.created': NotificationDto;
+  /** A burst grew an unread entry instead of adding one (FR-082). */
+  'notification.updated': { id: string; count: number };
+  /** Marked read in one session; every session of the user updates (FR-083). */
+  'notification.read': { ids: string[] | 'all'; unreadCount: number };
 }
 
 export interface TicketFieldChange {
