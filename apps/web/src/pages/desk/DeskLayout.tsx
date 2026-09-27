@@ -10,6 +10,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Navigate, Outlet, useNavigate, useParams } from 'react-router';
 
 import { CommandBar } from '../../components/shell/CommandBar';
+import { ConnectionBanner } from '../../components/shell/ConnectionBanner';
 import { DesignSystemScope } from '../../components/shell/DesignSystemScope';
 import { NotificationCenter } from '../../components/shell/NotificationCenter';
 import { useToast } from '../../components/shell/Toast';
@@ -153,6 +154,8 @@ export default function DeskLayout() {
             </Box>
           )}
         </Box>
+
+        <ConnectionBanner />
 
         <Box sx={{ flex: 1, minHeight: 0 }}>
           <Outlet />
