@@ -401,7 +401,7 @@ everything they missed exactly once (spec US8).
 ### Frontend tests and docs
 
 - [ ] T172 [P] [US8] E2E `apps/web/e2e/realtime.spec.ts`: two staff browsers see list and count changes live; agent goes offline, three customer messages arrive, back online shows all three once and the right unread count
-- [ ] T173 [P] [US8] Guide `apps/docs/src/content/docs/guides/views-and-notifications.md`
+- [X] T173 [P] [US8] Guide `apps/docs/src/content/docs/guides/views-and-notifications.md`
 
 **Checkpoint**: the workspace is live without refreshing.
 
