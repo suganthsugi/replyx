@@ -2,14 +2,10 @@ import { request as playwrightRequest } from '@playwright/test';
 
 import { expect, test } from './fixtures';
 import { linkPath, uniqueEmail, waitForMessage } from './mailpit';
+import { API_ORIGIN, cookieHeaderOf, csrfOf, SEED_PASSWORD, signInStaffUi, TENANT_HOST } from './staff-ui';
 
 import type { APIRequestContext, Page } from '@playwright/test';
 
-// Node can't resolve `acme.localhost` (see staff-api.ts), so API calls made from the test's Node
-// side, rather than through a browser page, go to the API service directly by compose name and
-// name the tenant in the Host header, exactly as the Vite proxy forwards it.
-const API_ORIGIN = process.env.E2E_API_URL ?? 'http://api:3000';
-const TENANT_HOST = process.env.E2E_TENANT_HOST ?? 'acme.localhost:5173';
 
 /**
  * T157 (spec US6): an agent assigns a ticket to themselves, replies (the customer sees it live),
@@ -22,7 +18,6 @@ const TENANT_HOST = process.env.E2E_TENANT_HOST ?? 'acme.localhost:5173';
  * own cookies instead of a second `sign-in` call.
  */
 
-const SEED_PASSWORD = 'password-123456';
 const STAFF_EMAIL = 'admin@acme.test';
 const STAFF_NAME = 'Ada Admin';
 
@@ -47,37 +42,6 @@ async function signInCustomer(page: Page, request: APIRequestContext, email: str
     if (Date.now() > deadline) throw new Error('Still rate limited after 70 s');
     await page.waitForTimeout(seconds * 1000 + 250);
   }
-}
-
-async function signInStaffUi(page: Page, email: string, password: string) {
-  await page.goto('/desk/sign-in');
-  await page.getByRole('textbox', { name: 'Email' }).fill(email);
-  await page.getByLabel('Password').fill(password);
-  const deadline = Date.now() + 70_000;
-  for (;;) {
-    await page.getByRole('button', { name: 'Sign in' }).click();
-    const inbox = page.getByRole('heading', { level: 1, name: 'Inbox' });
-    const wait = page.getByRole('alert').filter({ hasText: /Too many attempts/ });
-    await expect(inbox.or(wait)).toBeVisible();
-    if (await inbox.isVisible()) return;
-    const seconds = Number(/(\d+) seconds?/.exec((await wait.textContent()) ?? '')?.[1] ?? 5);
-    if (Date.now() > deadline) throw new Error('Still rate limited after 70 s');
-    await page.waitForTimeout(seconds * 1000 + 250);
-  }
-}
-
-/** The double-submit CSRF cookie the desk UI's own session set, for API calls made on its behalf. */
-async function csrfOf(page: Page): Promise<string> {
-  const cookies = await page.context().cookies();
-  const csrf = cookies.find((cookie) => cookie.name === 'rx_csrf')?.value;
-  if (csrf === undefined) throw new Error('No rx_csrf cookie on the staff session');
-  return csrf;
-}
-
-/** The desk UI's own session cookies, as a `Cookie` header, for API calls made on its behalf. */
-async function cookieHeaderOf(page: Page): Promise<string> {
-  const cookies = await page.context().cookies();
-  return cookies.map((cookie) => `${cookie.name}=${cookie.value}`).join('; ');
 }
 
 test('an agent works a ticket end to end, and a staff-started ticket reaches the customer', async ({ page, request, browser, axe }) => {
