@@ -28,6 +28,7 @@ const GroupsPage = lazy(() => import('../pages/admin/groups/GroupsPage'));
 const SupportAccessPage = lazy(() => import('../pages/admin/support-access/SupportAccessPage'));
 // The inbox (US6) is most of the workspace's code; its own chunk keeps admin-only visits light.
 const InboxPage = lazy(() => import('../pages/desk/inbox/InboxPage'));
+const NotificationsPage = lazy(() => import('../pages/desk/notifications/NotificationsPage'));
 
 /**
  * The agent/admin workspace (`/desk/*` on a tenant host), loaded lazily. Paths here are relative
@@ -45,6 +46,14 @@ export default function WorkspaceArea() {
           <Route element={<DeskLayout />}>
             <Route index element={<Navigate to="inbox" replace />} />
             <Route path="me" element={<ProfilePage />} />
+            <Route
+              path="notifications"
+              element={
+                <Suspense fallback={<Skeleton variant="block" label="notifications" />}>
+                  <NotificationsPage />
+                </Suspense>
+              }
+            />
             <Route
               path="inbox/:viewId?/:ticketId?"
               element={
