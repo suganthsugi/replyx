@@ -25,11 +25,13 @@ export default defineConfig({
   // after the other specs in their own desktop/mobile projects and wait out whatever is left of the
   // limit.
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: [/customer-chat/, /agent-conversation/] },
-    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: [/customer-chat/, /agent-conversation/] },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/] },
+    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/] },
     { name: 'desktop-chat', use: { ...devices['Desktop Chrome'] }, testMatch: /customer-chat/, dependencies: ['desktop', 'mobile'] },
     { name: 'mobile-chat', use: { ...devices['Pixel 7'] }, testMatch: /customer-chat/, dependencies: ['desktop', 'mobile'] },
     { name: 'desktop-agent', use: { ...devices['Desktop Chrome'] }, testMatch: /agent-conversation/, dependencies: ['desktop-chat', 'mobile-chat'] },
     { name: 'mobile-agent', use: { ...devices['Pixel 7'] }, testMatch: /agent-conversation/, dependencies: ['desktop-chat', 'mobile-chat'] },
+    // Two staff browsers side by side: desktop only (the one-pane phone inbox has no rail beside the list).
+    { name: 'desktop-realtime', use: { ...devices['Desktop Chrome'] }, testMatch: /realtime/, dependencies: ['desktop-agent', 'mobile-agent'] },
   ],
 });
