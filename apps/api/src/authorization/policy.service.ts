@@ -264,6 +264,18 @@ export class AccessRepository extends TenantRepository {
   }
 
   eligibleOwners(tx: TenantTransaction, groupId: string | null): Promise<EligibleOwner[]> {
+    return this.staffWithGroupGrant(tx, groupId, 'can_edit');
+  }
+
+  /**
+   * Active staff with view on the group (`null` = Ungrouped): the users whose view counts and
+   * notifications a change to that group's tickets can affect (research D13, D20).
+   */
+  async groupViewerIds(tx: TenantTransaction, groupId: string | null): Promise<string[]> {
+    return (await this.staffWithGroupGrant(tx, groupId, 'can_view')).map((user) => user.id);
+  }
+
+  private staffWithGroupGrant(tx: TenantTransaction, groupId: string | null, grant: 'can_view' | 'can_edit'): Promise<EligibleOwner[]> {
     return this.selectFrom(tx, 'users')
       .select(['users.id', 'users.name', 'users.availability'])
       .where('users.status', '=', 'active')
@@ -280,7 +292,7 @@ export class AccessRepository extends TenantRepository {
             .select(sql`1`.as('one'))
             .whereRef('user_roles.tenant_id', '=', 'users.tenant_id')
             .whereRef('user_roles.user_id', '=', 'users.id')
-            .where('role_group_access.can_edit', '=', true)
+            .where(`role_group_access.${grant}`, '=', true)
             .where('role_group_access.group_id', groupId === null ? 'is' : '=', groupId),
         ),
       )

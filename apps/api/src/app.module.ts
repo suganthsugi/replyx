@@ -29,6 +29,7 @@ import { TenancyModule } from './tenancy/tenant-provisioning.service.js';
 import { TicketsJobsModule } from './tickets/access-loss.consumer.js';
 import { TicketSweeperModule } from './tickets/sweeper.job.js';
 import { TicketsHttpModule, TicketsModule } from './tickets/tickets.module.js';
+import { ViewsJobsModule } from './views/counts-notifier.js';
 import { ViewsModule } from './views/views.module.js';
 
 /**
@@ -86,6 +87,7 @@ export class AppModule {
       AttachmentJobsModule,
       TicketsJobsModule,
       TicketSweeperModule,
+      ViewsJobsModule,
     ];
 
     return {
