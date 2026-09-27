@@ -90,6 +90,11 @@ export interface DomainEventMap {
   'attachment.scanned': { attachmentId: string; messageId: string | null; scanStatus: 'clean' | 'blocked' };
   /** The customer's friendly status changed (FR-052); customer stream only. */
   'conversation.status_changed': { customerId: string; status: FriendlyStatusCode };
+  /**
+   * A hint on the viewer's `views` stream to refetch `GET /views/counts` (research D13); sent by
+   * the counts notifier at most once per 500 ms per viewer, never carries counts itself.
+   */
+  'views.counts_changed': { viewIds: string[] };
 }
 
 export interface TicketFieldChange {

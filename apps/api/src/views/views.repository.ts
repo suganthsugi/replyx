@@ -84,8 +84,7 @@ export class ViewsRepository extends TenantRepository {
 
 /**
  * The ticket count for a view's compiled filter (research D13: "computed with `COUNT(*)` using
- * the same query"). Not cached yet — that (and `GET /views/counts`, `views.counts_changed`) is a
- * follow-up; a live count is still correct, just not optimized for repeated reads.
+ * the same query"). `ViewCountsService` caches the results.
  */
 export class TicketCountRepository extends TenantRepository {
   async count(tx: TenantTransaction, filter: Expression<SqlBool>): Promise<number> {

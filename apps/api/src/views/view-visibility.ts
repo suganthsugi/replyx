@@ -1,7 +1,10 @@
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 
+import { ViewsRepository, type ViewRow } from './views.repository.js';
+
 import type { EffectiveAccess } from '../authorization/policy.service.js';
 import type { ViewVisibility } from '../platform-kernel/db/tables/tags-views.js';
+import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
 import type { TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
 
 /**
@@ -37,4 +40,35 @@ export class ViewVisibilityRepository extends TenantRepository {
         return view.sharedGroupIds.some((id) => access.groups.has(id));
     }
   }
+}
+
+const NEEDS_TRIAGE_SYSTEM_KEY = 'needs_triage';
+
+/** FR-077: Needs Triage only for viewers with view access to Ungrouped (`groupId = null`). */
+function hasUngroupedView(access: EffectiveAccess): boolean {
+  return access.groups.get(null)?.view === true;
+}
+
+/**
+ * Whether `viewerId` sees the view: its sharing rules, and Needs Triage additionally only with
+ * Ungrouped view access (data-model.md "views").
+ */
+export function canSeeView(ctx: TenantContext, tx: TenantTransaction, view: ViewAccessRow & { systemKey: string | null }, viewerId: string, access: EffectiveAccess): Promise<boolean> {
+  if (view.systemKey === NEEDS_TRIAGE_SYSTEM_KEY && !hasUngroupedView(access)) return Promise.resolve(false);
+  return new ViewVisibilityRepository(ctx).canSee(tx, view, viewerId, access);
+}
+
+/** The views `viewerId` sees, in display order (`GET /views`, `GET /views/counts`). */
+export async function visibleViews(ctx: TenantContext, tx: TenantTransaction, viewerId: string, access: EffectiveAccess): Promise<ViewRow[]> {
+  const visible: ViewRow[] = [];
+  for (const row of await new ViewsRepository(ctx).listAll(tx)) {
+    if (await canSeeView(ctx, tx, row, viewerId, access)) visible.push(row);
+  }
+  return visible;
+}
+
+/** Views are listed and counted for user actors only. */
+export function viewerIdOf(ctx: TenantContext): string {
+  if (ctx.actor.kind !== 'user') throw new Error('Views are listed for user actors');
+  return ctx.actor.id;
 }
