@@ -24,9 +24,17 @@ import type {
 
 import type {
   CreateSupportAccessGrantBody,
+  ListNotifications200,
+  ListNotificationsParams,
+  MarkNotificationsRead200,
+  MarkNotificationsReadBody,
   NotFoundResponse,
+  NotificationPreferences,
+  NotificationPreferencesInput,
   PermissionDeniedResponse,
   SupportAccessGrant,
+  UnauthenticatedResponse,
+  ValidationFailedResponse,
 } from '.././model';
 
 import { http } from '../../../data/http';
@@ -329,6 +337,448 @@ export const useRevokeSupportAccessGrant = <
   TContext
 > => {
   const mutationOptions = getRevokeSupportAccessGrantMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Own notification center, newest first (FR-078)
+ */
+export const getListNotificationsUrl = (params?: ListNotificationsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/notifications?${stringifiedParams}` : `/notifications`;
+};
+
+export const listNotifications = async (
+  params?: ListNotificationsParams,
+  options?: RequestInit,
+): Promise<ListNotifications200> => {
+  return http<ListNotifications200>(getListNotificationsUrl(params), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListNotificationsQueryKey = (params?: ListNotificationsParams) => {
+  return [`/notifications`, ...(params ? [params] : [])] as const;
+};
+
+export const getListNotificationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listNotifications>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse,
+>(
+  params?: ListNotificationsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listNotifications>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListNotificationsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listNotifications>>> = ({ signal }) =>
+    listNotifications(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listNotifications>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListNotificationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listNotifications>>
+>;
+export type ListNotificationsQueryError = ValidationFailedResponse | UnauthenticatedResponse;
+
+export function useListNotifications<
+  TData = Awaited<ReturnType<typeof listNotifications>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse,
+>(
+  params: undefined | ListNotificationsParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listNotifications>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listNotifications>>,
+          TError,
+          Awaited<ReturnType<typeof listNotifications>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListNotifications<
+  TData = Awaited<ReturnType<typeof listNotifications>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse,
+>(
+  params?: ListNotificationsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listNotifications>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listNotifications>>,
+          TError,
+          Awaited<ReturnType<typeof listNotifications>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListNotifications<
+  TData = Awaited<ReturnType<typeof listNotifications>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse,
+>(
+  params?: ListNotificationsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listNotifications>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Own notification center, newest first (FR-078)
+ */
+
+export function useListNotifications<
+  TData = Awaited<ReturnType<typeof listNotifications>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse,
+>(
+  params?: ListNotificationsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listNotifications>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListNotificationsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Ids that are not the caller's, or already read, are ignored. Sends notification.read on the user stream.
+ * @summary Mark notifications read (specific ids, or all); syncs to every session (FR-083)
+ */
+export const getMarkNotificationsReadUrl = () => {
+  return `/notifications/read`;
+};
+
+export const markNotificationsRead = async (
+  markNotificationsReadBody: MarkNotificationsReadBody,
+  options?: RequestInit,
+): Promise<MarkNotificationsRead200> => {
+  return http<MarkNotificationsRead200>(getMarkNotificationsReadUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(markNotificationsReadBody),
+  });
+};
+
+export const getMarkNotificationsReadMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof markNotificationsRead>>,
+    TError,
+    { data: MarkNotificationsReadBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof markNotificationsRead>>,
+  TError,
+  { data: MarkNotificationsReadBody },
+  TContext
+> => {
+  const mutationKey = ['markNotificationsRead'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof markNotificationsRead>>,
+    { data: MarkNotificationsReadBody }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return markNotificationsRead(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MarkNotificationsReadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof markNotificationsRead>>
+>;
+export type MarkNotificationsReadMutationBody = MarkNotificationsReadBody;
+export type MarkNotificationsReadMutationError = ValidationFailedResponse | UnauthenticatedResponse;
+
+/**
+ * @summary Mark notifications read (specific ids, or all); syncs to every session (FR-083)
+ */
+export const useMarkNotificationsRead = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof markNotificationsRead>>,
+      TError,
+      { data: MarkNotificationsReadBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof markNotificationsRead>>,
+  TError,
+  { data: MarkNotificationsReadBody },
+  TContext
+> => {
+  const mutationOptions = getMarkNotificationsReadMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Own preferences, merged with the tenant defaults (FR-080)
+ */
+export const getGetNotificationPreferencesUrl = () => {
+  return `/notification-preferences`;
+};
+
+export const getNotificationPreferences = async (
+  options?: RequestInit,
+): Promise<NotificationPreferences> => {
+  return http<NotificationPreferences>(getGetNotificationPreferencesUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetNotificationPreferencesQueryKey = () => {
+  return [`/notification-preferences`] as const;
+};
+
+export const getGetNotificationPreferencesQueryOptions = <
+  TData = Awaited<ReturnType<typeof getNotificationPreferences>>,
+  TError = UnauthenticatedResponse,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof getNotificationPreferences>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetNotificationPreferencesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getNotificationPreferences>>> = ({
+    signal,
+  }) => getNotificationPreferences({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getNotificationPreferences>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetNotificationPreferencesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getNotificationPreferences>>
+>;
+export type GetNotificationPreferencesQueryError = UnauthenticatedResponse;
+
+export function useGetNotificationPreferences<
+  TData = Awaited<ReturnType<typeof getNotificationPreferences>>,
+  TError = UnauthenticatedResponse,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getNotificationPreferences>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getNotificationPreferences>>,
+          TError,
+          Awaited<ReturnType<typeof getNotificationPreferences>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetNotificationPreferences<
+  TData = Awaited<ReturnType<typeof getNotificationPreferences>>,
+  TError = UnauthenticatedResponse,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getNotificationPreferences>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getNotificationPreferences>>,
+          TError,
+          Awaited<ReturnType<typeof getNotificationPreferences>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetNotificationPreferences<
+  TData = Awaited<ReturnType<typeof getNotificationPreferences>>,
+  TError = UnauthenticatedResponse,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getNotificationPreferences>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Own preferences, merged with the tenant defaults (FR-080)
+ */
+
+export function useGetNotificationPreferences<
+  TData = Awaited<ReturnType<typeof getNotificationPreferences>>,
+  TError = UnauthenticatedResponse,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getNotificationPreferences>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetNotificationPreferencesQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Events or channels left out fall back to the tenant defaults. Push and email toggles are stored now and delivered from US15.
+ * @summary Replace own preferences (FR-080)
+ */
+export const getUpdateNotificationPreferencesUrl = () => {
+  return `/notification-preferences`;
+};
+
+export const updateNotificationPreferences = async (
+  notificationPreferencesInput: NotificationPreferencesInput,
+  options?: RequestInit,
+): Promise<NotificationPreferences> => {
+  return http<NotificationPreferences>(getUpdateNotificationPreferencesUrl(), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(notificationPreferencesInput),
+  });
+};
+
+export const getUpdateNotificationPreferencesMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateNotificationPreferences>>,
+    TError,
+    { data: NotificationPreferencesInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateNotificationPreferences>>,
+  TError,
+  { data: NotificationPreferencesInput },
+  TContext
+> => {
+  const mutationKey = ['updateNotificationPreferences'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateNotificationPreferences>>,
+    { data: NotificationPreferencesInput }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateNotificationPreferences(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateNotificationPreferencesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateNotificationPreferences>>
+>;
+export type UpdateNotificationPreferencesMutationBody = NotificationPreferencesInput;
+export type UpdateNotificationPreferencesMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse;
+
+/**
+ * @summary Replace own preferences (FR-080)
+ */
+export const useUpdateNotificationPreferences = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateNotificationPreferences>>,
+      TError,
+      { data: NotificationPreferencesInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateNotificationPreferences>>,
+  TError,
+  { data: NotificationPreferencesInput },
+  TContext
+> => {
+  const mutationOptions = getUpdateNotificationPreferencesMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
