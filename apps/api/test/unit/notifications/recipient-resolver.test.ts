@@ -3,8 +3,8 @@ import { describe, expect, it } from 'vitest';
 import { BUILT_IN_DEFAULTS } from '../../../src/notifications/notification-preferences.js';
 import { resolveRecipients, type NotificationTarget, type RecipientSources } from '../../../src/notifications/recipient-resolver.js';
 
-import type { NotificationEventType } from '../../../src/platform-kernel/db/tables/notifications.js';
 import type { ResolvedPreferences } from '../../../src/notifications/notification-preferences.js';
+import type { NotificationEventType } from '../../../src/platform-kernel/db/tables/notifications.js';
 
 /**
  * T166: `resolveRecipients` over fake `RecipientSources` (research D20, T162) - no database.
@@ -33,13 +33,23 @@ function target(eventType: NotificationEventType, overrides: Partial<Notificatio
   };
 }
 
+/** The lookups, answered synchronously: `fakeSources` wraps them in promises. */
+type SyncSources = {
+  [K in keyof RecipientSources]: (...args: Parameters<RecipientSources[K]>) => Awaited<ReturnType<RecipientSources[K]>>;
+};
+
 /** Every candidate can view and wants every event by default; override per test. */
-function fakeSources(overrides: Partial<RecipientSources> = {}): RecipientSources {
-  return {
-    groupViewers: async (groupId) => (groupId === null ? [VIEWER_A, VIEWER_B] : [VIEWER_A, VIEWER_B]),
-    canView: async () => true,
-    preferences: async (userIds) => new Map(userIds.map((id) => [id, allow()])),
+function fakeSources(overrides: Partial<SyncSources> = {}): RecipientSources {
+  const sources: SyncSources = {
+    groupViewers: () => [VIEWER_A, VIEWER_B],
+    canView: () => true,
+    preferences: (userIds) => new Map(userIds.map((id) => [id, allow()])),
     ...overrides,
+  };
+  return {
+    groupViewers: (groupId) => Promise.resolve(sources.groupViewers(groupId)),
+    canView: (userId, groupId) => Promise.resolve(sources.canView(userId, groupId)),
+    preferences: (userIds) => Promise.resolve(sources.preferences(userIds)),
   };
 }
 
@@ -66,7 +76,7 @@ describe('resolveRecipients', () => {
   it('ticket.ungrouped_created notifies Ungrouped viewers (groupId null)', async () => {
     let queriedGroupId: string | null | undefined;
     const sources = fakeSources({
-      groupViewers: async (groupId) => {
+      groupViewers: (groupId) => {
         queriedGroupId = groupId;
         return [VIEWER_A, VIEWER_B];
       },
@@ -81,7 +91,7 @@ describe('resolveRecipients', () => {
     async (eventType) => {
       let queriedGroupId: string | null | undefined;
       const sources = fakeSources({
-        groupViewers: async (groupId) => {
+        groupViewers: (groupId) => {
           queriedGroupId = groupId;
           return [VIEWER_A, VIEWER_B];
         },
@@ -125,7 +135,7 @@ describe('resolveRecipients', () => {
   });
 
   it('drops the actor from the candidates', async () => {
-    const sources = fakeSources({ groupViewers: async () => [VIEWER_A, ACTOR] });
+    const sources = fakeSources({ groupViewers: () => [VIEWER_A, ACTOR] });
     const recipients = await resolveRecipients(target('ticket.arrived_in_group', { actorUserId: ACTOR }), sources, 'in_app');
     expect(recipients).toEqual([VIEWER_A]);
   });
@@ -137,8 +147,8 @@ describe('resolveRecipients', () => {
 
   it('drops candidates who can no longer view the ticket', async () => {
     const sources = fakeSources({
-      groupViewers: async () => [VIEWER_A, VIEWER_B],
-      canView: async (userId) => userId === VIEWER_A,
+      groupViewers: () => [VIEWER_A, VIEWER_B],
+      canView: (userId) => userId === VIEWER_A,
     });
     const recipients = await resolveRecipients(target('ticket.arrived_in_group'), sources, 'in_app');
     expect(recipients).toEqual([VIEWER_A]);
@@ -146,7 +156,7 @@ describe('resolveRecipients', () => {
 
   it('customers never receive internal-note (or any) mentions: canView false drops them', async () => {
     const sources = fakeSources({
-      canView: async (userId) => userId !== CUSTOMER,
+      canView: (userId) => userId !== CUSTOMER,
     });
     const recipients = await resolveRecipients(target('mention', { mentionedUserIds: [VIEWER_A, CUSTOMER] }), sources, 'in_app');
     expect(recipients).toEqual([VIEWER_A]);
@@ -155,7 +165,7 @@ describe('resolveRecipients', () => {
 
   it('applies preferences: the master switch off drops the recipient', async () => {
     const sources = fakeSources({
-      preferences: async (userIds) => new Map(userIds.map((id) => [id, { enabled: false, events: BUILT_IN_DEFAULTS }])),
+      preferences: (userIds) => new Map(userIds.map((id) => [id, { enabled: false, events: BUILT_IN_DEFAULTS }])),
     });
     const recipients = await resolveRecipients(target('ticket.assigned_to_me'), sources, 'in_app');
     expect(recipients).toEqual([]);
@@ -166,7 +176,7 @@ describe('resolveRecipients', () => {
       enabled: true,
       events: { ...BUILT_IN_DEFAULTS, 'ticket.assigned_to_me': { inApp: false, push: true, email: false } },
     };
-    const sources = fakeSources({ preferences: async (userIds) => new Map(userIds.map((id) => [id, preferencesOff])) });
+    const sources = fakeSources({ preferences: (userIds) => new Map(userIds.map((id) => [id, preferencesOff])) });
     const inApp = await resolveRecipients(target('ticket.assigned_to_me'), sources, 'in_app');
     const push = await resolveRecipients(target('ticket.assigned_to_me'), sources, 'push');
     expect(inApp).toEqual([]);
@@ -174,7 +184,7 @@ describe('resolveRecipients', () => {
   });
 
   it('drops a recipient with no resolved preferences entry at all', async () => {
-    const sources = fakeSources({ preferences: async () => new Map() });
+    const sources = fakeSources({ preferences: () => new Map() });
     const recipients = await resolveRecipients(target('ticket.assigned_to_me'), sources, 'in_app');
     expect(recipients).toEqual([]);
   });
