@@ -247,8 +247,12 @@ export function useTicketListEvents(client: RealtimeClient | undefined): void {
         void queryClient.invalidateQueries({ queryKey: ticketKeys.history(ticket.id) });
       }),
       client.onEvent('ticket.removed_from_view', (envelope, queryClient) => {
-        const { ticketId } = envelope.data as { ticketId: string; reason: 'moved' | 'deleted' | 'merged' };
-        patchLists(queryClient, (items) => removeTicket(items, ticketId));
+        const { ticketId, reason } = envelope.data as { ticketId: string; reason: 'moved' | 'deleted' | 'merged' };
+        // A move only leaves the *old* group's room. Someone who can see the new group too got the
+        // `ticket.updated` that put it in their lists; only the server knows which lists still hold
+        // it, so refetch them rather than drop it everywhere.
+        if (reason === 'moved') void queryClient.invalidateQueries({ queryKey: [...ticketKeys.all, 'list'] });
+        else patchLists(queryClient, (items) => removeTicket(items, ticketId));
       }),
     ];
     return () => off.forEach((unsubscribe) => unsubscribe());
@@ -258,6 +262,9 @@ export function useTicketListEvents(client: RealtimeClient | undefined): void {
 /**
  * Calls `onRemoved` for every `ticket.removed_from_view` (same shape as `access.ts`'s
  * `useAccessRevoked`): the open ticket screen closes itself, or shows why, when it matches.
+ *
+ * A move reaches everyone in the old group's room, including people who can see the new group too,
+ * so for `moved` it only fires once refetching the ticket says it is no longer visible (404).
  */
 export function useTicketRemovedFromView(
   client: RealtimeClient | undefined,
@@ -270,8 +277,18 @@ export function useTicketRemovedFromView(
 
   useEffect(() => {
     if (!client) return undefined;
-    return client.onEvent('ticket.removed_from_view', (envelope) => {
-      handler.current(envelope.data as { ticketId: string; reason: 'moved' | 'deleted' | 'merged' });
+    return client.onEvent('ticket.removed_from_view', (envelope, queryClient) => {
+      const removed = envelope.data as { ticketId: string; reason: 'moved' | 'deleted' | 'merged' };
+      if (removed.reason !== 'moved') {
+        handler.current(removed);
+        return;
+      }
+      void queryClient.fetchQuery({ queryKey: ticketKeys.detail(removed.ticketId), queryFn: ({ signal }) => getTicket(removed.ticketId, { signal }), staleTime: 0 }).then(
+        () => undefined,
+        (error: unknown) => {
+          if (mapError(error).code === 'TICKET_NOT_FOUND') handler.current(removed);
+        },
+      );
     });
   }, [client]);
 }
