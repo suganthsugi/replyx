@@ -482,6 +482,11 @@ delivery.
   (VAPID, via the `web-push` library, P2), email (SMTP, P2; customers' offline-reply emails in
   P1).
 - **Unread state** lives on the server. `notification.read` events sync every session.
+- **Before the first reply** (added in Phase 8): customer messages on an *unassigned* ticket add
+  no `message.customer_on_unassigned` notification until support has replied once; the ticket's
+  "new ticket" notification (`ticket.ungrouped_created` / `ticket.arrived_in_group`) stands for
+  them, so several messages from a new customer give one notification. Once the ticket is
+  assigned, the owner is notified of every customer message (grouped as above).
 
 ---
 
