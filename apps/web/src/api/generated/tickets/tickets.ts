@@ -29,6 +29,7 @@ import type {
   CreateTicketLinkBody,
   CustomerProfile,
   ErrorResponse,
+  GetViewCounts200,
   ListTags200,
   ListTagsParams,
   ListTicketHistory200,
@@ -43,6 +44,7 @@ import type {
   NotFoundResponse,
   PermissionDeniedResponse,
   PostTicketMessageBody,
+  ReorderViewsBody,
   TagRef,
   Ticket,
   TicketLink,
@@ -2355,6 +2357,216 @@ export function useListViews<
 }
 
 /**
+ * Refetched when a views.counts_changed hint arrives on the views stream. Each count applies the viewer's access filter (FR-077) and is cached per viewer for 30 s (research D13).
+ * @summary Current ticket counts for the caller's views, by view id (view.view)
+ */
+export const getGetViewCountsUrl = () => {
+  return `/views/counts`;
+};
+
+export const getViewCounts = async (options?: RequestInit): Promise<GetViewCounts200> => {
+  return http<GetViewCounts200>(getGetViewCountsUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetViewCountsQueryKey = () => {
+  return [`/views/counts`] as const;
+};
+
+export const getGetViewCountsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getViewCounts>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewCounts>>, TError, TData>>;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetViewCountsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getViewCounts>>> = ({ signal }) =>
+    getViewCounts({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getViewCounts>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetViewCountsQueryResult = NonNullable<Awaited<ReturnType<typeof getViewCounts>>>;
+export type GetViewCountsQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useGetViewCounts<
+  TData = Awaited<ReturnType<typeof getViewCounts>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewCounts>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getViewCounts>>,
+          TError,
+          Awaited<ReturnType<typeof getViewCounts>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetViewCounts<
+  TData = Awaited<ReturnType<typeof getViewCounts>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewCounts>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getViewCounts>>,
+          TError,
+          Awaited<ReturnType<typeof getViewCounts>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetViewCounts<
+  TData = Awaited<ReturnType<typeof getViewCounts>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewCounts>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Current ticket counts for the caller's views, by view id (view.view)
+ */
+
+export function useGetViewCounts<
+  TData = Awaited<ReturnType<typeof getViewCounts>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getViewCounts>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetViewCountsQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * A personal view is its owner's to arrange; a shared view, default views included, needs view.edit, and the change applies to everyone it is shared with. An id the caller cannot see is 404.
+ * @summary Reorder or hide views, all or nothing (FR-073)
+ */
+export const getReorderViewsUrl = () => {
+  return `/views/order`;
+};
+
+export const reorderViews = async (
+  reorderViewsBody: ReorderViewsBody,
+  options?: RequestInit,
+): Promise<void> => {
+  return http<void>(getReorderViewsUrl(), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reorderViewsBody),
+  });
+};
+
+export const getReorderViewsMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reorderViews>>,
+    TError,
+    { data: ReorderViewsBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reorderViews>>,
+  TError,
+  { data: ReorderViewsBody },
+  TContext
+> => {
+  const mutationKey = ['reorderViews'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reorderViews>>,
+    { data: ReorderViewsBody }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return reorderViews(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReorderViewsMutationResult = NonNullable<Awaited<ReturnType<typeof reorderViews>>>;
+export type ReorderViewsMutationBody = ReorderViewsBody;
+export type ReorderViewsMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Reorder or hide views, all or nothing (FR-073)
+ */
+export const useReorderViews = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof reorderViews>>,
+      TError,
+      { data: ReorderViewsBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof reorderViews>>,
+  TError,
+  { data: ReorderViewsBody },
+  TContext
+> => {
+  const mutationOptions = getReorderViewsMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * @summary Get a view definition, with its live ticket count (view.view)
  */
 export const getGetViewUrl = (id: string) => {
@@ -2474,3 +2686,81 @@ export function useGetView<
 
   return query;
 }
+
+/**
+ * A personal view is its owner's to delete; a shared view needs view.delete.
+ * @summary Delete a view (default views can be hidden, not deleted)
+ */
+export const getDeleteViewUrl = (id: string) => {
+  return `/views/${id}`;
+};
+
+export const deleteView = async (id: string, options?: RequestInit): Promise<void> => {
+  return http<void>(getDeleteViewUrl(id), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteViewMutationOptions = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteView>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteView>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ['deleteView'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteView>>, { id: string }> = (
+    props,
+  ) => {
+    const { id } = props ?? {};
+
+    return deleteView(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteViewMutationResult = NonNullable<Awaited<ReturnType<typeof deleteView>>>;
+
+export type DeleteViewMutationError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ErrorResponse;
+
+/**
+ * @summary Delete a view (default views can be hidden, not deleted)
+ */
+export const useDeleteView = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteView>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<Awaited<ReturnType<typeof deleteView>>, TError, { id: string }, TContext> => {
+  const mutationOptions = getDeleteViewMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
