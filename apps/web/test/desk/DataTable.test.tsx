@@ -54,6 +54,27 @@ describe('DataTable', () => {
     expect(document.activeElement).not.toBe(document.body);
   });
 
+  it('does not steal focus back into the grid after a blur to dead space, then a shrink', () => {
+    mockClientHeight(2000);
+    const rows = makeRows(5);
+    const { rerender } = renderWithProviders(<DataTable columns={columns} rows={rows} getRowId={(row) => row.id} label="Rows" />);
+
+    const dataRows = screen.getAllByRole('row').filter((row) => row.getAttribute('aria-rowindex') !== null);
+    dataRows[4]!.focus();
+    expect(dataRows[4]!).toHaveFocus();
+
+    // A blur to nowhere focusable (dead space, a window blur): the row stays in the DOM, so this
+    // is a real focus loss, not a shrink removing the focused row. `.blur()` (unlike
+    // `fireEvent.blur`) actually moves `document.activeElement`, which then falls back to <body>.
+    dataRows[4]!.blur();
+    expect(document.activeElement).toBe(document.body);
+
+    const fewerRows = makeRows(3);
+    rerender(<DataTable columns={columns} rows={fewerRows} getRowId={(row) => row.id} label="Rows" />);
+
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('moves focus through several rows while ArrowDown is held', async () => {
     mockClientHeight(2000);
     const user = userEvent.setup();
