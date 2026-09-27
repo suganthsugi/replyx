@@ -26,7 +26,8 @@ import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
  * - Only the fields sent are changed; every request needs edit on the ticket's current group.
  * - A group move needs create on the destination and an active destination, except a ticket in
  *   Ungrouped, which a caller with edit on Ungrouped may move to any active group (FR-041).
- * - `ownerId` must have edit on the (new) group, else 409 `OWNER_NOT_ELIGIBLE` (FR-040).
+ * - `ownerId` must have edit on the (new) group, else 409 `OWNER_NOT_ELIGIBLE` (FR-040). A move
+ *   that names no owner unassigns the current one if they cannot edit the destination.
  * - State changes run through `state-machine.ts`; `pendingUntil` is required to enter or stay in
  *   a pending state.
  * - The ticket row is locked (`SELECT ... FOR UPDATE`) for the rest of the transaction, so
@@ -133,6 +134,13 @@ export class TicketsService {
         }
         patch.owner_id = input.ownerId;
         changes.push({ field: 'owner_id', old: before.owner_id, new: input.ownerId });
+      } else if (groupChanged && input.ownerId === undefined && before.owner_id !== null) {
+        // A move that doesn't name an owner keeps the current one only if they can edit the new group.
+        const eligible = await new AccessRepository(ctx).eligibleOwners(tx, targetGroupId);
+        if (!eligible.some((owner) => owner.id === before.owner_id)) {
+          patch.owner_id = null;
+          changes.push({ field: 'owner_id', old: before.owner_id, new: null });
+        }
       }
 
       let moved: TransitionResult | undefined;
