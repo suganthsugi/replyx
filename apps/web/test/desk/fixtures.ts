@@ -5,12 +5,16 @@ import { API, errorResponse } from '../msw/handlers';
 import type {
   CustomerProfile,
   EligibleOwner,
+  GetViewCounts200,
   Group,
+  ListNotifications200,
   ListTicketHistory200,
   ListTickets200,
   ListTicketMessages200,
+  MarkNotificationsRead200,
   Me,
   Message,
+  Notification,
   TagRef,
   Ticket,
   TicketSummary,
@@ -204,6 +208,36 @@ export function ticketsHandler(items: TicketSummary[]) {
 
 export function customerHandler(profile: CustomerProfile) {
   return http.get(`${API}/customers/${profile.id}`, () => HttpResponse.json<CustomerProfile>(profile));
+}
+
+export function makeNotification(overrides: Partial<Notification> = {}): Notification {
+  return {
+    id: 'notification-1',
+    eventType: 'ticket.assigned_to_me',
+    title: 'Assigned to you',
+    summary: 'Ticket #12 was assigned to you',
+    ticketId: 'ticket-1',
+    count: 1,
+    read: false,
+    createdAt: '2026-09-27T09:00:00.000Z',
+    ...overrides,
+  };
+}
+
+export function notificationsHandler(items: Notification[], unreadCount = items.filter((item) => !item.read).length) {
+  return http.get(`${API}/notifications`, () => HttpResponse.json<ListNotifications200>({ items, unreadCount, nextCursor: null }));
+}
+
+export function markNotificationsReadHandler(unreadCount = 0) {
+  return http.post(`${API}/notifications/read`, () => HttpResponse.json<MarkNotificationsRead200>({ unreadCount }));
+}
+
+export function viewCountsHandler(counts: GetViewCounts200) {
+  return http.get(`${API}/views/counts`, () => HttpResponse.json<GetViewCounts200>(counts));
+}
+
+export function reorderViewsHandler() {
+  return http.put(`${API}/views/order`, () => new HttpResponse(null, { status: 204 }));
 }
 
 export { errorResponse };
