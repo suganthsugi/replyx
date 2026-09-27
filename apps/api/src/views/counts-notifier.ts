@@ -84,7 +84,7 @@ export class CountsNotifier implements OnApplicationShutdown {
 
   /** The hint names every view the user sees now (the client refetches all counts anyway). */
   private async appendHint(ctx: TenantContext, tx: TenantTransaction, userId: string): Promise<void> {
-    const access = await this.policy.effectiveAccess(ctx, userId);
+    const access = await this.policy.effectiveAccessIn(ctx, tx, userId);
     const views = await visibleViews(ctx, tx, userId, access);
     if (views.length === 0) return;
     await this.outbox.append(tx, {

@@ -87,7 +87,7 @@ export class RecipientResolver {
     return {
       groupViewers: (groupId) => new AccessRepository(ctx).groupViewerIds(tx, groupId),
       canView: async (userId, groupId) =>
-        decide(await this.policy.effectiveAccess(ctx, userId), 'ticket.view', { type: 'ticket', groupId }) === 'allow',
+        decide(await this.policy.effectiveAccessIn(ctx, tx, userId), 'ticket.view', { type: 'ticket', groupId }) === 'allow',
       preferences: (userIds) => new NotificationPreferencesRepository(ctx).forUsers(tx, userIds),
     };
   }

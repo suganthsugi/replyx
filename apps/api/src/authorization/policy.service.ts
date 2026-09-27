@@ -140,18 +140,25 @@ export class PolicyService {
 
   /** The union of `userId`'s roles, from cache or the database. */
   effectiveAccess(ctx: TenantContext, userId: string): Promise<EffectiveAccess> {
-    return this.unitOfWork.withTenantReadOnly(ctx, async (tx) => {
-      const repo = new AccessRepository(ctx);
-      const accessVersion = await repo.accessVersion(tx);
-      const key = accessCacheKey(ctx.tenantId, accessVersion, userId);
-      const cached = await this.readCache(key);
-      if (cached !== undefined) {
-        return { userId, accessVersion, permissions: new Set(cached.permissions), groups: new Map(cached.groups) };
-      }
-      const access = await repo.load(tx, userId, accessVersion);
-      await this.writeCache(key, access);
-      return access;
-    });
+    return this.unitOfWork.withTenantReadOnly(ctx, (tx) => this.effectiveAccessIn(ctx, tx, userId));
+  }
+
+  /**
+   * The same, inside a transaction the caller already holds. Queue consumers must use this: a
+   * second unit of work takes a second pool connection, and jobs that each hold one while waiting
+   * for another can use up the pool and stall the worker.
+   */
+  async effectiveAccessIn(ctx: TenantContext, tx: TenantTransaction, userId: string): Promise<EffectiveAccess> {
+    const repo = new AccessRepository(ctx);
+    const accessVersion = await repo.accessVersion(tx);
+    const key = accessCacheKey(ctx.tenantId, accessVersion, userId);
+    const cached = await this.readCache(key);
+    if (cached !== undefined) {
+      return { userId, accessVersion, permissions: new Set(cached.permissions), groups: new Map(cached.groups) };
+    }
+    const access = await repo.load(tx, userId, accessVersion);
+    await this.writeCache(key, access);
+    return access;
   }
 
   /** Decides for the context's user actor. Only user actors are checked by the policy. */
