@@ -83,6 +83,27 @@ describe('TicketList', () => {
     expect(document.activeElement).not.toBe(document.body);
   });
 
+  it('does not steal focus back into the list after a blur to dead space, then a shrink', () => {
+    mockClientHeight(2000);
+    const tickets = makeTickets(5);
+    const { rerender } = renderWithProviders(<TicketList tickets={tickets} label="My tickets" onOpenTicket={() => undefined} />);
+
+    const options = screen.getAllByRole('option');
+    options[4]!.focus();
+    expect(options[4]!).toHaveFocus();
+
+    // A blur to nowhere focusable (dead space, a window blur): the row stays in the DOM, so this
+    // is a real focus loss, not a shrink removing the focused row. `.blur()` (unlike
+    // `fireEvent.blur`) actually moves `document.activeElement`, which then falls back to <body>.
+    options[4]!.blur();
+    expect(document.activeElement).toBe(document.body);
+
+    const fewerTickets = makeTickets(3);
+    rerender(<TicketList tickets={fewerTickets} label="My tickets" onOpenTicket={() => undefined} />);
+
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it('moves focus through several rows while ArrowDown is held', async () => {
     mockClientHeight(2000);
     const user = userEvent.setup();
