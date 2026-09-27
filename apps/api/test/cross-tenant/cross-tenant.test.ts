@@ -30,6 +30,13 @@ function resourceOf(route: RouteInfo): string | undefined {
   if (route.access.length !== 1 || access === undefined) return undefined;
   if (access.kind === 'permission') return access.permission.split('.')[0];
   if (access.kind === 'customer') return `customer:${route.path.split('/')[2] ?? ''}`;
+  // `@StaffApi()` (T164): `/auth` and `/me` take no fixture (nothing but the caller's own
+  // identity); the notification center and preferences are tenant-scoped lists, so they need one
+  // (test/cross-tenant/fixtures.ts `notification`, T167).
+  if (access.kind === 'staff') {
+    const segment = route.path.split('/')[1] ?? '';
+    return segment === 'notifications' || segment === 'notification-preferences' ? 'notification' : undefined;
+  }
   return undefined;
 }
 

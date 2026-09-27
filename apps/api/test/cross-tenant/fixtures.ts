@@ -179,7 +179,43 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       return { params: { id }, ids: [id] };
     },
   },
+  // `@StaffApi()` (own account only, no permission key): GET /notifications and
+  // GET /notification-preferences are lists/reads with no path parameter, so the generated suite
+  // checks tenant B's own (empty) view never contains tenant A's id. POST /notifications/read
+  // takes ids in the body, not a path parameter, so it needs its own hand-written cross-tenant
+  // check (test/integration/notifications/notifications.test.ts, T167).
+  notification: {
+    async create(tenant) {
+      const recipient = await createUser(tenant, { roles: ['admin'] });
+      const id = await insertNotification(tenant, recipient.id);
+      return { params: {}, ids: [id] };
+    },
+  },
 };
+
+/** A tenant's notification row, inserted directly (no event needed: event_id has no FK, T167). */
+async function insertNotification(tenant: TestTenant, recipientId: string): Promise<string> {
+  const unitOfWork = await service(UnitOfWork);
+  const ctx = TenantContext.create({ tenantId: tenant.id, actor: { kind: 'system' }, requestId: 'cross-tenant-fixture' });
+  return unitOfWork.withTenant(ctx, (tx) => new NotificationFixtureRepository(ctx).insert(tx, recipientId));
+}
+
+class NotificationFixtureRepository extends TenantRepository {
+  async insert(tx: TenantTransaction, recipientId: string): Promise<string> {
+    const row = await this.insertInto(tx, 'notifications', {
+      recipient_id: recipientId,
+      event_type: 'mention',
+      ticket_id: null,
+      group_key: null,
+      title: 'Fixture notification',
+      summary: null,
+      event_id: uuidv7(),
+    })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    return row.id;
+  }
+}
 
 /** A support-access grant for the fixture, written directly: the route needs an admin session. */
 async function insertSupportGrant(tenant: TestTenant, grantedBy: string): Promise<string> {
