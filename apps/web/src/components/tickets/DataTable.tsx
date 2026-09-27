@@ -145,10 +145,20 @@ export function DataTable<T>({
         }}
         onBlur={(event: FocusEvent<HTMLDivElement>) => {
           const related = event.relatedTarget as Node | null;
-          // Only treat this as "focus left the grid" when we know focus landed somewhere else
-          // outside it. A `null` relatedTarget is ambiguous (it also happens when the focused
-          // row is removed from the DOM), so it's left as still-inside rather than cleared.
-          if (related !== null && containerElRef.current?.contains(related) !== true) {
+          if (related !== null) {
+            // Focus moved to a known element: it only left the grid if that element is outside it.
+            if (containerElRef.current?.contains(related) !== true) {
+              focusWithinRef.current = false;
+            }
+            return;
+          }
+          // No relatedTarget happens both when focus genuinely leaves to nowhere focusable (a
+          // click into dead space, a window blur) and when the focused row is removed from the
+          // DOM by a shrink in the same commit. Tell them apart by whether the blurred row is
+          // still connected: a real blur leaves it in the tree; the DOM's node-removal algorithm
+          // detaches a node before running its removal steps (which include unfocusing), so a
+          // removal-caused blur fires on an already-detached row.
+          if ((event.target as Node).isConnected) {
             focusWithinRef.current = false;
           }
         }}
