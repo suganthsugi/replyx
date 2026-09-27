@@ -134,7 +134,7 @@ describe('auditRoutes', () => {
       known,
     );
     expect(problems).toHaveLength(7);
-    expect(problems.join('\n')).toMatch(/B\.staffOnData .*only live under \/auth or \/me/);
+    expect(problems.join('\n')).toMatch(/B\.staffOnData .*only live under \/auth, \/me, \/notifications or \/notification-preferences/);
     expect(problems.join('\n')).toMatch(/B\.none .*no access decorator/);
     expect(problems.join('\n')).toMatch(/B\.two .*2 access decorators/);
     expect(problems.join('\n')).toMatch(/B\.unknown .*unknown permission nope\.view/);
