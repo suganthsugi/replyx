@@ -239,7 +239,12 @@ describe('reading a tenant with a support token', () => {
     const admin = await createUser(tenant, { roles: ['admin'] });
     const { token } = await grantAccess(tenant, admin);
 
-    for (const bad of [`${token.slice(0, -1)}X`, token.replace('v1.', 'v2.'), 'not-a-token', '']) {
+    // Changes a character inside the signature, always to a different one: the last base64url
+    // character carries unused bits (so changing it may decode to the same bytes), and a fixed
+    // replacement is a no-op whenever the token already has that character there.
+    const at = token.length - 3;
+    const tampered = `${token.slice(0, at)}${token[at] === 'A' ? 'B' : 'A'}${token.slice(at + 1)}`;
+    for (const bad of [tampered, token.replace('v1.', 'v2.'), 'not-a-token', '']) {
       const response = await asSupport(tenant, bad).get('/users');
       // An empty header is no credential at all, so it is the plain unauthenticated answer.
       expect({ bad: bad.slice(0, 12), status: response.status }).toEqual({ bad: bad.slice(0, 12), status: 401 });
