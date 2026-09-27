@@ -396,7 +396,7 @@ everything they missed exactly once (spec US8).
 
 - [ ] T169 [P] [US8] Create `apps/web/src/components/shell/NotificationCenter.tsx` (panel with unread badge, grouped counts, mark read / all read, announcements via `LiveRegion`) and `apps/web/src/pages/desk/notifications/NotificationsPage.tsx`
 - [ ] T170 [P] [US8] Add live counts, hide and drag-free reorder (move up/down buttons for accessibility) to the view rail in `apps/web/src/pages/desk/inbox/ViewRail.tsx`, and a reconnecting banner in `apps/web/src/components/shell/ConnectionBanner.tsx`
-- [ ] T171 [US8] Create hooks `apps/web/src/data/notifications.ts` and `apps/web/src/data/view-counts.ts` (refetch counts on `views.counts_changed`; apply `notification.*` events; sync read state)
+- [X] T171 [US8] Create hooks `apps/web/src/data/notifications.ts` and `apps/web/src/data/view-counts.ts` (refetch counts on `views.counts_changed`; apply `notification.*` events; sync read state)
 
 ### Frontend tests and docs
 
