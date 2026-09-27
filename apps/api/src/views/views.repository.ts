@@ -95,3 +95,14 @@ export class TicketCountRepository extends TenantRepository {
     return Number(row.count);
   }
 }
+
+/** Writes for `PUT /views/order` and `DELETE /views/{id}` (T160). */
+export class ViewWritesRepository extends TenantRepository {
+  async setOrder(tx: TenantTransaction, id: string, position: number, hidden: boolean): Promise<void> {
+    await this.updateTable(tx, 'views').set({ position, hidden }).where('views.id', '=', id).execute();
+  }
+
+  async delete(tx: TenantTransaction, id: string): Promise<void> {
+    await this.deleteFrom(tx, 'views').where('views.id', '=', id).execute();
+  }
+}
