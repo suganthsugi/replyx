@@ -60,21 +60,20 @@ export function useNotifications(filters: NotificationFilters = {}) {
     string | undefined
   >({
     queryKey: notificationKeys.list(filters),
-    queryFn: ({ pageParam, signal }) =>
-      listNotifications(
+    queryFn: async ({ pageParam, signal }) => {
+      const page = await listNotifications(
         { ...toParams(filters), limit: PAGE_SIZE, ...(pageParam === undefined ? {} : { cursor: pageParam }) },
         { signal },
-      ),
+      );
+      // Every page answers with the current unread count; a real fetch updates the badge. Only a
+      // fetch: the cached pages are patched by events and optimistic reads without touching their
+      // own `unreadCount`, so copying from the cache would put a stale count back.
+      queryClient.setQueryData(notificationKeys.unreadCount(), page.unreadCount);
+      return page;
+    },
     initialPageParam: undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
   });
-
-  // Every page answers with the caller's current unread count; keep the badge (`useUnreadNotificationCount`) in step
-  // with whichever list was fetched most recently, without a redundant request when one is already open.
-  useEffect(() => {
-    const freshest = query.data?.pages[0];
-    if (freshest !== undefined) queryClient.setQueryData(notificationKeys.unreadCount(), freshest.unreadCount);
-  }, [query.data, queryClient]);
 
   const items = query.data?.pages.flatMap((page) => page.items) ?? [];
   return { ...query, items, error: query.error ? mapError(query.error) : undefined };
