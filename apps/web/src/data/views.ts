@@ -1,10 +1,7 @@
-import { useEffect } from 'react';
-
 import { useGetView, useListViews } from '../api/generated/tickets/tickets';
 
 import { mapError } from './errors';
 
-import type { RealtimeClient } from './socket';
 import type { View } from '../api/generated/model';
 
 /**
@@ -28,18 +25,7 @@ export function useView(id: string | undefined) {
   return { ...query, error: query.error ? mapError(query.error) : undefined };
 }
 
-/**
- * `views.counts_changed` (debounced 500 ms server-side) refetches the view list; mount once per
- * signed-in staff session.
- */
-export function useViewEvents(client: RealtimeClient | undefined): void {
-  useEffect(() => {
-    if (!client) return undefined;
-    client.registerStreamKeys('views', () => [viewKeys.all]);
-    return client.onEvent('views.counts_changed', (_envelope, queryClient) => {
-      void queryClient.invalidateQueries({ queryKey: viewKeys.all });
-    });
-  }, [client]);
-}
+// Real time: `useViewCountEvents` (data/view-counts.ts) owns the `views` stream registration and
+// the `views.counts_changed` handler, since that hint only ever refetches counts, not this list.
 
 export type { View };

@@ -14,9 +14,11 @@ import { DesignSystemScope } from '../../components/shell/DesignSystemScope';
 import { useToast } from '../../components/shell/Toast';
 import { useMe, useUpdateMe } from '../../data/auth';
 import { mapError } from '../../data/errors';
+import { useNotificationEvents } from '../../data/notifications';
 import { useRealtime } from '../../data/realtime';
 import { findTicketByNumber, useTicketListEvents } from '../../data/tickets';
-import { useViewEvents, useViews } from '../../data/views';
+import { useViewCountEvents } from '../../data/view-counts';
+import { useViews } from '../../data/views';
 import { WORKSPACE_BASE } from '../../routes/area';
 
 import type { Availability } from '../../data/auth';
@@ -24,8 +26,9 @@ import type { Availability } from '../../data/auth';
 /**
  * The workspace shell (docs/design-system "Workspace Inbox"): a top bar with the command bar,
  * the signed-in agent's availability and a slot for US8's notifications, then the routed page.
- * Mounts the once-per-app realtime hooks that keep every cached ticket list and view count in
- * sync (`useTicketListEvents`, `useViewEvents`), so pages below don't each subscribe themselves.
+ * Mounts the once-per-app realtime hooks that keep every cached ticket list, view count and
+ * notification in sync (`useTicketListEvents`, `useViewCountEvents`, `useNotificationEvents`), so
+ * pages below don't each subscribe themselves.
  */
 
 const SKIP_LINK_TARGET = 'desk-main';
@@ -42,7 +45,8 @@ export default function DeskLayout() {
   const views = useViews();
 
   useTicketListEvents(client);
-  useViewEvents(client);
+  useViewCountEvents(client);
+  useNotificationEvents(client);
 
   const commandBarViews = useMemo(() => (views.data ?? []).map((view) => ({ id: view.id, name: view.name })), [views.data]);
   const navigate = useNavigate();
