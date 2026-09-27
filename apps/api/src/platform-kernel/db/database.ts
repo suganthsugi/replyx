@@ -6,6 +6,7 @@ import { UnitOfWork } from './unit-of-work.js';
 
 import type { AuthorizationTables } from './tables/authorization.js';
 import type { IdentityTables } from './tables/identity.js';
+import type { NotificationTables } from './tables/notifications.js';
 import type { OutboxAuditTables } from './tables/outbox-audit.js';
 import type { TagsViewsTables } from './tables/tags-views.js';
 import type { TenancyTables } from './tables/tenancy.js';
@@ -20,7 +21,8 @@ export type Database = TenancyTables &
   AuthorizationTables &
   OutboxAuditTables &
   TicketTables &
-  TagsViewsTables;
+  TagsViewsTables &
+  NotificationTables;
 
 export type DB = Database;
 
