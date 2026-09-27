@@ -2348,6 +2348,78 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/PermissionDenied"
+  /views/counts:
+    get:
+      operationId: getViewCounts
+      tags:
+        - tickets
+      summary: Current ticket counts for the caller's views, by view id (view.view)
+      description: Refetched when a views.counts_changed hint arrives on the views stream. Each count applies the viewer's
+        access filter (FR-077) and is cached per viewer for 30 s (research D13).
+      responses:
+        "200":
+          description: Counts by view id
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: integer
+                  minimum: 0
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+  /views/order:
+    put:
+      operationId: reorderViews
+      tags:
+        - tickets
+      summary: Reorder or hide views, all or nothing (FR-073)
+      description: A personal view is its owner's to arrange; a shared view, default views included, needs view.edit, and the
+        change applies to everyone it is shared with. An id the caller cannot see is 404.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - items
+              properties:
+                items:
+                  type: array
+                  minItems: 1
+                  maxItems: 200
+                  description: Each id at most once
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - id
+                      - position
+                      - hidden
+                    properties:
+                      id:
+                        $ref: "#/components/schemas/Id"
+                      position:
+                        type: integer
+                        minimum: 0
+                        maximum: 10000
+                      hidden:
+                        type: boolean
+      responses:
+        "204":
+          description: Saved
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /views/{id}:
     parameters:
       - $ref: "#/components/parameters/IdPath"
@@ -2369,6 +2441,153 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteView
+      tags:
+        - tickets
+      summary: Delete a view (default views can be hidden, not deleted)
+      description: A personal view is its owner's to delete; a shared view needs view.delete.
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: "SYSTEM_VIEW: default views can only be hidden"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags:
+        - operations
+      summary: Own notification center, newest first (FR-078)
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: unread
+          in: query
+          description: Only unread entries
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Notifications and the unread count
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PageMeta"
+                  - type: object
+                    required:
+                      - items
+                      - unreadCount
+                    properties:
+                      unreadCount:
+                        type: integer
+                        minimum: 0
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/Notification"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /notifications/read:
+    post:
+      operationId: markNotificationsRead
+      tags:
+        - operations
+      summary: Mark notifications read (specific ids, or all); syncs to every session (FR-083)
+      description: Ids that are not the caller's, or already read, are ignored. Sends notification.read on the user stream.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required:
+                    - ids
+                  properties:
+                    ids:
+                      type: array
+                      minItems: 1
+                      maxItems: 100
+                      items:
+                        $ref: "#/components/schemas/Id"
+                - type: object
+                  additionalProperties: false
+                  required:
+                    - all
+                  properties:
+                    all:
+                      type: boolean
+                      const: true
+      responses:
+        "200":
+          description: The new unread count
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - unreadCount
+                properties:
+                  unreadCount:
+                    type: integer
+                    minimum: 0
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /notification-preferences:
+    get:
+      operationId: getNotificationPreferences
+      tags:
+        - operations
+      summary: Own preferences, merged with the tenant defaults (FR-080)
+      responses:
+        "200":
+          description: Preferences
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferences"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+    put:
+      operationId: updateNotificationPreferences
+      tags:
+        - operations
+      summary: Replace own preferences (FR-080)
+      description: Events or channels left out fall back to the tenant defaults. Push and email toggles are stored now and
+        delivered from US15.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationPreferencesInput"
+      responses:
+        "200":
+          description: Saved, merged with the tenant defaults
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationPreferences"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
 components:
   securitySchemes:
     session:
@@ -3679,3 +3898,148 @@ components:
           type: boolean
         editable:
           type: boolean
+    NotificationEventType:
+      type: string
+      enum: &a1
+        - ticket.ungrouped_created
+        - ticket.arrived_in_group
+        - message.customer_on_my_ticket
+        - message.customer_on_unassigned
+        - ticket.assigned_to_me
+        - ticket.my_ticket_changed
+        - mention
+        - sla.warning
+        - sla.breached
+        - ticket.reminder_reached
+      description: What a notification is about (FR-079)
+    NotificationChannels:
+      type: object
+      additionalProperties: false
+      required:
+        - inApp
+        - push
+        - email
+      properties:
+        inApp:
+          type: boolean
+        push:
+          type: boolean
+        email:
+          type: boolean
+      description: Whether the event is delivered in-app, by browser push and by email
+    NotificationChannelsInput:
+      type: object
+      additionalProperties: false
+      properties:
+        inApp:
+          type: boolean
+        push:
+          type: boolean
+        email:
+          type: boolean
+      description: The channels to set; any left out follow the tenant default
+    Notification:
+      type: object
+      required:
+        - id
+        - eventType
+        - title
+        - summary
+        - ticketId
+        - count
+        - read
+        - createdAt
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        eventType:
+          $ref: "#/components/schemas/NotificationEventType"
+        title:
+          type: string
+        summary:
+          type:
+            - string
+            - "null"
+          description: Ticket title or a message excerpt
+        ticketId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        count:
+          type: integer
+          minimum: 1
+          description: Grouped burst size (FR-082)
+        read:
+          type: boolean
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+    NotificationPreferences:
+      type: object
+      required:
+        - enabled
+        - events
+      properties:
+        enabled:
+          type: boolean
+          description: Master switch
+        events:
+          type: object
+          description: Every event type, with each channel resolved
+          required: *a1
+          properties:
+            ticket.ungrouped_created:
+              $ref: "#/components/schemas/NotificationChannels"
+            ticket.arrived_in_group:
+              $ref: "#/components/schemas/NotificationChannels"
+            message.customer_on_my_ticket:
+              $ref: "#/components/schemas/NotificationChannels"
+            message.customer_on_unassigned:
+              $ref: "#/components/schemas/NotificationChannels"
+            ticket.assigned_to_me:
+              $ref: "#/components/schemas/NotificationChannels"
+            ticket.my_ticket_changed:
+              $ref: "#/components/schemas/NotificationChannels"
+            mention:
+              $ref: "#/components/schemas/NotificationChannels"
+            sla.warning:
+              $ref: "#/components/schemas/NotificationChannels"
+            sla.breached:
+              $ref: "#/components/schemas/NotificationChannels"
+            ticket.reminder_reached:
+              $ref: "#/components/schemas/NotificationChannels"
+    NotificationPreferencesInput:
+      type: object
+      additionalProperties: false
+      required:
+        - enabled
+        - events
+      properties:
+        enabled:
+          type: boolean
+          description: Master switch
+        events:
+          type: object
+          additionalProperties: false
+          description: Only the events and channels the user sets; the rest follow the tenant defaults
+          properties:
+            ticket.ungrouped_created:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            ticket.arrived_in_group:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            message.customer_on_my_ticket:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            message.customer_on_unassigned:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            ticket.assigned_to_me:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            ticket.my_ticket_changed:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            mention:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            sla.warning:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            sla.breached:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            ticket.reminder_reached:
+              $ref: "#/components/schemas/NotificationChannelsInput"
