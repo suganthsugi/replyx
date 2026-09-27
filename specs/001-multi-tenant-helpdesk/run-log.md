@@ -224,6 +224,13 @@ Start commit: b4afe6b
 - T151–T154 (frontend): tell frontend-agent to follow `docs/design-system/` (uncommitted user addition) per the updated `ui-components` skill, for any Phase 5+ screen. Do not stage/commit `docs/design-system/` or the edited agent/skill/CLAUDE.md files — they are the user's own uncommitted changes, out of scope for this run.
 - docs-style skill is still `planned`; create it via skill-writer before T158 (agent guide) if not done by then.
 
+### Phase 7 complete (T133–T158) 2026-09-27
+- All 26 tasks committed and marked `[X]` (645e3e2..19ac63d). Resumed on 2026-09-27 with an unfinished T151 focus fix in the working tree: a list no longer pulls focus back after focus really left it (blur to empty space), told apart from a removal-caused blur by `isConnected` on the blurred row (ec89f94, test 4c1fa76).
+- Checkpoint: `turbo run lint typecheck test` 8/8 green (api 53 files, web 39 files); coverage api 90.3% / web 78.26% lines (gate 80/70); e2e 12/12 on desktop, mobile and the chat/agent projects. The first e2e run failed 2 specs because Vite was still cold after `restart web`; the rerun passed. Web coverage fell from 84.8% (Phase 5) to 78.3% with the workspace pages; still above the gate.
+- Reviewer: PASS. One major, fixed: a group move that named no owner kept an owner who couldn't edit the destination (FR-040); the move now unassigns them with history (004f1a1, test 19ac63d). Warnings left as they are: `message.moved` has no customer projection on purpose (the customer's thread isn't ticket-scoped, so nothing they see changes); the sweeper takes at most 200 due tickets per tenant per 30 s tick, so a larger backlog drains at about 400/min.
+- Reviewer didn't trace line by line: view visibility rules (covered by T148's tests), the selector bodies (the server enforces eligibility), the T158 guide and the T157 spec body.
+- Jira: still skipped. CLAUDE.md still says to track work in Jira, but 7f369ba removed it from the workflow; flagged to the user.
+
 ### Resume notes (Phase 4) 2026-09-25
 - User scope: finish Phase 3 and Phase 4, then stop. Phase 3 is done; Phase 4 (T074–T090) is next, starting at T074.
 - Checks: `docker compose run --rm -T tools bash -c 'set -o pipefail; pnpm turbo run lint typecheck test --continue'`; coverage `./scripts/check-coverage.sh`; e2e `docker compose --profile e2e run --rm -T playwright bash -c 'cd /repo && pnpm --filter web exec playwright test e2e/'` after `pnpm --filter api seed:dev`.
