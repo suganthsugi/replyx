@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -178,6 +178,27 @@ describe('useNotifications', () => {
 
     await waitFor(() => expect(result.current.items).toHaveLength(1));
     expect(queryClient.getQueryData(notificationKeys.unreadCount())).toBe(3);
+  });
+
+  it('keeps a live bump of the unread count while the list is mounted (the cached page keeps its old count)', async () => {
+    server.use(http.get(`${API}/notifications`, () => HttpResponse.json({ items: [], unreadCount: 0, nextCursor: null })));
+    const socket = new FakeSocket();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const client = new RealtimeClient({ namespace: '/', userId: `u${(nextUserId += 1)}`, queryClient, createSocket: () => socket });
+    const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    const { result } = renderHook(
+      () => {
+        useNotificationEvents(client);
+        return useNotifications();
+      },
+      { wrapper },
+    );
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+
+    act(() => socket.fire('event', envelope('notification.created', makeNotification())));
+
+    await waitFor(() => expect(result.current.items).toHaveLength(1));
+    expect(queryClient.getQueryData(notificationKeys.unreadCount())).toBe(1);
   });
 });
 
