@@ -231,6 +231,44 @@ Start commit: b4afe6b
 - Reviewer didn't trace line by line: view visibility rules (covered by T148's tests), the selector bodies (the server enforces eligibility), the T158 guide and the T157 spec body.
 - Jira: still skipped. CLAUDE.md still says to track work in Jira, but 7f369ba removed it from the workflow; flagged to the user.
 
+### Phase 8 decisions (2026-09-27)
+- P8-1 View counts (`views/view-counts.service.ts`): one Redis hash per viewer (`t:{tenant}:view-counts:{userId}`) holding every view's count plus the access version it was computed under (a version change is a miss, nothing to delete), 30 s TTL. `GET /views` and `GET /views/counts` share it. "Which views can this viewer see" now lives in `view-visibility.ts` (`visibleViews`, `canSeeView`, `viewerIdOf`) for the api and the worker.
+- P8-2 Count hints (`views/counts-notifier.ts`, worker consumer `view-counts` on the `notifications` queue): ticket list events → active staff with view on the groups in the event's `tickets:group:*` streams (`AccessRepository.groupViewerIds`), `access.changed` → every active staff user. The cache is dropped at once; hints are one per viewer per 500 ms window: the first in a window is appended in the consumer's own transaction (durable, replayed by `sync`), later ones in the window schedule one trailing hint in-process. The web client refetches counts every 60 s as the backstop for a trailing hint lost to a crash (reviewer major, fixed).
+- P8-3 `PUT /views/order` / `DELETE /views/{id}` are `view.view` routes; the service decides per view: a personal view is its owner's, a shared one (default views included) needs `view.edit` (arrange) / `view.delete` (delete). Position and hidden belong to the view, so arranging a shared view does it for everyone. Default views: 409 `SYSTEM_VIEW` on delete.
+- P8-4 Notifications mapping (`notifications/notifications.consumer.ts` header table). `my_ticket_changed` comes from `ticket.state_changed`, a priority change in `ticket.updated` (skipped when the same change also assigns: `assigned_to_me` covers it) and a customer-caused `ticket.reopened`. Customer messages on an unassigned ticket add nothing until support's first reply (research D20 updated; reviewer asked to confirm with product). Ticket subscriptions don't exist yet, so they add nobody. SLA events have no source until US12.
+- P8-5 `@StaffApi()` now also covers `/notifications` and `/notification-preferences` (route-audit.ts): every handler takes the user from the session only. `POST /notification-preferences/push-subscriptions` is left for US15.
+- P8-6 Tenant defaults: `NotificationDefaultsContributor` writes the built-in defaults into `tenant_settings.notification_defaults` for new tenants; older tenants keep `{}`, which resolves to the same defaults.
+- P8-7 Queue consumers must read access with `PolicyService.effectiveAccessIn(ctx, tx, userId)`, never `effectiveAccess` (which opens a second unit of work, i.e. a second pool connection). With 5 jobs per queue and a 10-connection pool, jobs holding one connection and waiting for another stalled the worker; in the test suite this showed as 120 s `afterAll` timeouts (fb4f490).
+- P8-8 Web: `useNotificationEvents` (cache) is mounted once in DeskLayout; `useNotificationArrivals` is listen-only for LiveRegion announcements. The unread badge is set only from real fetches and events, never copied back from cached pages (a live bump was being reset to 0, found by T172). `ticket.removed_from_view` with reason `moved` refetches lists and only closes an open ticket after a 404, since staff who can see both groups get the old room's event too (found by T172; T155 fix).
+
+| task | agent | commit | notes |
+|------|-------|--------|-------|
+| T159 | inline | fc5b9d9 (+dc707e5) | live-checked: 12 views for admin, 11 for agent (no Needs Triage); an assignment gave each viewer one hint and refreshed counts |
+| T160 | inline | 5f1ac21 | live-checked: agent 403, admin 204, duplicate ids 400, default view 409 SYSTEM_VIEW, unknown 404 |
+| T161 | inline | 1102001 | applied on dev |
+| T162 | inline | 80d3a91 | |
+| T163 | inline | 02cc698 (+fb4f490) | live-checked assign → assigned + priority notifications on the user stream |
+| T164 | inline | 20b5460 | live-checked list, mark-all-read, validation 400s |
+| T165 | inline | c45f4df, 863d8b3 | splice-merge script in the scratchpad (`merge-openapi-p8.cjs`, text insertion so existing formatting is untouched); redocly valid, no warnings on new paths |
+| T166 | test-automator | e621dff (+add4b8e) | 25 cases |
+| T167 | test-automator | 47cff0b | 7 cases; the generated cross-tenant suite now covers the two notification GET routes; `POST /notifications/read` (ids in the body) has a hand-written cross-tenant case |
+| T168 | test-automator + inline | f5f823d | hardened: listen before probing, drain hints until quiet, burst asserts fewer hints than changes; 5/5 stable |
+| T169 | frontend-agent + inline | a73e229, b20d074 | |
+| T170 | frontend-agent + inline | 70d6224, fa56ace | inline fixes: arrange buttons use `aria-disabled` (focus stays), neighbour must be editable to swap, save errors announced, banner only after a real drop, banner text contrast |
+| T171 | frontend-connector + inline | f5c0053, f535001 (+ae803bb, 17df773) | |
+| T172 | inline | 846b09a, fec823f | own `desktop-realtime` project after the agent projects; offline = context offline + `routeWebSocket` closing the socket |
+| T173 | documentator + inline | b965f3b | build verified inline |
+
+### Phase 8 complete (T159–T173) 2026-09-27
+- Checkpoint: `turbo run lint typecheck test` 8/8 green (api 56 files / 723 tests, web 44 files / 248 tests); coverage api 91.19% / web 78.93% lines (gate 80/70); e2e 13/13 (desktop, mobile, chat, agent, realtime projects; the first run after `restart web` failed the same two cold-start specs as Phase 7, the rerun passed); redocly valid; docs build passes (12 pages).
+- Reviewer: PASS. One major (a count hint lost if the worker crashed inside the 500 ms window), fixed (P8-2). Warnings: the before-first-reply rule was undocumented (now in research D20; product question left to the user).
+- Also fixed during the checkpoint: the pool exhaustion above (P8-7), a support-token test that tampered the last base64url character (sometimes a no-op, c8b233d), and the route-audit message test.
+- Reviewer didn't read: NotificationsPage, the DeskLayout wiring, the web test assertions in detail, realtime.spec.ts, the `moved` change in data/tickets.ts, the guide.
+- Follow-ups: a cross-tenant check for body-keyed routes like `POST /notifications/read` isn't generated (non-GET routes without path ids are skipped by the suite); add a hand-written case for each new one. The inline RoleEditorPage `Form` confirm hook from Phase 5 is still open.
+
+### Stopped here 2026-09-27
+- User scope (finish Phase 7, run Phase 8) done. Next is Phase 9 (US5, T174+).
+
 ### Resume notes (Phase 4) 2026-09-25
 - User scope: finish Phase 3 and Phase 4, then stop. Phase 3 is done; Phase 4 (T074–T090) is next, starting at T074.
 - Checks: `docker compose run --rm -T tools bash -c 'set -o pipefail; pnpm turbo run lint typecheck test --continue'`; coverage `./scripts/check-coverage.sh`; e2e `docker compose --profile e2e run --rm -T playwright bash -c 'cd /repo && pnpm --filter web exec playwright test e2e/'` after `pnpm --filter api seed:dev`.
