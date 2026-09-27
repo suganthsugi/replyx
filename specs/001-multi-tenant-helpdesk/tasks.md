@@ -384,7 +384,7 @@ everything they missed exactly once (spec US8).
 - [X] T162 [US8] Implement `apps/api/src/notifications/recipient-resolver.ts`: for the nine event types in FR-079 start from owner, group view access, Ungrouped access, mentions and subscriptions; drop the actor (FR-081); drop anyone who can't currently view the ticket (policy service); apply master switch and per-event/channel preferences with tenant defaults (research D20)
 - [X] T163 [US8] Implement `apps/api/src/notifications/notifications.consumer.ts` (idempotent; maps domain events to notification events; in-app channel creates or updates notifications with `group_key` batching over 2 minutes; dedupes on `notification_deliveries`; publishes `notification.created` / `notification.updated` to the `user` room) and `apps/api/src/notifications/notification-defaults.contributor.ts` (tenant defaults on provisioning)
 - [X] T164 [US8] Implement `apps/api/src/notifications/notifications.controller.ts`: `GET /notifications` (`unread` filter, `unreadCount`), `POST /notifications/read` (ids or all; emits `notification.read` to every session), `GET/PUT /notification-preferences` (in-app toggles; push/email toggles stored now, delivered in US15)
-- [ ] T165 [US8] Merge `/views/counts`, `/views/order`, `DELETE /views/{id}`, `/notifications*` and `/notification-preferences` into `apps/api/openapi.yaml`
+- [X] T165 [US8] Merge `/views/counts`, `/views/order`, `DELETE /views/{id}`, `/notifications*` and `/notification-preferences` into `apps/api/openapi.yaml`
 
 ### Tests
 
