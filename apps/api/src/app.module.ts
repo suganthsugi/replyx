@@ -11,6 +11,7 @@ import { GroupsHttpModule } from './groups/groups.controller.js';
 import { IdentityJobsModule } from './identity/erasure.job.js';
 import { MessagingHttpModule, MessagingModule } from './messaging/messaging.module.js';
 import { MessagingJobsModule } from './messaging/offline-reply-email.consumer.js';
+import { NotificationsHttpModule, NotificationsJobsModule } from './notifications/notifications.module.js';
 import { ClockModule } from './platform-kernel/clock.js';
 import { DatabaseModule } from './platform-kernel/db/database.js';
 import { JobsModule } from './platform-kernel/jobs/jobs.module.js';
@@ -77,6 +78,7 @@ export class AppModule {
       TagsHttpModule,
       CustomersHttpModule,
       ViewsModule,
+      NotificationsHttpModule,
     ];
     // Outbox relay, queue consumers and sweepers (worker only).
     const workerOnly: ModuleImports = [
@@ -88,6 +90,7 @@ export class AppModule {
       TicketsJobsModule,
       TicketSweeperModule,
       ViewsJobsModule,
+      NotificationsJobsModule,
     ];
 
     return {
