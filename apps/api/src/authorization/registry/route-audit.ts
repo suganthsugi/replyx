@@ -27,8 +27,11 @@ const AUDIENCE_PREFIX: Readonly<Partial<Record<RouteAccess['kind'], string>>> = 
   operator: 'platform',
 };
 
-/** `@StaffApi()` skips the permission check, so it is confined to the caller's own account. */
-const STAFF_API_SEGMENTS: ReadonlySet<string> = new Set(['auth', 'me']);
+/**
+ * `@StaffApi()` skips the permission check, so it is confined to the caller's own account: sign-in
+ * and `/me`, and their own notification center and preferences (T164).
+ */
+const STAFF_API_SEGMENTS: ReadonlySet<string> = new Set(['auth', 'me', 'notifications', 'notification-preferences']);
 
 function firstSegment(path: string): string {
   return path.split('/').find((segment) => segment !== '') ?? '';
@@ -53,7 +56,7 @@ export function auditRoutes(routes: readonly RouteInfo[], knownPermission: (key:
     }
     const segment = firstSegment(route.path);
     if (access.kind === 'staff' && !STAFF_API_SEGMENTS.has(segment)) {
-      problems.push(`${label}: @StaffApi() routes may only live under /auth or /me`);
+      problems.push(`${label}: @StaffApi() routes may only live under /auth, /me, /notifications or /notification-preferences`);
     }
     // Each audience lives under its prefix; the prefix also holds that audience's public routes
     // (customer sign-in links, operator sign-in) and nothing else.
