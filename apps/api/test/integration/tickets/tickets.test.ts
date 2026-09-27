@@ -438,6 +438,29 @@ describe('PATCH /tickets/{id}', () => {
     expect(body<TicketBody>(moved).group?.id).toBe(destination.id);
   });
 
+  it('unassigns an owner who cannot edit the destination group when a move names no owner (FR-040)', async () => {
+    const tenant = await createTenant();
+    const admin = await createUser(tenant, { roles: ['admin'] });
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const source = await createGroup(tenant, { access: [{ role: 'agent', flags: { view: true, edit: true } }] });
+    const destination = await createGroup(tenant); // the agent has no access here
+    const shared = await createGroup(tenant, { access: [{ role: 'agent', flags: { view: true, edit: true } }] });
+    const agent = await createUser(tenant, { roles: ['agent'] });
+
+    const ticket = await createTicket(tenant, { customer, group: source.id, owner: agent.id, state: 'open' });
+    const moved = await asUser(admin).patch(`/tickets/${ticket.id}`, { groupId: destination.id });
+    expect(moved.status).toBe(200);
+    expect((await inspect(tenant, (tx, repo) => repo.ticket(tx, ticket.id)))?.owner_id).toBeNull();
+    const history = await inspect(tenant, (tx, repo) => repo.history(tx, ticket.id, 'owner_id'));
+    expect(history).toEqual([{ old_value: agent.id, new_value: null }]);
+
+    // An owner who can edit the destination too stays.
+    const kept = await createTicket(tenant, { customer, group: source.id, owner: agent.id, state: 'open' });
+    const keptMove = await asUser(admin).patch(`/tickets/${kept.id}`, { groupId: shared.id });
+    expect(keptMove.status).toBe(200);
+    expect((await inspect(tenant, (tx, repo) => repo.ticket(tx, kept.id)))?.owner_id).toBe(agent.id);
+  });
+
   it('moves a ticket out of Ungrouped with only edit there, no create needed on the destination (triage move)', async () => {
     const tenant = await createTenant();
     const destination = await createGroup(tenant); // agent has no access at all here
