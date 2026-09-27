@@ -30,8 +30,14 @@ export const viewCountKeys = {
   all: ['view-counts'] as const,
 };
 
+/**
+ * A backstop refetch: a trailing count hint can be lost if the worker crashes inside its 500 ms
+ * window (api/src/views/counts-notifier.ts). Cheap, since the server caches counts for 30 s.
+ */
+export const VIEW_COUNTS_REFETCH_MS = 60_000;
+
 export function useViewCounts() {
-  const query = useGetViewCounts<GetViewCounts200>({ query: { queryKey: viewCountKeys.all } });
+  const query = useGetViewCounts<GetViewCounts200>({ query: { queryKey: viewCountKeys.all, refetchInterval: VIEW_COUNTS_REFETCH_MS } });
   return { ...query, error: query.error ? mapError(query.error) : undefined };
 }
 
