@@ -121,4 +121,6 @@ Every tenant starts with a set of built-in views, each scoped to what you're all
 
 An admin can edit, hide, or reorder these views, and you can build your own — see
 [Roles and groups](/admin/roles-and-groups/) for how group access shapes what any view can show
-you. No matter which view you use, it only ever lists tickets in groups you have access to.
+you. No matter which view you use, it only ever lists tickets in groups you have access to. See
+[Views and notifications](/guides/views-and-notifications/) for how view counts update live, how to
+hide or reorder views, and how notifications work.
