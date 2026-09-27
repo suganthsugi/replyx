@@ -11,6 +11,7 @@ import { Navigate, Outlet, useNavigate, useParams } from 'react-router';
 
 import { CommandBar } from '../../components/shell/CommandBar';
 import { DesignSystemScope } from '../../components/shell/DesignSystemScope';
+import { NotificationCenter } from '../../components/shell/NotificationCenter';
 import { useToast } from '../../components/shell/Toast';
 import { useMe, useUpdateMe } from '../../data/auth';
 import { mapError } from '../../data/errors';
@@ -72,6 +73,15 @@ export default function DeskLayout() {
     [routeParams.viewId, views.data, navigate, toast],
   );
 
+  const onOpenNotificationTicket = useCallback(
+    (ticketId: string) => {
+      const viewId = routeParams.viewId ?? views.data?.[0]?.id;
+      if (viewId === undefined) return;
+      void navigate(`${WORKSPACE_BASE}/inbox/${viewId}/${ticketId}`);
+    },
+    [routeParams.viewId, views.data, navigate],
+  );
+
   if (meQuery.error?.code === 'UNAUTHENTICATED') {
     return <Navigate to={`${WORKSPACE_BASE}/sign-in`} replace />;
   }
@@ -125,8 +135,7 @@ export default function DeskLayout() {
 
           <Box sx={{ flex: 1 }} />
 
-          {/* Notification slot (US8, T170): reserved so this layout doesn't need to change shape when it lands. */}
-          <Box aria-hidden="true" sx={{ width: 8 }} />
+          <NotificationCenter onOpenTicket={onOpenNotificationTicket} />
 
           {meQuery.data !== undefined && <AvailabilityMenu availability={meQuery.data.availability ?? 'online'} />}
 
