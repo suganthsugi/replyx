@@ -389,7 +389,7 @@ everything they missed exactly once (spec US8).
 ### Tests
 
 - [X] T166 [P] [US8] Unit tests `apps/api/test/unit/notifications/recipient-resolver.test.ts`: each of the nine events, actor excluded, recipients without view access excluded, customers never receive internal-note notifications, preferences applied
-- [ ] T167 [P] [US8] Integration tests `apps/api/test/integration/notifications/notifications.test.ts`: several customer messages before a reply produce one "new ticket" notification; a burst groups into one entry with a count; same event never duplicates; read state syncs to a second socket; @mention on a note notifies the mentioned user (US6 scenario 3); add `notification` fixture to `apps/api/test/cross-tenant/fixtures.ts`
+- [X] T167 [P] [US8] Integration tests `apps/api/test/integration/notifications/notifications.test.ts`: several customer messages before a reply produce one "new ticket" notification; a burst groups into one entry with a count; same event never duplicates; read state syncs to a second socket; @mention on a note notifies the mentioned user (US6 scenario 3); add `notification` fixture to `apps/api/test/cross-tenant/fixtures.ts`
 - [ ] T168 [P] [US8] Integration tests `apps/api/test/integration/realtime/catch-up.test.ts`: staff socket disconnects, three events happen, reconnect with `sync` delivers all three once in order; counts hint arrives within 2 s of a change (SC-002, SC-007)
 
 ### Implementation (frontend)
