@@ -27,6 +27,7 @@ const RoleEditorPage = lazy(() => import('../pages/admin/roles/RoleEditorPage'))
 const GroupsPage = lazy(() => import('../pages/admin/groups/GroupsPage'));
 const SupportAccessPage = lazy(() => import('../pages/admin/support-access/SupportAccessPage'));
 const OrganizationSettingsPage = lazy(() => import('../pages/admin/settings/OrganizationSettingsPage'));
+const AuditLogPage = lazy(() => import('../pages/admin/audit/AuditLogPage'));
 // The inbox (US6) is most of the workspace's code; its own chunk keeps admin-only visits light.
 const InboxPage = lazy(() => import('../pages/desk/inbox/InboxPage'));
 const NotificationsPage = lazy(() => import('../pages/desk/notifications/NotificationsPage'));
@@ -77,6 +78,7 @@ export default function WorkspaceArea() {
               <Route path="groups" element={<GroupsPage />} />
               <Route path="support-access" element={<SupportAccessPage />} />
               <Route path="settings" element={<OrganizationSettingsPage />} />
+              <Route path="audit" element={<AuditLogPage />} />
             </Route>
           </Route>
           <Route path="*" element={<NotFoundPage />} />
