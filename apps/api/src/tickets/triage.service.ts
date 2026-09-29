@@ -59,7 +59,7 @@ export class TriageService {
 
       if (before.group_id !== null) {
         if (ungroupedEdit === 'allow' && (canView(access, before.group_id) || (await new TriageHistory(ctx).leftUngrouped(tx, ticketId)))) {
-          throw conflict('ALREADY_TRIAGED', 'Someone else already triaged this ticket');
+          throw conflict('ALREADY_TRIAGED', 'This ticket has already been triaged');
         }
         if (canView(access, before.group_id)) throw permissionDenied();
         throw notFound('ticket');
