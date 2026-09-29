@@ -1210,7 +1210,10 @@ paths:
       description: Only the fields sent are changed. brandColors.primary must contrast at least 4.5:1 against white (it
         fills the customer chat bubble/button); a failing value returns 400 VALIDATION_FAILED with
         details[].path "brandColors.primary", details[].issue "insufficient_contrast" and details[].suggestion set to an
-        AA-compliant shade of the same color. Retention, businessHoursId and notificationDefaults are not accepted here yet.
+        AA-compliant shade of the same color. businessHoursId and notificationDefaults are not accepted here yet.
+        Shortening retentionPeriod (from forever, or to fewer years) deletes closed tickets past the new cutoff; when that
+        would purge any, the request needs confirmPurgeCount equal to the current count, otherwise it returns 409
+        RETENTION_CONFIRMATION_REQUIRED carrying that count and nothing is changed.
       requestBody:
         required: true
         content:
@@ -1228,6 +1231,13 @@ paths:
           $ref: "#/components/responses/ValidationFailed"
         "403":
           $ref: "#/components/responses/PermissionDenied"
+        "409":
+          description: RETENTION_CONFIRMATION_REQUIRED, details[0] has path "confirmPurgeCount", issue
+            "confirmation_required" and purgeCount, the number of closed tickets the change would delete
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /support-access:
     get:
       operationId: listSupportAccessGrants
@@ -2597,6 +2607,76 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /audit-logs:
+    get:
+      operationId: listAuditLogs
+      tags:
+        - operations
+      summary: Append-only audit log, newest first (audit_log.view, FR-092)
+      description: Unknown query parameters return 400. from and to are inclusive.
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: actorId
+          in: query
+          description: Only entries by this actor
+          schema:
+            type: string
+            format: uuid
+        - name: action
+          in: query
+          description: Exact action key
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+            examples:
+              - ticket.assigned
+        - name: resourceType
+          in: query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 64
+        - name: resourceId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: from
+          in: query
+          description: Earliest occurredAt, inclusive
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          description: Latest occurredAt, inclusive
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: Entries, newest first
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PageMeta"
+                  - type: object
+                    required:
+                      - items
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/AuditLog"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
   /notifications:
     get:
       operationId: listNotifications
@@ -2842,7 +2922,7 @@ components:
               type: string
             details:
               type: array
-              description: Only present for validation errors
+              description: Only present for validation errors and RETENTION_CONFIRMATION_REQUIRED
               items:
                 type: object
                 required:
@@ -2856,9 +2936,70 @@ components:
                   suggestion:
                     type: string
                     description: A value that would pass this check, e.g. an AA-contrast-compliant color for insufficient_contrast
+                  purgeCount:
+                    type: integer
+                    minimum: 0
+                    description: Only for RETENTION_CONFIRMATION_REQUIRED, the number of closed tickets the change would delete;
+                      resend it as confirmPurgeCount
             retryAfter:
               type: integer
               description: Seconds, only for RATE_LIMITED
+    AuditLog:
+      type: object
+      required:
+        - id
+        - occurredAt
+        - actor
+        - action
+        - resourceType
+        - resourceId
+        - details
+        - ip
+      properties:
+        id:
+          type: string
+          format: uuid
+        occurredAt:
+          type: string
+          format: date-time
+        actor:
+          type: object
+          required:
+            - kind
+            - id
+          properties:
+            kind:
+              type: string
+              enum:
+                - user
+                - operator
+                - system
+                - automation
+            id:
+              type:
+                - string
+                - "null"
+              format: uuid
+            name:
+              type: string
+        action:
+          type: string
+          examples:
+            - ticket.assigned
+        resourceType:
+          type: string
+        resourceId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        details:
+          type: object
+          additionalProperties: true
+        ip:
+          type:
+            - string
+            - "null"
     PageMeta:
       type: object
       required:
@@ -3328,6 +3469,8 @@ components:
         - afterCloseBehavior
         - offlineCustomerNotification
         - outOfHoursMessage
+        - retentionPeriod
+        - auditRetention
       properties:
         name:
           type: string
@@ -3362,10 +3505,37 @@ components:
             - string
             - "null"
           maxLength: 500
+        retentionPeriod:
+          $ref: "#/components/schemas/RetentionPeriod"
+        auditRetention:
+          $ref: "#/components/schemas/AuditRetention"
+    RetentionPeriod:
+      type: string
+      description: How long after closure a closed ticket is kept before it is purged; forever keeps it indefinitely
+      enum:
+        - forever
+        - P1Y
+        - P2Y
+        - P3Y
+        - P4Y
+        - P5Y
+        - P6Y
+        - P7Y
+    AuditRetention:
+      type: string
+      description: How long audit entries are kept (at least one year); forever keeps them indefinitely
+      enum:
+        - forever
+        - P1Y
+        - P2Y
+        - P3Y
+        - P5Y
+        - P7Y
+        - P10Y
     TenantSettingsUpdate:
       type: object
-      description: Only the fields sent are changed; retentionPeriod, auditRetention, businessHoursId and
-        notificationDefaults are not accepted here yet.
+      description: Only the fields sent are changed; businessHoursId and notificationDefaults are not accepted here yet.
+        Shortening retentionPeriod (from forever, or to fewer years) that would purge closed tickets needs confirmPurgeCount.
       additionalProperties: false
       properties:
         name:
@@ -3402,6 +3572,15 @@ components:
             - string
             - "null"
           maxLength: 500
+        retentionPeriod:
+          $ref: "#/components/schemas/RetentionPeriod"
+        auditRetention:
+          $ref: "#/components/schemas/AuditRetention"
+        confirmPurgeCount:
+          type: integer
+          minimum: 0
+          description: The purgeCount from a 409 RETENTION_CONFIRMATION_REQUIRED response, resent to confirm the purge.
+            Request only; never returned.
     SupportSession:
       type: object
       required:

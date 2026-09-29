@@ -117,9 +117,9 @@ paths:
         - $ref: 'common.yaml#/components/parameters/Limit'
         - $ref: 'common.yaml#/components/parameters/Cursor'
         - { name: actorId, in: query, schema: { type: string, format: uuid } }
-        - { name: action, in: query, schema: { type: string, examples: [ticket.assigned] } }
-        - { name: resourceType, in: query, schema: { type: string } }
-        - { name: resourceId, in: query, schema: { type: string } }
+        - { name: action, in: query, schema: { type: string, minLength: 1, maxLength: 100, examples: [ticket.assigned] } }
+        - { name: resourceType, in: query, schema: { type: string, minLength: 1, maxLength: 64 } }
+        - { name: resourceId, in: query, schema: { type: string, format: uuid } }
         - { name: from, in: query, schema: { type: string, format: date-time } }
         - { name: to, in: query, schema: { type: string, format: date-time } }
       responses:
@@ -137,19 +137,20 @@ paths:
                         type: array
                         items:
                           type: object
-                          required: [id, occurredAt, actor, action, resourceType]
+                          required: [id, occurredAt, actor, action, resourceType, resourceId, details, ip]
                           properties:
                             id: { type: string, format: uuid }
                             occurredAt: { type: string, format: date-time }
                             actor:
                               type: object
+                              required: [kind, id]
                               properties:
                                 kind: { type: string, enum: [user, operator, system, automation] }
-                                id: { type: [string, 'null'] }
+                                id: { type: [string, 'null'], format: uuid }
                                 name: { type: string }
                             action: { type: string }
                             resourceType: { type: string }
-                            resourceId: { type: [string, 'null'] }
+                            resourceId: { type: [string, 'null'], format: uuid }
                             details: { type: object }
                             ip: { type: [string, 'null'] }
   /settings:
