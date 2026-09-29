@@ -5,6 +5,7 @@ import {
   contrastRatio,
   meetsAAContrast,
   nearestAACompliantShade,
+  SUGGESTED_TEXT_CONTRAST,
 } from '../../../src/tenancy/contrast.js';
 
 /**
@@ -102,5 +103,22 @@ describe('nearestAACompliantShade', () => {
   it('finds a passing shade for a zero-saturation gray by darkening it', () => {
     const suggestion = nearestAACompliantShade('#808080');
     expect(meetsAAContrast(suggestion)).toBe(true);
+  });
+
+  it('reaches a target above the threshold when asked, like the suggestion the API makes', () => {
+    for (const input of ['#eeeeee', '#6699ff', '#808080', '#777777', '#ffcc00']) {
+      const suggestion = nearestAACompliantShade(input, undefined, SUGGESTED_TEXT_CONTRAST);
+      expect(contrastRatio(suggestion, '#ffffff'), input).toBeGreaterThanOrEqual(SUGGESTED_TEXT_CONTRAST);
+    }
+  });
+
+  it('keeps the pass/fail threshold at 4.5 while suggestions aim 0.1 higher', () => {
+    expect(AA_NORMAL_TEXT_CONTRAST).toBe(4.5);
+    expect(SUGGESTED_TEXT_CONTRAST).toBeCloseTo(4.6, 10);
+    // A color between 4.5 and 4.6 passes as chosen, so it is never "corrected" by a suggestion.
+    const between = '#767676';
+    expect(contrastRatio(between, '#ffffff')).toBeGreaterThanOrEqual(AA_NORMAL_TEXT_CONTRAST);
+    expect(contrastRatio(between, '#ffffff')).toBeLessThan(SUGGESTED_TEXT_CONTRAST);
+    expect(meetsAAContrast(between)).toBe(true);
   });
 });
