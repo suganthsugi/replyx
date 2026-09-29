@@ -269,6 +269,35 @@ Start commit: b4afe6b
 ### Stopped here 2026-09-27
 - User scope (finish Phase 7, run Phase 8) done. Next is Phase 9 (US5, T174+).
 
+### Resume notes (Phase 9) 2026-09-29
+- User scope: continue where we left off and stop after the next phase; then, while the Phase 9 checkpoint ran, "continue with the next phase" (Phase 10).
+- Jira still skipped: the Atlassian MCP server failed to connect this session (and 7f369ba removed it from the workflow). Flagged to the user again.
+- Docker Desktop was not running; started it from `%LOCALAPPDATA%\Programs\DockerDesktop`. The host has no pnpm or python: run `scripts/check-coverage.sh` inside the tools container. The dev API is `http://acme.localhost:3000/api/v1`; its cookies are `Secure`, so curl over http must pass them as a header (scratchpad `live/lib.sh`).
+
+### Phase 9 decisions (2026-09-29)
+- P9-1 Triage (`tickets/triage.service.ts`) reuses `TicketsService.applyLocked`, the locked-update half of `update` (split out, a368a60). Order of checks: row lock; a ticket already in a group the caller can't see is 404; one they can see is 409 `ALREADY_TRIAGED` with edit on Ungrouped, else 403; an ungrouped ticket needs view (404) and edit (403) on Ungrouped.
+- P9-2 A race lost to a triage into a group the loser can't see answers the unknown-ticket 404, never `ALREADY_TRIAGED` (reviewer major: a history-based 409 confirmed tickets to users who had never had access). The web hook turns a triage 404 into `{ visibleToCaller: false, alreadyTriaged: true }`; the bar announces "Someone else already triaged this ticket." and closes the ticket.
+- P9-3 An unknown destination group is 404 `GROUP_NOT_FOUND` (was 409 `GROUP_INACTIVE`), for `PATCH /tickets/{id}` too.
+- P9-4 User decision: `GET /groups/destinations` (`ticket.edit`; active groups' id and name only). Manager and Agent defaults have no `group.view` (data-model role table), so the desk pickers (TriageBar, TicketFocus, NewTicketDialog) were empty for them; `GET /groups` also returns `openTicketCount`, which they shouldn't see. Admin pages keep `GET /groups`.
+- P9-5 While the triage bar shows (ungrouped + `change_group`), the ticket strip hides its priority, group, owner, "Assign to me" and tags controls. The agent-flow e2e now triages its ticket to Support before assigning it.
+- P9-6 TriageBar shortcuts: `G`/`O` focus Group/Owner when not typing; `Enter` assigns only from its own Group/Owner input with the listbox closed (it used to fire from anywhere once a group was picked, e.g. on a focused list row). The listener is in the capture phase so the check sees the listbox as it was before Autocomplete handles the key; e2e passed with and without that, so it is hardening, not a proven fix.
+
+| task | agent | commit | notes |
+|------|-------|--------|-------|
+| T174 | inline | a368a60, c273e60, 504deac, b034888, ae2e47c | live-checked on dev: 404 without Ungrouped, 409 OWNER_NOT_ELIGIBLE, 404 unknown group, 200 `visibleToCaller:false`, 409 on retry; history + events + notifications |
+| T175 | inline | 5c6d539, 238088c, be34282, 5987f8d | hand-inserted into openapi.yaml; redocly valid |
+| T176 | test-automator + inline | 3510de0, 723f36b | 11 cases; cross-tenant suite 51/51 (fixture body for the triage route); race tests stable over 3 reruns |
+| T177 | frontend-agent + inline | f2844c7, 3eb9c9a, 70cb789, 8a755aa, 92b1aae, bb4caee, 3c0d225, 58d033b, b540c9f | inline fixes: Enter scope, duplicate strip controls, destinations endpoint (P9-4) |
+| T178 | frontend-connector + inline | 60d7039, ee18d3b, acde090 | 404-as-lost-race handling (P9-2) added inline |
+| T179 | frontend-automator + inline | 59320ec, f32550f | own `desktop-triage` project after `desktop-realtime`; 4 sign-ins for the whole spec; the agent found the empty group list and the duplicate Owner control |
+| T180 | documentator + inline | 839e9d9, db3915f | build passes (13 pages) |
+
+### Phase 9 complete (T174–T180) 2026-09-29
+- Checkpoint: api 57 files / 737 tests; coverage api 91.24% / web 79.43% lines (gate 80/70); web 46 files / 261 tests when run alone. In the turbo run the web tests failed once while the api suite loaded the machine (the known `areas.test.tsx` 10 s lazy-load wait); passes alone. E2E 14/14 on the second run (first run after `restart web`: the usual 3 cold-start desktop failures). redocly valid; docs build passes.
+- Reviewer: PASS. Major fixed (P9-2). Warnings fixed: direct tests for the invisible-destination race and the grouped-ticket 403; the refetch after `ALREADY_TRIAGED` no longer leaves an unhandled rejection.
+- Reviewer didn't read: TicketFocus beyond the diff, NewTicketDialog and fixture diffs, generated client, `allowedActions`, repository internals, the docs sidebar.
+- Follow-ups: `areas.test.tsx`'s 10 s lazy wait is tight under full parallel load; the e2e after the P9-2 fixes was not rerun separately (covered by the Phase 10 checkpoint).
+
 ### Resume notes (Phase 4) 2026-09-25
 - User scope: finish Phase 3 and Phase 4, then stop. Phase 3 is done; Phase 4 (T074–T090) is next, starting at T074.
 - Checks: `docker compose run --rm -T tools bash -c 'set -o pipefail; pnpm turbo run lint typecheck test --continue'`; coverage `./scripts/check-coverage.sh`; e2e `docker compose --profile e2e run --rm -T playwright bash -c 'cd /repo && pnpm --filter web exec playwright test e2e/'` after `pnpm --filter api seed:dev`.
