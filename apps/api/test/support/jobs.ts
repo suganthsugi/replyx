@@ -1,3 +1,6 @@
+import { sql, type Kysely } from 'kysely';
+import { vi } from 'vitest';
+
 import { PLATFORM_DB, type Database } from '../../src/platform-kernel/db/database.js';
 import { TenantContext } from '../../src/platform-kernel/db/tenant-context.js';
 import { TenantRepository } from '../../src/platform-kernel/db/tenant-repository.js';
@@ -9,9 +12,10 @@ import { AccessLossConsumer } from '../../src/tickets/access-loss.consumer.js';
 import { TicketSweeperJob } from '../../src/tickets/sweeper.job.js';
 import { TicketHistoryService } from '../../src/tickets/ticket-history.service.js';
 
-import { getTestApp, service } from './app.js';
+import { getTestApp, getTestWorker, service } from './app.js';
 
-import type { Kysely } from 'kysely';
+import type { Clock } from '../../src/platform-kernel/clock.js';
+
 
 /**
  * Drives worker-only job classes directly, the way test/integration/attachments/attachments.test.ts
@@ -37,7 +41,8 @@ export async function runAccessLoss(tenantId: string, type: string): Promise<voi
   if (result !== 'handled') throw new Error(`Access-loss consumer did not run ${type}: ${result}`);
 }
 
-export async function sweeperJob(): Promise<TicketSweeperJob> {
+/** `sweeperClock` overrides the sweeper's own view of time (default: the app's TestClock), to stage a sweeper that sees a timer as due before the router does. */
+export async function sweeperJob(sweeperClock?: Clock): Promise<TicketSweeperJob> {
   const { app, clock } = await getTestApp();
   const [unitOfWork, outbox, history, queues] = await Promise.all([
     service(UnitOfWork),
@@ -46,7 +51,7 @@ export async function sweeperJob(): Promise<TicketSweeperJob> {
     service(QueueRegistry),
   ]);
   const platformDb = app.get<Kysely<Database>>(PLATFORM_DB);
-  return new TicketSweeperJob(unitOfWork, outbox, clock, history, queues, platformDb);
+  return new TicketSweeperJob(unitOfWork, outbox, sweeperClock ?? clock, history, queues, platformDb);
 }
 
 class LatestEventRepository extends TenantRepository {
@@ -75,4 +80,23 @@ export async function countEventsOfType(tenantId: string, type: string): Promise
   const unitOfWork = await service(UnitOfWork);
   const row = await unitOfWork.withTenant(ctx, (tx) => new LatestEventRepository(ctx).countByType(tx, type));
   return Number(row.count);
+}
+
+/**
+ * Starts the worker (relay) and waits until no outbox event, in any tenant, is unpublished. The
+ * outbox is database-wide and shared by every file in a run, so a file that appends many events
+ * without a worker leaves a backlog the next file's relay must chew through (id order, 500 per
+ * batch, one BullMQ job per consumer) before its own events are delivered.
+ */
+export async function drainOutbox(timeoutMs = 120_000): Promise<void> {
+  await getTestWorker();
+  const { app } = await getTestApp();
+  const platformDb = app.get<Kysely<Database>>(PLATFORM_DB);
+  await vi.waitFor(
+    async () => {
+      const { rows } = await sql<{ count: string }>`SELECT count(*) AS count FROM outbox_events WHERE published_at IS NULL`.execute(platformDb);
+      if (Number(rows[0]?.count ?? 0) !== 0) throw new Error('outbox backlog not drained');
+    },
+    { timeout: timeoutMs, interval: 250 },
+  );
 }
