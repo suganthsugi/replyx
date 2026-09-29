@@ -6,6 +6,7 @@ import { RequirePermission } from '../authorization/registry/module-permissions.
 import { tenantContextOf } from '../platform-kernel/http/request-context.js';
 import { ZodValidationPipe } from '../platform-kernel/http/validation.pipe.js';
 
+import { AUDIT_RETENTIONS, RETENTION_PERIODS } from './retention/retention-period.js';
 import { TenantSettingsService, type TenantSettingsDto } from './settings.service.js';
 
 import type { Request } from 'express';
@@ -13,9 +14,10 @@ import type { Request } from 'express';
 /**
  * Tenant settings (contracts/operations.yaml `/settings`, T183). `tenant_settings.view` /
  * `tenant_settings.edit` are declared in `authorization/registry/initial-permissions.ts`.
- * Retention, `businessHoursId` and `notificationDefaults` are not accepted here yet (see
+ * `businessHoursId` and `notificationDefaults` are not accepted here yet (see
  * `settings.service.ts`); `.strict()` rejects them as unknown keys rather than silently ignoring
- * them.
+ * them. `retentionPeriod` / `auditRetention` (T193) are accepted; shortening `retentionPeriod`
+ * needs `confirmPurgeCount`.
  */
 
 const HexColor = z.string().trim().regex(/^#[0-9a-f]{6}$/i, { message: 'invalid_format' });
@@ -46,6 +48,9 @@ const PatchBody = z
     afterCloseBehavior: z.enum(['new_follow_up', 'reopen_previous']).optional(),
     offlineCustomerNotification: z.enum(['email', 'off']).optional(),
     outOfHoursMessage: z.string().trim().max(500).nullable().optional(),
+    retentionPeriod: z.enum(RETENTION_PERIODS).optional(),
+    auditRetention: z.enum(AUDIT_RETENTIONS).optional(),
+    confirmPurgeCount: z.int().min(0).optional(),
   })
   .strict();
 

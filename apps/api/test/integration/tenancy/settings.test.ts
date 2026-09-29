@@ -156,7 +156,7 @@ describe('PATCH /settings', () => {
       [{ gracePeriodHours: 721 }, [{ path: 'gracePeriodHours', issue: 'too_large' }]],
       [{ welcomeMessage: 'x'.repeat(501) }, [{ path: 'welcomeMessage', issue: 'too_long' }]],
       [{ timezone: 'Mars/Base' }, [{ path: 'timezone', issue: 'invalid' }]],
-      [{ retentionPeriod: 30 }, [{ path: 'retentionPeriod', issue: 'unrecognized_key' }]],
+      [{ businessHoursId: 'x' }, [{ path: 'businessHoursId', issue: 'unrecognized_key' }]],
     ] as const) {
       const response = await asUser(admin).patch('/settings', body);
       expect(response.status).toBe(400);

@@ -25,6 +25,7 @@ import { OutboxRelayModule } from './platform-kernel/outbox/relay.js';
 import { RealtimeModule } from './platform-kernel/realtime/gateway.js';
 import { RedisModule } from './platform-kernel/redis/redis.module.js';
 import { TagsHttpModule, TagsModule } from './tags/tags.module.js';
+import { RetentionJobsModule } from './tenancy/retention/retention.module.js';
 import { TenancyHttpModule } from './tenancy/tenancy-http.module.js';
 import { TenancyModule } from './tenancy/tenant-provisioning.service.js';
 import { TicketsJobsModule } from './tickets/access-loss.consumer.js';
@@ -89,6 +90,7 @@ export class AppModule {
       AttachmentJobsModule,
       TicketsJobsModule,
       TicketSweeperModule,
+      RetentionJobsModule,
       ViewsJobsModule,
       NotificationsJobsModule,
     ];

@@ -6,15 +6,22 @@ import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-o
 import { validationFailed } from '../platform-kernel/http/app-error.js';
 
 import { AA_NORMAL_TEXT_CONTRAST, meetsAAContrast, nearestAACompliantShade } from './contrast.js';
+import { isShortening, type AuditRetention, type RetentionPeriod } from './retention/retention-period.js';
+import { retentionConfirmationRequired, RetentionService } from './retention/retention.service.js';
 
 import type { JsonValue } from '../platform-kernel/db/tables/column-types.js';
 import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
 
 /**
  * Tenant settings (T183, contracts/operations.yaml `/settings`, FR-005, `tenant_settings.view` /
- * `tenant_settings.edit`). Retention (`retentionPeriod`, `auditRetention`), `businessHoursId` and
- * `notificationDefaults` (its own route, `/notification-preferences`) are not part of this DTO
- * yet — they arrive with T193 and US12.
+ * `tenant_settings.edit`). Retention (`retentionPeriod`, `auditRetention`, T193, FR-005a) is part of
+ * the DTO; `businessHoursId` and `notificationDefaults` (its own route,
+ * `/notification-preferences`) are not yet — they arrive with US12.
+ *
+ * Shortening `retentionPeriod` deletes closed tickets on the next daily purge, so it needs
+ * `confirmPurgeCount` (a request-only field) equal to the number of tickets that would go; a
+ * missing or stale count answers 409 `RETENTION_CONFIRMATION_REQUIRED` with the current count and
+ * changes nothing.
  */
 
 export interface BrandColorsDto {
@@ -33,6 +40,8 @@ export interface TenantSettingsDto {
   afterCloseBehavior: 'new_follow_up' | 'reopen_previous';
   offlineCustomerNotification: 'email' | 'off';
   outOfHoursMessage: string | null;
+  retentionPeriod: RetentionPeriod;
+  auditRetention: AuditRetention;
 }
 
 export interface TenantSettingsUpdate {
@@ -46,6 +55,10 @@ export interface TenantSettingsUpdate {
   afterCloseBehavior?: 'new_follow_up' | 'reopen_previous';
   offlineCustomerNotification?: 'email' | 'off';
   outOfHoursMessage?: string | null;
+  retentionPeriod?: RetentionPeriod;
+  auditRetention?: AuditRetention;
+  /** Not stored: the confirmation for a shortened `retentionPeriod`. */
+  confirmPurgeCount?: number;
 }
 
 interface SettingsRow {
@@ -58,6 +71,8 @@ interface SettingsRow {
   after_close_behavior: 'new_follow_up' | 'reopen_previous';
   offline_customer_notification: 'email' | 'off';
   out_of_hours_message: string | null;
+  retention_period: string;
+  audit_retention: string;
 }
 
 @Injectable()
@@ -65,6 +80,7 @@ export class TenantSettingsService {
   constructor(
     private readonly unitOfWork: UnitOfWork,
     private readonly audit: AuditService,
+    private readonly retention: RetentionService,
   ) {}
 
   get(ctx: TenantContext): Promise<TenantSettingsDto> {
@@ -79,6 +95,7 @@ export class TenantSettingsService {
     return this.unitOfWork.withTenant(ctx, async (tx) => {
       const repo = new SettingsRepository(ctx);
       const before = await this.load(tx, ctx);
+      await this.assertPurgeConfirmed(tx, before, input);
 
       const values: Partial<SettingsRow> = {};
       if (input.logoAttachmentId !== undefined) values.logo_attachment_id = input.logoAttachmentId;
@@ -90,6 +107,8 @@ export class TenantSettingsService {
       if (input.afterCloseBehavior !== undefined) values.after_close_behavior = input.afterCloseBehavior;
       if (input.offlineCustomerNotification !== undefined) values.offline_customer_notification = input.offlineCustomerNotification;
       if (input.outOfHoursMessage !== undefined) values.out_of_hours_message = input.outOfHoursMessage;
+      if (input.retentionPeriod !== undefined) values.retention_period = input.retentionPeriod;
+      if (input.auditRetention !== undefined) values.audit_retention = input.auditRetention;
       if (Object.keys(values).length > 0) await repo.update(tx, values);
 
       if (input.name !== undefined) await repo.renameTenant(tx, ctx.tenantId, input.name);
@@ -106,6 +125,13 @@ export class TenantSettingsService {
       }
       return after;
     });
+  }
+
+  /** FR-005a: a shorter retention period is applied to already-closed tickets, so the admin confirms the count first. */
+  private async assertPurgeConfirmed(tx: TenantTransaction, before: TenantSettingsDto, input: TenantSettingsUpdate): Promise<void> {
+    if (input.retentionPeriod === undefined || !isShortening(before.retentionPeriod, input.retentionPeriod)) return;
+    const purgeCount = await this.retention.countPurgeable(tx, input.retentionPeriod);
+    if (purgeCount > 0 && input.confirmPurgeCount !== purgeCount) throw retentionConfirmationRequired(purgeCount);
   }
 
   /** FR-071a: the primary brand color fills the customer chat bubble/button, read as white text. */
@@ -134,6 +160,9 @@ export class TenantSettingsService {
       afterCloseBehavior: row.after_close_behavior,
       offlineCustomerNotification: row.offline_customer_notification,
       outOfHoursMessage: row.out_of_hours_message,
+      // The table's CHECK constraints allow only these values.
+      retentionPeriod: row.retention_period as RetentionPeriod,
+      auditRetention: row.audit_retention as AuditRetention,
     };
   }
 }
@@ -176,6 +205,8 @@ class SettingsRepository extends TenantRepository {
         'tenant_settings.after_close_behavior',
         'tenant_settings.offline_customer_notification',
         'tenant_settings.out_of_hours_message',
+        'tenant_settings.retention_period',
+        'tenant_settings.audit_retention',
       ])
       .executeTakeFirstOrThrow();
     return row;
