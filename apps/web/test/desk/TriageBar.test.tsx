@@ -226,4 +226,18 @@ describe('TriageBar', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Someone else already triaged this ticket.');
   });
+
+  it('announces a lost race into a group the caller cannot see, and closes the focus', async () => {
+    setupTriageBarHandlers();
+    server.use(triageHandler('ticket-1', () => errorResponse(404, 'TICKET_NOT_FOUND', 'Ticket not found')));
+    const onClose = vi.fn();
+    const { container } = renderWithProviders(<TriageBar ticketId="ticket-1" onClose={onClose} />);
+
+    await userEvent.click(screen.getByRole('combobox', { name: 'Group' }));
+    await userEvent.click(await screen.findByRole('option', { name: 'Support' }));
+    await userEvent.click(screen.getByRole('button', { name: /Assign/ }));
+
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+    expect(container.ownerDocument.querySelector('[aria-live="assertive"]')).toHaveTextContent('Someone else already triaged this ticket.');
+  });
 });
