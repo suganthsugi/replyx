@@ -8,6 +8,14 @@
  */
 
 export const AA_NORMAL_TEXT_CONTRAST = 4.5;
+/**
+ * A suggested color aims this far above the threshold, like the web theme does
+ * (`CONTRAST_SAFETY_MARGIN` in `apps/web/src/theme/brand-accent.ts`): checkers round luminance
+ * differently, so a shade at exactly 4.50 can read as 4.47 elsewhere. The pass/fail threshold
+ * stays `AA_NORMAL_TEXT_CONTRAST`; only the suggestion gets the margin.
+ */
+export const CONTRAST_SUGGESTION_MARGIN = 0.1;
+export const SUGGESTED_TEXT_CONTRAST = AA_NORMAL_TEXT_CONTRAST + CONTRAST_SUGGESTION_MARGIN;
 /** The button/bubble fill is always read against white text (not a themed surface). */
 export const WHITE = '#ffffff';
 
