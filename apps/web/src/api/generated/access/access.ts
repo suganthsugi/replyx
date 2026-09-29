@@ -28,6 +28,7 @@ import type {
   GroupCreateInput,
   GroupInput,
   ListEligibleOwners200,
+  ListGroupDestinations200,
   ListGroups200,
   ListGroupsParams,
   ListPermissions200,
@@ -36,6 +37,7 @@ import type {
   PermissionDeniedResponse,
   Role,
   RoleInput,
+  UnauthenticatedResponse,
   ValidationFailedResponse,
 } from '.././model';
 
@@ -856,6 +858,135 @@ export const useCreateGroup = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * For the triage bar and the ticket's group picker. Ids and names only (no description or ticket counts), so it needs ticket.edit rather than group.view. The move itself is still checked per group (FR-041).
+
+ * @summary Active groups a ticket can be sent to, by name (ticket.edit)
+ */
+export const getListGroupDestinationsUrl = () => {
+  return `/groups/destinations`;
+};
+
+export const listGroupDestinations = async (
+  options?: RequestInit,
+): Promise<ListGroupDestinations200> => {
+  return http<ListGroupDestinations200>(getListGroupDestinationsUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListGroupDestinationsQueryKey = () => {
+  return [`/groups/destinations`] as const;
+};
+
+export const getListGroupDestinationsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listGroupDestinations>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof listGroupDestinations>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListGroupDestinationsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listGroupDestinations>>> = ({ signal }) =>
+    listGroupDestinations({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listGroupDestinations>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListGroupDestinationsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listGroupDestinations>>
+>;
+export type ListGroupDestinationsQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useListGroupDestinations<
+  TData = Awaited<ReturnType<typeof listGroupDestinations>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listGroupDestinations>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listGroupDestinations>>,
+          TError,
+          Awaited<ReturnType<typeof listGroupDestinations>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListGroupDestinations<
+  TData = Awaited<ReturnType<typeof listGroupDestinations>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listGroupDestinations>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listGroupDestinations>>,
+          TError,
+          Awaited<ReturnType<typeof listGroupDestinations>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListGroupDestinations<
+  TData = Awaited<ReturnType<typeof listGroupDestinations>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listGroupDestinations>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Active groups a ticket can be sent to, by name (ticket.edit)
+ */
+
+export function useListGroupDestinations<
+  TData = Awaited<ReturnType<typeof listGroupDestinations>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listGroupDestinations>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListGroupDestinationsQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
 /**
  * @summary Get a group (group.view)
  */
