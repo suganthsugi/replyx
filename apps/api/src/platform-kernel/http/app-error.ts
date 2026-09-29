@@ -9,6 +9,9 @@ export interface ErrorDetail {
   path: string;
   /** snake_case reason, e.g. `too_long`, `required`, `unrecognized_key`. */
   issue: string;
+  /** A value the client could resubmit that would pass (e.g. an AA-compliant color). Only set by
+   * checks that can compute one; never a raw echo of secret or message-body input. */
+  suggestion?: string;
 }
 
 const CODE_PATTERN = /^[A-Z][A-Z0-9_]+$/;
