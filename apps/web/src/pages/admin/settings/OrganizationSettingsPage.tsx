@@ -42,7 +42,8 @@ import { BrandPreview, contrastStatus, PRIMARY_HEX_PATTERN } from './BrandPrevie
  * Organization settings (FR-005): the workspace name, the customer chat's brand color with a live
  * contrast check and preview, the welcome and out-of-hours messages, time zone, self-registration,
  * the grace period, the after-close and offline-notification behaviors and data retention (a
- * shortened ticket period that would purge closed tickets asks for confirmation first). Viewing needs
+ * shortened period that would purge closed tickets or audit entries asks for confirmation first,
+ * one dialog per period). Viewing needs
  * `tenant_settings.view`; saving needs `tenant_settings.edit` (otherwise the form is read-only).
  * Only changed fields are sent. The API is the authority on contrast: a rejected color comes back
  * with a passing shade, offered as "Use suggested color".
@@ -102,8 +103,13 @@ function retentionLabel(value: string): string {
   return years === 1 ? '1 year' : `${years} years`;
 }
 
-/** A save the API held back until the person confirms how many closed tickets it will delete. */
+/**
+ * A save the API held back until the person confirms how many closed tickets or audit entries it
+ * will delete. `patch` already carries any count confirmed earlier in the chain (tickets first,
+ * then the audit log when both periods shorten).
+ */
 interface PendingPurge {
+  kind: 'tickets' | 'audit';
   patch: TenantSettingsUpdate;
   purgeCount: number;
   /** Set when a retry came back with a different count. */
@@ -112,6 +118,10 @@ interface PendingPurge {
 
 function ticketCount(count: number): string {
   return `${count.toLocaleString('en')} closed ${count === 1 ? 'ticket' : 'tickets'}`;
+}
+
+function auditEntryCount(count: number): string {
+  return `${count.toLocaleString('en')} audit ${count === 1 ? 'entry' : 'entries'}`;
 }
 
 function timeZones(current: string): string[] {
@@ -317,7 +327,20 @@ function SettingsForm({ settings, canEdit }: { settings: TenantSettings; canEdit
       if (mapped.retentionConfirmation !== undefined) {
         // Not a failure: ask first, then resend this same patch from the dialog.
         setConfirmError(null);
-        setPendingPurge({ patch, purgeCount: mapped.retentionConfirmation.purgeCount });
+        setPendingPurge({
+          kind: 'tickets',
+          patch,
+          purgeCount: mapped.retentionConfirmation.purgeCount,
+        });
+        return;
+      }
+      if (mapped.auditRetentionConfirmation !== undefined) {
+        setConfirmError(null);
+        setPendingPurge({
+          kind: 'audit',
+          patch,
+          purgeCount: mapped.auditRetentionConfirmation.purgeCount,
+        });
         return;
       }
       const issue = mapped.fieldErrors?.[COLOR_PATH];
@@ -344,11 +367,16 @@ function SettingsForm({ settings, canEdit }: { settings: TenantSettings; canEdit
 
   const confirmPurge = async () => {
     if (pendingPurge === null) return;
-    const { patch: held, purgeCount } = pendingPurge;
+    const { kind, patch: held, purgeCount } = pendingPurge;
+    // Resend the held patch with this count, keeping any count confirmed earlier in the chain.
+    const confirmed: TenantSettingsUpdate =
+      kind === 'tickets'
+        ? { ...held, confirmPurgeCount: purgeCount }
+        : { ...held, confirmAuditPurgeCount: purgeCount };
     setConfirming(true);
     setConfirmError(null);
     try {
-      await update.mutateAsync({ ...held, confirmPurgeCount: purgeCount });
+      await update.mutateAsync(confirmed);
       setPendingPurge(null);
       setRefocusRetention(true);
       toast({ message: 'Organization settings saved', severity: 'success' });
@@ -357,11 +385,33 @@ function SettingsForm({ settings, canEdit }: { settings: TenantSettings; canEdit
       if (mapped.retentionConfirmation !== undefined) {
         // The count moved since it was shown: ask again with the new one.
         const next = mapped.retentionConfirmation.purgeCount;
-        setPendingPurge({ patch: held, purgeCount: next, changedFrom: purgeCount });
+        setPendingPurge({
+          kind: 'tickets',
+          patch: held,
+          purgeCount: next,
+          changedFrom: kind === 'tickets' ? purgeCount : held.confirmPurgeCount,
+        });
         announce(
           `The number of tickets to delete changed to ${next.toLocaleString('en')}. Confirm again to continue.`,
           'assertive',
         );
+      } else if (mapped.auditRetentionConfirmation !== undefined) {
+        const next = mapped.auditRetentionConfirmation.purgeCount;
+        if (kind === 'audit') {
+          // Stale audit count: same patch, the new number.
+          setPendingPurge({ kind: 'audit', patch: held, purgeCount: next, changedFrom: purgeCount });
+          announce(
+            `The number of audit entries to delete changed to ${next.toLocaleString('en')}. Confirm again to continue.`,
+            'assertive',
+          );
+        } else {
+          // The tickets count is confirmed; the audit log needs its own confirmation next.
+          setPendingPurge({ kind: 'audit', patch: confirmed, purgeCount: next });
+          announce(
+            `Closed tickets confirmed. Shortening the audit log period also needs confirming: ${auditEntryCount(next)} would be deleted.`,
+            'assertive',
+          );
+        }
       } else {
         setConfirmError(mapped.message);
         announce(mapped.message, 'assertive');
@@ -624,7 +674,7 @@ function SettingsForm({ settings, canEdit }: { settings: TenantSettings; canEdit
       <Modal
         open={pendingPurge !== null}
         onClose={cancelPurge}
-        title="Delete closed tickets?"
+        title={pendingPurge?.kind === 'audit' ? 'Delete audit log entries?' : 'Delete closed tickets?'}
         maxWidth="xs"
         busy={confirming}
         actions={
@@ -641,7 +691,11 @@ function SettingsForm({ settings, canEdit }: { settings: TenantSettings; canEdit
             >
               {pendingPurge === null
                 ? 'Delete and save'
-                : `Delete ${ticketCount(pendingPurge.purgeCount)} and save`}
+                : `Delete ${
+                    pendingPurge.kind === 'audit'
+                      ? auditEntryCount(pendingPurge.purgeCount)
+                      : ticketCount(pendingPurge.purgeCount)
+                  } and save`}
             </Button>
           </>
         }
@@ -654,12 +708,21 @@ function SettingsForm({ settings, canEdit }: { settings: TenantSettings; canEdit
                 last looked.
               </Alert>
             )}
-            <Typography>
-              Shortening retention permanently deletes {ticketCount(pendingPurge.purgeCount)}{' '}
-              (messages, attachments and history) older than{' '}
-              {retentionLabel(pendingPurge.patch.retentionPeriod ?? retention)}. This can&apos;t be
-              undone.
-            </Typography>
+            {pendingPurge.kind === 'audit' ? (
+              <Typography>
+                Shortening the audit log period permanently deletes at least{' '}
+                {auditEntryCount(pendingPurge.purgeCount)} older than{' '}
+                {retentionLabel(pendingPurge.patch.auditRetention ?? auditRetention)} at the next
+                daily run. This can&apos;t be undone.
+              </Typography>
+            ) : (
+              <Typography>
+                Shortening retention permanently deletes at least{' '}
+                {ticketCount(pendingPurge.purgeCount)} (messages, attachments and history) older
+                than {retentionLabel(pendingPurge.patch.retentionPeriod ?? retention)} at the next
+                daily run. This can&apos;t be undone.
+              </Typography>
+            )}
             {confirmError !== null && <Alert severity="error">{confirmError}</Alert>}
           </Box>
         )}

@@ -103,7 +103,9 @@ describe('OrganizationSettingsPage', () => {
     expect(screen.getByText(/Contrast \d+\.\d\d:1 with white text/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
     await expectNoAxeViolations(container);
-  });
+    // The first render of the page loads MUI and the form on a cold module cache, and axe walks the
+    // whole form: this can pass 20 s on a cold or loaded machine (the global timeout is unchanged).
+  }, 60_000);
 
   it('flags a failing color as it is typed and offers the closest passing shade', async () => {
     renderPage();
@@ -404,7 +406,7 @@ describe('OrganizationSettingsPage', () => {
 
       const dialog = await screen.findByRole('dialog', { name: 'Delete closed tickets?' });
       expect(dialog).toHaveTextContent(
-        "Shortening retention permanently deletes 12 closed tickets (messages, attachments and history) older than 1 year. This can't be undone.",
+        "Shortening retention permanently deletes at least 12 closed tickets (messages, attachments and history) older than 1 year at the next daily run. This can't be undone.",
       );
       expect(bodies).toEqual([{ retentionPeriod: 'P1Y' }]);
       await expectNoAxeViolations(dialog);
@@ -446,7 +448,7 @@ describe('OrganizationSettingsPage', () => {
       const save = screen.getByRole('button', { name: 'Save changes' });
       await user.click(save);
       const dialog = await screen.findByRole('dialog');
-      expect(dialog).toHaveTextContent('permanently deletes 3 closed tickets');
+      expect(dialog).toHaveTextContent('permanently deletes at least 3 closed tickets');
 
       await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
@@ -476,7 +478,7 @@ describe('OrganizationSettingsPage', () => {
       await user.click(screen.getByRole('button', { name: 'Save changes' }));
 
       let dialog = await screen.findByRole('dialog');
-      expect(dialog).toHaveTextContent('permanently deletes 1 closed ticket ');
+      expect(dialog).toHaveTextContent('permanently deletes at least 1 closed ticket ');
       await user.click(
         within(dialog).getByRole('button', { name: 'Delete 1 closed ticket and save' }),
       );
@@ -485,7 +487,7 @@ describe('OrganizationSettingsPage', () => {
         name: 'Delete 5 closed tickets and save',
       });
       dialog = screen.getByRole('dialog');
-      expect(dialog).toHaveTextContent('permanently deletes 5 closed tickets');
+      expect(dialog).toHaveTextContent('permanently deletes at least 5 closed tickets');
       expect(dialog).toHaveTextContent('The number changed from 1 since you last looked.');
       expect(document.querySelector('[aria-live="assertive"]')).toHaveTextContent('changed to 5');
       expect(bodies).toHaveLength(2);
@@ -517,6 +519,252 @@ describe('OrganizationSettingsPage', () => {
       expect(await within(dialog).findByRole('alert')).toBeInTheDocument();
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
+
+    describe('audit log', () => {
+      function auditConfirmationRequired(purgeCount: number) {
+        return HttpResponse.json(
+          {
+            error: {
+              code: 'AUDIT_RETENTION_CONFIRMATION_REQUIRED',
+              message: 'Confirm',
+              details: [
+                { path: 'confirmAuditPurgeCount', issue: 'confirmation_required', purgeCount },
+              ],
+            },
+          },
+          { status: 409 },
+        );
+      }
+
+      const settingsWithPeriods: TenantSettings = {
+        ...settings,
+        retentionPeriod: 'P5Y',
+        auditRetention: 'P10Y',
+      };
+
+      function renderWithPeriods() {
+        server.use(
+          http.get(`${API}/me`, () => HttpResponse.json(meWith(EDITOR))),
+          http.get(`${API}/settings`, () => HttpResponse.json(settingsWithPeriods)),
+        );
+        return renderWithProviders(
+          <Routes>
+            <Route path="/desk/admin/settings" element={<OrganizationSettingsPage />} />
+          </Routes>,
+          { route: '/desk/admin/settings' },
+        );
+      }
+
+      it('asks before deleting audit entries, then resends with confirmAuditPurgeCount', async () => {
+        const bodies: Record<string, unknown>[] = [];
+        server.use(
+          http.patch(`${API}/settings`, async ({ request }) => {
+            const body = (await request.json()) as Record<string, unknown>;
+            bodies.push(body);
+            if (body.confirmAuditPurgeCount === undefined) return auditConfirmationRequired(40);
+            const { confirmAuditPurgeCount: _confirmed, ...saved } = body;
+            return HttpResponse.json({ ...settingsWithPeriods, ...saved });
+          }),
+        );
+        renderWithPeriods();
+        const user = userEvent.setup();
+        await user.selectOptions(await screen.findByLabelText('Keep audit log'), 'P3Y');
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+        const dialog = await screen.findByRole('dialog', { name: 'Delete audit log entries?' });
+        expect(dialog).toHaveTextContent(
+          "Shortening the audit log period permanently deletes at least 40 audit entries older than 3 years at the next daily run. This can't be undone.",
+        );
+        expect(bodies).toEqual([{ auditRetention: 'P3Y' }]);
+        await expectNoAxeViolations(dialog);
+
+        await user.click(
+          within(dialog).getByRole('button', { name: 'Delete 40 audit entries and save' }),
+        );
+        await waitFor(() =>
+          expect(bodies).toEqual([
+            { auditRetention: 'P3Y' },
+            { auditRetention: 'P3Y', confirmAuditPurgeCount: 40 },
+          ]),
+        );
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        expect((await screen.findAllByText('Organization settings saved')).length).toBeGreaterThan(
+          0,
+        );
+        expect(screen.getByLabelText('Keep audit log')).toHaveValue('P3Y');
+      });
+
+      it('asks again with the new count when the audit count went stale', async () => {
+        const bodies: Record<string, unknown>[] = [];
+        server.use(
+          http.patch(`${API}/settings`, async ({ request }) => {
+            const body = (await request.json()) as Record<string, unknown>;
+            bodies.push(body);
+            if (body.confirmAuditPurgeCount === undefined) return auditConfirmationRequired(1);
+            if (body.confirmAuditPurgeCount === 1) return auditConfirmationRequired(6);
+            return HttpResponse.json({ ...settingsWithPeriods, auditRetention: 'P3Y' });
+          }),
+        );
+        renderWithPeriods();
+        const user = userEvent.setup();
+        await user.selectOptions(await screen.findByLabelText('Keep audit log'), 'P3Y');
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+        const dialog = await screen.findByRole('dialog');
+        expect(dialog).toHaveTextContent('deletes at least 1 audit entry older');
+        await user.click(
+          within(dialog).getByRole('button', { name: 'Delete 1 audit entry and save' }),
+        );
+
+        const again = await within(dialog).findByRole('button', {
+          name: 'Delete 6 audit entries and save',
+        });
+        expect(screen.getByRole('dialog')).toHaveTextContent('deletes at least 6 audit entries');
+        expect(screen.getByRole('dialog')).toHaveTextContent(
+          'The number changed from 1 since you last looked.',
+        );
+        expect(document.querySelector('[aria-live="assertive"]')).toHaveTextContent(
+          'audit entries to delete changed to 6',
+        );
+
+        await user.click(again);
+        await waitFor(() =>
+          expect(bodies[2]).toEqual({ auditRetention: 'P3Y', confirmAuditPurgeCount: 6 }),
+        );
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      });
+
+      it('saves nothing when the audit dialog is cancelled', async () => {
+        const bodies: unknown[] = [];
+        server.use(
+          http.patch(`${API}/settings`, async ({ request }) => {
+            bodies.push(await request.json());
+            return auditConfirmationRequired(9);
+          }),
+        );
+        renderWithPeriods();
+        const user = userEvent.setup();
+        await user.selectOptions(await screen.findByLabelText('Keep audit log'), 'P2Y');
+        await user.click(screen.getByRole('button', { name: 'Save changes' }));
+        const dialog = await screen.findByRole('dialog');
+        await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+        await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+        expect(bodies).toHaveLength(1);
+        expect(screen.getByLabelText('Keep audit log')).toHaveValue('P2Y');
+        expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+      });
+
+      describe('when both periods shorten', () => {
+        /** The API asks for the tickets count first, then (once it is confirmed) the audit count. */
+        function chainedHandler(bodies: Record<string, unknown>[]) {
+          return http.patch(`${API}/settings`, async ({ request }) => {
+            const body = (await request.json()) as Record<string, unknown>;
+            bodies.push(body);
+            if (body.confirmPurgeCount !== 12) return confirmationRequired(12);
+            if (body.confirmAuditPurgeCount !== 40) return auditConfirmationRequired(40);
+            return HttpResponse.json({
+              ...settingsWithPeriods,
+              retentionPeriod: 'P1Y',
+              auditRetention: 'P3Y',
+            });
+          });
+        }
+
+        async function shortenBoth() {
+          renderWithPeriods();
+          const user = userEvent.setup();
+          await user.selectOptions(await screen.findByLabelText('Keep closed tickets'), 'P1Y');
+          await user.selectOptions(screen.getByLabelText('Keep audit log'), 'P3Y');
+          await user.click(screen.getByRole('button', { name: 'Save changes' }));
+          return user;
+        }
+
+        it('walks tickets dialog, then audit dialog, then saves with both counts', async () => {
+          const bodies: Record<string, unknown>[] = [];
+          server.use(chainedHandler(bodies));
+          const user = await shortenBoth();
+
+          const ticketsDialog = await screen.findByRole('dialog', {
+            name: 'Delete closed tickets?',
+          });
+          expect(ticketsDialog).toHaveTextContent('deletes at least 12 closed tickets');
+          await user.click(
+            within(ticketsDialog).getByRole('button', {
+              name: 'Delete 12 closed tickets and save',
+            }),
+          );
+
+          const auditDialog = await screen.findByRole('dialog', {
+            name: 'Delete audit log entries?',
+          });
+          expect(auditDialog).toHaveTextContent(
+            'Shortening the audit log period permanently deletes at least 40 audit entries older than 3 years',
+          );
+          expect(document.querySelector('[aria-live="assertive"]')).toHaveTextContent(
+            'Closed tickets confirmed',
+          );
+          // Nothing has been saved yet (the form sits behind the modal, so it is aria-hidden).
+          expect(screen.getByRole('button', { name: 'Save changes', hidden: true })).toBeEnabled();
+          await user.click(
+            within(auditDialog).getByRole('button', {
+              name: 'Delete 40 audit entries and save',
+            }),
+          );
+
+          await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+          expect(bodies).toEqual([
+            { retentionPeriod: 'P1Y', auditRetention: 'P3Y' },
+            { retentionPeriod: 'P1Y', auditRetention: 'P3Y', confirmPurgeCount: 12 },
+            {
+              retentionPeriod: 'P1Y',
+              auditRetention: 'P3Y',
+              confirmPurgeCount: 12,
+              confirmAuditPurgeCount: 40,
+            },
+          ]);
+          expect((await screen.findAllByText('Organization settings saved')).length).toBeGreaterThan(
+            0,
+          );
+        });
+
+        it('saves nothing when the tickets dialog is cancelled', async () => {
+          const bodies: Record<string, unknown>[] = [];
+          server.use(chainedHandler(bodies));
+          const user = await shortenBoth();
+          const dialog = await screen.findByRole('dialog', { name: 'Delete closed tickets?' });
+          await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+          await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+          expect(bodies).toHaveLength(1);
+          expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+        });
+
+        it('saves nothing when the audit dialog is cancelled after the tickets confirm', async () => {
+          const bodies: Record<string, unknown>[] = [];
+          server.use(chainedHandler(bodies));
+          const user = await shortenBoth();
+          const ticketsDialog = await screen.findByRole('dialog', {
+            name: 'Delete closed tickets?',
+          });
+          await user.click(
+            within(ticketsDialog).getByRole('button', {
+              name: 'Delete 12 closed tickets and save',
+            }),
+          );
+          const auditDialog = await screen.findByRole('dialog', {
+            name: 'Delete audit log entries?',
+          });
+          await user.click(within(auditDialog).getByRole('button', { name: 'Cancel' }));
+          await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+          // Two requests, both refused; none carried the audit confirmation.
+          expect(bodies).toHaveLength(2);
+          expect(bodies.some((body) => body.confirmAuditPurgeCount !== undefined)).toBe(false);
+          expect(screen.getByLabelText('Keep closed tickets')).toHaveValue('P1Y');
+          expect(screen.getByLabelText('Keep audit log')).toHaveValue('P3Y');
+          expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+        });
+      });
+    });
+
 
     it('is read-only without the edit permission', async () => {
       renderPage(['tenant_settings.view']);
