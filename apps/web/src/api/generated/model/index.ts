@@ -76,6 +76,7 @@ export * from './idempotencyKeyParameter';
 export * from './inviteUserBody';
 export * from './limitParameter';
 export * from './listEligibleOwners200';
+export * from './listGroupDestinations200';
 export * from './listGroups200';
 export * from './listGroupsParams';
 export * from './listGroupsStatus';
