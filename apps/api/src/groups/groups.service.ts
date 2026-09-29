@@ -35,6 +35,11 @@ export interface GroupDto {
   openTicketCount: number;
 }
 
+export interface GroupRefDto {
+  id: string;
+  name: string;
+}
+
 export interface GroupInput {
   name?: string;
   description?: string;
@@ -89,6 +94,18 @@ export class GroupsService {
       const rows = await new GroupsRepository(ctx).list(tx, filters.status);
       const counts = await this.tickets.openTicketCounts(tx, rows.map((row) => row.id));
       return rows.map((row) => toDto(row, counts.get(row.id) ?? 0));
+    });
+  }
+
+  /**
+   * Active groups as `{ id, name }` for ticket staff choosing a destination (triage, a group
+   * move). No descriptions or ticket counts: callers only need `ticket.edit`, not `group.view`.
+   * The move itself is still checked per group (FR-041).
+   */
+  destinations(ctx: TenantContext): Promise<GroupRefDto[]> {
+    return this.unitOfWork.withTenantReadOnly(ctx, async (tx) => {
+      const rows = await new GroupsRepository(ctx).list(tx, 'active');
+      return rows.map((row) => ({ id: row.id, name: row.name }));
     });
   }
 

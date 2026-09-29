@@ -5,7 +5,7 @@ import { RequirePermission } from '../authorization/registry/module-permissions.
 import { tenantContextOf } from '../platform-kernel/http/request-context.js';
 import { ZodValidationPipe } from '../platform-kernel/http/validation.pipe.js';
 
-import { GroupsService, type EligibleOwnerDto, type GroupDto } from './groups.service.js';
+import { GroupsService, type EligibleOwnerDto, type GroupDto, type GroupRefDto } from './groups.service.js';
 
 import type { Request } from 'express';
 
@@ -37,6 +37,13 @@ export class GroupsController {
   @RequirePermission('group.create')
   create(@Req() req: Request, @Body(new ZodValidationPipe(CreateBody)) body: z.infer<typeof CreateBody>): Promise<GroupDto> {
     return this.groups.create(tenantContextOf(req), body);
+  }
+
+  /** Destination picker (triage, group moves): active groups' ids and names for `ticket.edit`. */
+  @Get('destinations')
+  @RequirePermission('ticket.edit')
+  async destinations(@Req() req: Request): Promise<{ items: GroupRefDto[] }> {
+    return { items: await this.groups.destinations(tenantContextOf(req)) };
   }
 
   @Get(':id')
