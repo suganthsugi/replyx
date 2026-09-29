@@ -1187,6 +1187,47 @@ paths:
                 $ref: "#/components/schemas/SupportSession"
         "404":
           $ref: "#/components/responses/NotFound"
+  /settings:
+    get:
+      operationId: getTenantSettings
+      tags:
+        - operations
+      summary: Tenant settings (tenant_settings.view)
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantSettings"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    patch:
+      operationId: updateTenantSettings
+      tags:
+        - operations
+      summary: Update tenant settings (tenant_settings.edit, FR-005)
+      description: Only the fields sent are changed. brandColors.primary must contrast at least 4.5:1 against white (it
+        fills the customer chat bubble/button); a failing value returns 400 VALIDATION_FAILED with
+        details[].path "brandColors.primary", details[].issue "insufficient_contrast" and details[].suggestion set to an
+        AA-compliant shade of the same color. Retention, businessHoursId and notificationDefaults are not accepted here yet.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TenantSettingsUpdate"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TenantSettings"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
   /support-access:
     get:
       operationId: listSupportAccessGrants
@@ -2812,6 +2853,9 @@ components:
                     type: string
                   issue:
                     type: string
+                  suggestion:
+                    type: string
+                    description: A value that would pass this check, e.g. an AA-contrast-compliant color for insufficient_contrast
             retryAfter:
               type: integer
               description: Seconds, only for RATE_LIMITED
@@ -3250,6 +3294,114 @@ components:
           format: email
         name:
           type: string
+    BrandColors:
+      type: object
+      additionalProperties: false
+      properties:
+        primary:
+          type: string
+          pattern: ^#[0-9a-fA-F]{6}$
+          description: Fills the customer chat bubble/button; must contrast at least 4.5:1 against white
+        accent:
+          type: string
+          pattern: ^#[0-9a-fA-F]{6}$
+    AfterCloseBehavior:
+      type: string
+      enum:
+        - new_follow_up
+        - reopen_previous
+    OfflineCustomerNotification:
+      type: string
+      enum:
+        - email
+        - off
+    TenantSettings:
+      type: object
+      required:
+        - name
+        - logoAttachmentId
+        - brandColors
+        - welcomeMessage
+        - timezone
+        - selfRegistration
+        - gracePeriodHours
+        - afterCloseBehavior
+        - offlineCustomerNotification
+        - outOfHoursMessage
+      properties:
+        name:
+          type: string
+          maxLength: 120
+        logoAttachmentId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        brandColors:
+          $ref: "#/components/schemas/BrandColors"
+        welcomeMessage:
+          type:
+            - string
+            - "null"
+          maxLength: 500
+        timezone:
+          type: string
+          description: IANA zone, e.g. Europe/London
+        selfRegistration:
+          type: boolean
+        gracePeriodHours:
+          type: integer
+          minimum: 1
+          maximum: 720
+        afterCloseBehavior:
+          $ref: "#/components/schemas/AfterCloseBehavior"
+        offlineCustomerNotification:
+          $ref: "#/components/schemas/OfflineCustomerNotification"
+        outOfHoursMessage:
+          type:
+            - string
+            - "null"
+          maxLength: 500
+    TenantSettingsUpdate:
+      type: object
+      description: Only the fields sent are changed; retentionPeriod, auditRetention, businessHoursId and
+        notificationDefaults are not accepted here yet.
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 120
+        logoAttachmentId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        brandColors:
+          $ref: "#/components/schemas/BrandColors"
+        welcomeMessage:
+          type:
+            - string
+            - "null"
+          maxLength: 500
+        timezone:
+          type: string
+          description: IANA zone, e.g. Europe/London
+        selfRegistration:
+          type: boolean
+        gracePeriodHours:
+          type: integer
+          minimum: 1
+          maximum: 720
+        afterCloseBehavior:
+          $ref: "#/components/schemas/AfterCloseBehavior"
+        offlineCustomerNotification:
+          $ref: "#/components/schemas/OfflineCustomerNotification"
+        outOfHoursMessage:
+          type:
+            - string
+            - "null"
+          maxLength: 500
     SupportSession:
       type: object
       required:
