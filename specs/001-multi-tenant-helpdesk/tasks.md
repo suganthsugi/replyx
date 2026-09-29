@@ -468,7 +468,7 @@ all three with actor, action, resource, time and details; no one can change an e
 - [ ] T195 [P] [US9] Integration tests `apps/api/test/integration/audit/audit-log.test.ts`: each listed action appears with actor, action, resource, time and details and never a message body; `UPDATE`/`DELETE` on `audit_logs` fail for the app role; 403 without permission; add `audit_log` fixture to `apps/api/test/cross-tenant/fixtures.ts`
 - [ ] T196 [P] [US9] Integration tests `apps/api/test/integration/tenancy/retention.test.ts`: confirmation flow; only closed tickets past the period are purged; files removed from the volume; follow-up links become tombstones; a customer writing after a purge gets a new ticket with no link
 - [ ] T197 [P] [US9] Create `apps/web/src/pages/admin/audit/AuditLogPage.tsx` (filters, table, detail drawer) and a retention section with the confirmation dialog in `apps/web/src/pages/admin/settings/OrganizationSettingsPage.tsx`
-- [ ] T198 [US9] Create `apps/web/src/data/audit.ts` and extend `apps/web/src/data/settings.ts` for retention confirmation
+- [X] T198 [US9] Create `apps/web/src/data/audit.ts` and extend `apps/web/src/data/settings.ts` for retention confirmation
 - [ ] T199 [P] [US9] Admin guide `apps/docs/src/content/docs/admin/audit-and-retention.md`
 
 **Checkpoint**: 🎯 **MVP complete** (all P1 stories). Run the quickstart validation scenarios before deploying.
