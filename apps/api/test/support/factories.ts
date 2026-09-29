@@ -233,6 +233,23 @@ export async function createTicket(
   });
 }
 
+/**
+ * Overrides `tenant_settings` fields the provisioning service already inserted a default row
+ * for (grace period, after-close behavior), without going through `PATCH /settings`, so tests
+ * that only need the conversation settings stay independent of the settings API.
+ */
+export async function setConversationSettings(
+  tenant: TestTenant,
+  patch: { gracePeriodHours?: number; afterCloseBehavior?: 'new_follow_up' | 'reopen_previous' },
+): Promise<void> {
+  await inTenant(tenant, async (tx, repo) =>
+    repo.updateConversationSettings(tx, {
+      ...(patch.gracePeriodHours === undefined ? {} : { grace_period_hours: patch.gracePeriodHours }),
+      ...(patch.afterCloseBehavior === undefined ? {} : { after_close_behavior: patch.afterCloseBehavior }),
+    }),
+  );
+}
+
 class FactoryRepository extends TenantRepository {
   async insertTicket(tx: TenantTransaction, values: TenantInsert<'tickets'>): Promise<string> {
     const row = await this.insertInto(tx, 'tickets', values).returning('id').executeTakeFirstOrThrow();
@@ -292,5 +309,13 @@ class FactoryRepository extends TenantRepository {
       can_edit: flags.edit ?? false,
       can_delete: flags.delete ?? false,
     }).execute();
+  }
+
+  async updateConversationSettings(
+    tx: TenantTransaction,
+    patch: { grace_period_hours?: number; after_close_behavior?: 'new_follow_up' | 'reopen_previous' },
+  ): Promise<void> {
+    if (Object.keys(patch).length === 0) return;
+    await this.updateTable(tx, 'tenant_settings').set(patch).execute();
   }
 }
