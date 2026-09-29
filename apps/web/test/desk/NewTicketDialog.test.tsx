@@ -8,13 +8,13 @@ import { API } from '../msw/handlers';
 import { renderWithProviders } from '../render';
 import { server, expectNoAxeViolations  } from '../setup';
 
-import { eligibleOwnersHandler, groupsHandler, makeEligibleOwner, makeGroup, makeMe, makeUser, meHandler, tagsHandler, usersHandler } from './fixtures';
+import { eligibleOwnersHandler, groupDestinationsHandler, makeEligibleOwner, makeGroup, makeMe, makeUser, meHandler, tagsHandler, usersHandler } from './fixtures';
 
 function setup() {
   server.use(
     meHandler(makeMe()),
     usersHandler([makeUser({ id: 'customer-1', name: 'Cara Customer', email: 'cara@customer.test' })]),
-    groupsHandler([makeGroup({ id: 'group-1', name: 'Support', status: 'active' })]),
+    groupDestinationsHandler([makeGroup({ id: 'group-1', name: 'Support', status: 'active' })]),
     eligibleOwnersHandler('group-1', [makeEligibleOwner({ id: 'agent-1', name: 'Ada Agent' })]),
     tagsHandler([]),
   );

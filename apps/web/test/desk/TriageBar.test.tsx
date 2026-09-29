@@ -11,7 +11,7 @@ import { server, expectNoAxeViolations } from '../setup';
 
 import {
   eligibleOwnersHandler,
-  groupsHandler,
+  groupDestinationsHandler,
   historyHandler,
   makeEligibleOwner,
   makeGroup,
@@ -44,7 +44,7 @@ function triageHandler(ticketId: string, respond: (body: unknown) => TriageTicke
 
 function setupTriageBarHandlers() {
   server.use(
-    groupsHandler([makeGroup({ id: 'group-1', name: 'Support' }), makeGroup({ id: 'group-2', name: 'Billing' })]),
+    groupDestinationsHandler([makeGroup({ id: 'group-1', name: 'Support' }), makeGroup({ id: 'group-2', name: 'Billing' })]),
     eligibleOwnersHandler('group-1', [makeEligibleOwner({ id: 'owner-1', name: 'Ada Agent' })]),
     eligibleOwnersHandler('group-2', [makeEligibleOwner({ id: 'owner-2', name: 'Bea Agent' })]),
     tagsHandler([]),
@@ -59,7 +59,7 @@ describe('TriageBar', () => {
       ticketHandler(ungroupedAllowed),
       messagesHandler(ungroupedAllowed.id, [makeMessage()]),
       historyHandler(ungroupedAllowed.id, []),
-      groupsHandler([makeGroup()]),
+      groupDestinationsHandler([makeGroup()]),
       eligibleOwnersHandler('group-1', [makeEligibleOwner()]),
       tagsHandler([]),
       usersHandler([]),
@@ -75,7 +75,7 @@ describe('TriageBar', () => {
       ticketHandler(grouped),
       messagesHandler(grouped.id, [makeMessage()]),
       historyHandler(grouped.id, []),
-      groupsHandler([makeGroup()]),
+      groupDestinationsHandler([makeGroup()]),
       eligibleOwnersHandler('group-1', [makeEligibleOwner()]),
       tagsHandler([]),
       usersHandler([]),
@@ -92,7 +92,7 @@ describe('TriageBar', () => {
       ticketHandler(ungroupedNotAllowed),
       messagesHandler(ungroupedNotAllowed.id, [makeMessage()]),
       historyHandler(ungroupedNotAllowed.id, []),
-      groupsHandler([makeGroup()]),
+      groupDestinationsHandler([makeGroup()]),
       tagsHandler([]),
       usersHandler([]),
     );

@@ -29,7 +29,7 @@ import { TicketConversation } from '../../../components/tickets/TicketConversati
 import { TriageBar } from '../../../components/tickets/TriageBar';
 import { useAttachmentUploads } from '../../../data/attachments';
 import { useMe } from '../../../data/auth';
-import { useEligibleOwners, useGroups } from '../../../data/groups';
+import { useEligibleOwners, useGroupDestinations } from '../../../data/groups';
 import { useSendTicketMessage, useTicketMessages, useTicketMessageEvents } from '../../../data/messages';
 import { useRealtime } from '../../../data/realtime';
 import { useCreateTag, useTags } from '../../../data/tags';
@@ -117,7 +117,7 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
   const createLink = useCreateTicketLink();
   const deleteLink = useDeleteTicketLink();
 
-  const groups = useGroups('active');
+  const groups = useGroupDestinations();
   const groupId = ticketQuery.data?.group?.id;
   const eligibleOwners = useEligibleOwners(groupId);
   const tags = useTags();

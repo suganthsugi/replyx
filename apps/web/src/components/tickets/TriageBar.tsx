@@ -3,7 +3,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { useEligibleOwners, useGroups } from '../../data/groups';
+import { useEligibleOwners, useGroupDestinations } from '../../data/groups';
 import { useCreateTag, useTags } from '../../data/tags';
 import { useTriageTicket } from '../../data/triage';
 import { useAnnounce } from '../foundations/LiveRegion';
@@ -37,7 +37,7 @@ function isTypingTarget(target: EventTarget | null): boolean {
 
 export function TriageBar({ ticketId, onClose }: TriageBarProps) {
   const announce = useAnnounce();
-  const groups = useGroups('active');
+  const groups = useGroupDestinations();
   const tags = useTags();
   const createTag = useCreateTag();
   const triage = useTriageTicket(ticketId);

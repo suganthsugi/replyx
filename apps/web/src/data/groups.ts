@@ -4,6 +4,7 @@ import {
   useCreateGroup as useCreateGroupMutation,
   useDeleteGroup as useDeleteGroupMutation,
   useListEligibleOwners,
+  useListGroupDestinations,
   useListGroups,
   useUpdateGroup as useUpdateGroupMutation,
 } from '../api/generated/access/access';
@@ -11,7 +12,7 @@ import {
 import { mapError } from './errors';
 import { roleKeys } from './roles';
 
-import type { EligibleOwner, Group, GroupCreateInput, GroupInput, ListGroupsStatus } from '../api/generated/model';
+import type { EligibleOwner, Group, GroupCreateInput, GroupInput, GroupRef, ListGroupsStatus } from '../api/generated/model';
 
 /**
  * Groups (FR-028–FR-030) and the owner picker's eligible owners (FR-040). Creating or deleting a
@@ -22,11 +23,21 @@ export const groupKeys = {
   all: ['groups'] as const,
   list: (status?: ListGroupsStatus) => [...groupKeys.all, 'list', status ?? 'all'] as const,
   eligibleOwners: (id: string) => [...groupKeys.all, 'eligible-owners', id] as const,
+  destinations: () => [...groupKeys.all, 'destinations'] as const,
 };
 
 export function useGroups(status?: ListGroupsStatus) {
   const params = status === undefined ? undefined : { status };
   const query = useListGroups<{ items: Group[] }>(params, { query: { queryKey: groupKeys.list(status) } });
+  return { ...query, data: query.data?.items, error: query.error ? mapError(query.error) : undefined };
+}
+
+/**
+ * Active groups a ticket can be sent to (`GET /groups/destinations`, needs only `ticket.edit`):
+ * for the triage bar, the ticket's group picker and new tickets. `useGroups` is the admin list.
+ */
+export function useGroupDestinations() {
+  const query = useListGroupDestinations<{ items: GroupRef[] }>({ query: { queryKey: groupKeys.destinations() } });
   return { ...query, data: query.data?.items, error: query.error ? mapError(query.error) : undefined };
 }
 

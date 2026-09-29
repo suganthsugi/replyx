@@ -7,6 +7,7 @@ import type {
   EligibleOwner,
   GetViewCounts200,
   Group,
+  GroupRef,
   ListNotifications200,
   ListTicketHistory200,
   ListTickets200,
@@ -184,6 +185,13 @@ export function historyHandler(ticketId: string, items: ListTicketHistory200['it
 
 export function groupsHandler(groups: Group[]) {
   return http.get(`${API}/groups`, () => HttpResponse.json<{ items: Group[] }>({ items: groups }));
+}
+
+/** `GET /groups/destinations`: the ids and names of the given groups (what the desk pickers use). */
+export function groupDestinationsHandler(groups: Pick<Group, 'id' | 'name'>[]) {
+  return http.get(`${API}/groups/destinations`, () =>
+    HttpResponse.json<{ items: GroupRef[] }>({ items: groups.map(({ id, name }) => ({ id, name })) }),
+  );
 }
 
 export function eligibleOwnersHandler(groupId: string, owners: EligibleOwner[]) {

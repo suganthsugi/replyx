@@ -13,7 +13,7 @@ import { Modal } from '../../../components/shell/Modal';
 import { useToast } from '../../../components/shell/Toast';
 import { useMe } from '../../../data/auth';
 import { mapError } from '../../../data/errors';
-import { useEligibleOwners, useGroups } from '../../../data/groups';
+import { useEligibleOwners, useGroupDestinations } from '../../../data/groups';
 import { useCreateTag, useTags } from '../../../data/tags';
 import { useCreateTicket, type Priority } from '../../../data/tickets';
 import { useUsers } from '../../../data/users';
@@ -81,7 +81,7 @@ export function NewTicketDialog({ open, onClose, onCreated }: NewTicketDialogPro
     [customersQuery.data],
   );
 
-  const groupsQuery = useGroups('active');
+  const groupsQuery = useGroupDestinations();
   const groupAccess = me.data?.groupAccess ?? [];
   const groupOptions: GroupOption[] = (groupsQuery.data ?? [])
     .filter((candidate) => groupAccess.some((access) => access.groupId === candidate.id && access.create))
