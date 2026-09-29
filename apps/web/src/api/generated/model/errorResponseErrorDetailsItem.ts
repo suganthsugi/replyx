@@ -10,4 +10,6 @@
 export type ErrorResponseErrorDetailsItem = {
   path: string;
   issue: string;
+  /** A value that would pass this check, e.g. an AA-contrast-compliant color for insufficient_contrast */
+  suggestion?: string;
 };

@@ -8,10 +8,12 @@
  */
 
 export * from './acceptInvitationBody';
+export * from './afterCloseBehavior';
 export * from './attachmentSummary';
 export * from './attachmentSummaryDownloadPath';
 export * from './attachmentSummaryScanStatus';
 export * from './availability';
+export * from './brandColors';
 export * from './branding';
 export * from './brandingColors';
 export * from './brandingLogoUrl';
@@ -138,6 +140,7 @@ export * from './notificationPreferencesInput';
 export * from './notificationPreferencesInputEvents';
 export * from './notificationSummary';
 export * from './notificationTicketId';
+export * from './offlineCustomerNotification';
 export * from './operator';
 export * from './operatorSignInBody';
 export * from './pageMeta';
@@ -171,6 +174,14 @@ export * from './suspendTenantBody';
 export * from './tagRef';
 export * from './tenant';
 export * from './tenantActiveSupportGrantUntil';
+export * from './tenantSettings';
+export * from './tenantSettingsLogoAttachmentId';
+export * from './tenantSettingsOutOfHoursMessage';
+export * from './tenantSettingsUpdate';
+export * from './tenantSettingsUpdateLogoAttachmentId';
+export * from './tenantSettingsUpdateOutOfHoursMessage';
+export * from './tenantSettingsUpdateWelcomeMessage';
+export * from './tenantSettingsWelcomeMessage';
 export * from './tenantStats';
 export * from './tenantStatus';
 export * from './tenantSuspendedAt';
