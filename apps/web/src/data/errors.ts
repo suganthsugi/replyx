@@ -25,6 +25,9 @@ const FRIENDLY_MESSAGES: Record<string, string> = {
   CSRF_FAILED: 'Your session needs a refresh. Reload the page and try again.',
   UNAUTHENTICATED: 'Sign in to continue.',
   TENANT_SUSPENDED: 'This workspace is currently unavailable.',
+  ALREADY_TRIAGED: 'Someone else already triaged this ticket.',
+  GROUP_INACTIVE: 'That group is no longer active. Pick another destination.',
+  OWNER_NOT_ELIGIBLE: 'That owner does not have access to the destination group.',
 };
 
 export function isApiError(raw: unknown): raw is { error: { code: string; message: string; details?: unknown; retryAfter?: unknown } } {
