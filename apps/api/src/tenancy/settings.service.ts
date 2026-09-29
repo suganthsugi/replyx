@@ -5,7 +5,7 @@ import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
 import { validationFailed } from '../platform-kernel/http/app-error.js';
 
-import { AA_NORMAL_TEXT_CONTRAST, meetsAAContrast, nearestAACompliantShade } from './contrast.js';
+import { meetsAAContrast, nearestAACompliantShade, SUGGESTED_TEXT_CONTRAST } from './contrast.js';
 import { isShortening, type AuditRetention, type RetentionPeriod } from './retention/retention-period.js';
 import { retentionConfirmationRequired, RetentionService } from './retention/retention.service.js';
 
@@ -91,9 +91,16 @@ export class TenantSettingsService {
     if (input.brandColors?.primary !== undefined) {
       this.assertPrimaryContrast(input.brandColors.primary);
     }
+    // Until US16 serves logos there is no ownership or scan check to run, so an id can't be trusted.
+    if (input.logoAttachmentId !== undefined && input.logoAttachmentId !== null) {
+      throw validationFailed([{ path: 'logoAttachmentId', issue: 'not_supported' }]);
+    }
 
     return this.unitOfWork.withTenant(ctx, async (tx) => {
       const repo = new SettingsRepository(ctx);
+      // Lock the row first: brand_colors is read-merged and the audit diff compares before and after,
+      // so a concurrent PATCH must wait rather than merge into (or be diffed against) a stale copy.
+      await repo.lock(tx);
       const before = await this.load(tx, ctx);
       await this.assertPurgeConfirmed(tx, before, input);
 
@@ -134,14 +141,22 @@ export class TenantSettingsService {
     if (purgeCount > 0 && input.confirmPurgeCount !== purgeCount) throw retentionConfirmationRequired(purgeCount);
   }
 
-  /** FR-071a: the primary brand color fills the customer chat bubble/button, read as white text. */
+  /**
+   * FR-071a: the primary brand color fills the customer chat bubble/button, read as white text. It
+   * passes at 4.5; the suggestion aims at 4.5 + margin (`SUGGESTED_TEXT_CONTRAST`) so it also
+   * passes in checkers that round differently.
+   *
+   * `accent` is intentionally not checked: it is used as a foreground color on themed surfaces
+   * (light and dark) the API has no notion of, and the web theme re-derives a compliant shade
+   * from it for each mode (`resolveBrandAccent` in `apps/web/src/theme/brand-accent.ts`).
+   */
   private assertPrimaryContrast(primary: string): void {
     if (meetsAAContrast(primary)) return;
     throw validationFailed([
       {
         path: 'brandColors.primary',
         issue: 'insufficient_contrast',
-        suggestion: nearestAACompliantShade(primary, undefined, AA_NORMAL_TEXT_CONTRAST),
+        suggestion: nearestAACompliantShade(primary, undefined, SUGGESTED_TEXT_CONTRAST),
       },
     ]);
   }
@@ -210,6 +225,11 @@ class SettingsRepository extends TenantRepository {
       ])
       .executeTakeFirstOrThrow();
     return row;
+  }
+
+  /** `FOR UPDATE` on the tenant's settings row, held until the transaction ends. */
+  async lock(tx: TenantTransaction): Promise<void> {
+    await this.selectFrom(tx, 'tenant_settings').select('tenant_settings.tenant_id').forUpdate().executeTakeFirstOrThrow();
   }
 
   async update(tx: TenantTransaction, values: Partial<SettingsRow>): Promise<void> {
