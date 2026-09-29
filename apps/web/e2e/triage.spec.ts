@@ -134,12 +134,12 @@ test('a manager triages an ungrouped ticket to Support in three actions, and the
     await openView(agentPage, UNASSIGNED_OPEN);
     await expect(agentPage.getByRole('option', { name: new RegExp(marker1) })).toBeVisible({ timeout: 20_000 });
 
-    // The agent is notified: badge and a "moved to Support" entry.
+    // The agent is notified: badge and a "New ticket #N in Support" entry.
     await expect(agentPage.getByRole('button', { name: /^Notifications, \d+ unread$/ })).toBeVisible({ timeout: 20_000 });
     await agentPage.getByRole('button', { name: /^Notifications, \d+ unread$/ }).click();
     const panel = agentPage.getByRole('dialog', { name: 'Notifications' });
     await expect(
-      panel.getByRole('listitem').filter({ hasText: `#${ticket1.number} moved to ${SUPPORT_GROUP}` }),
+      panel.getByRole('listitem').filter({ hasText: `New ticket #${ticket1.number} in ${SUPPORT_GROUP}` }),
     ).toBeVisible();
     await agentPage.keyboard.press('Escape');
 
@@ -193,7 +193,7 @@ test('a manager triages an ungrouped ticket to Support in three actions, and the
     await expect(agentPage.getByRole('button', { name: /^Notifications, \d+ unread$/ })).toBeVisible({ timeout: 20_000 });
     await agentPage.getByRole('button', { name: /^Notifications, \d+ unread$/ }).click();
     await expect(
-      panel.getByRole('listitem').filter({ hasText: `#${ticket2.number} moved to ${SUPPORT_GROUP}` }),
+      panel.getByRole('listitem').filter({ hasText: `New ticket #${ticket2.number} in ${SUPPORT_GROUP}` }),
     ).toBeVisible();
 
     await Promise.all([customer1.close(), customer2.close()]);
