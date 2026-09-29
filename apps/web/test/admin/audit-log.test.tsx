@@ -8,7 +8,7 @@ import { API, errorResponse } from '../msw/handlers';
 import { renderWithProviders } from '../render';
 import { expectNoAxeViolations, server } from '../setup';
 
-import type { AuditLog, ListAuditLogs200 } from '../../src/api/generated/model';
+import type { AuditLog, ErrorResponse, ListAuditLogs200 } from '../../src/api/generated/model';
 
 /**
  * The audit log page (T197, FR-092): rows, filters that reset the list, load more, the detail
@@ -178,6 +178,39 @@ describe('AuditLogPage', () => {
     expect(seen.params.at(-1)?.get('cursor')).toBe('next');
     expect(within(screen.getByRole('table', { name: 'Audit log' })).getAllByRole('row').slice(1)).toHaveLength(3);
     expect(screen.queryByRole('button', { name: 'Load more' })).not.toBeInTheDocument();
+    expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent('More entries loaded');
+  });
+
+  it('keeps the loaded rows when the next page fails and retries in place', async () => {
+    const user = userEvent.setup();
+    let failSecondPage = true;
+    server.use(
+      http.get<never, never, ListAuditLogs200 | ErrorResponse>(`${API}/audit-logs`, ({ request }) => {
+        if (new URL(request.url).searchParams.get('cursor') === 'next') {
+          if (failSecondPage) return errorResponse(500, 'INTERNAL', 'Server hiccup');
+          return HttpResponse.json<ListAuditLogs200>({ items: [entry(3, { action: 'group.created', resourceType: 'group' })], nextCursor: null });
+        }
+        return HttpResponse.json<ListAuditLogs200>({ items: [entry(1), entry(2)], nextCursor: 'next' });
+      }),
+    );
+    renderWithProviders(<AuditLogPage />);
+    await screen.findByRole('table', { name: 'Audit log' });
+
+    await user.click(screen.getByRole('button', { name: 'Load more' }));
+
+    // The query client retries a 500 twice with backoff before the page counts as failed.
+    expect(await within(screen.getByRole('main')).findByText(/Couldn.t load more entries/, undefined, { timeout: 10_000 })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: "Couldn't load the audit log" })).not.toBeInTheDocument();
+    expect(within(screen.getByRole('table', { name: 'Audit log' })).getAllByRole('row').slice(1)).toHaveLength(2);
+    expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent('Couldn’t load more entries');
+
+    failSecondPage = false;
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+
+    expect(await screen.findByText('Group created')).toBeInTheDocument();
+    expect(within(screen.getByRole('table', { name: 'Audit log' })).getAllByRole('row').slice(1)).toHaveLength(3);
+    expect(within(screen.getByRole('main')).queryByText(/Couldn.t load more entries/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Retry' })).not.toBeInTheDocument();
     expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent('More entries loaded');
   });
 
