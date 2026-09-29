@@ -35,7 +35,7 @@ export const APP_DB = Symbol('APP_DB');
 /** `replyx_platform` pool: global tables only (tenants, platform_operators, permission_definitions). */
 export const PLATFORM_DB = Symbol('PLATFORM_DB');
 
-type PoolName = 'app' | 'platform';
+type PoolName = 'app' | 'platform' | 'retention';
 
 const logger = new Logger('Database');
 
