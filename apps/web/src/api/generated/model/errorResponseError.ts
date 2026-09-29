@@ -12,7 +12,7 @@ export type ErrorResponseError = {
   /** @pattern ^[A-Z][A-Z0-9_]+$ */
   code: string;
   message: string;
-  /** Only present for validation errors and RETENTION_CONFIRMATION_REQUIRED */
+  /** Only present for validation errors, RETENTION_CONFIRMATION_REQUIRED and AUDIT_RETENTION_CONFIRMATION_REQUIRED */
   details?: ErrorResponseErrorDetailsItem[];
   /** Seconds, only for RATE_LIMITED */
   retryAfter?: number;

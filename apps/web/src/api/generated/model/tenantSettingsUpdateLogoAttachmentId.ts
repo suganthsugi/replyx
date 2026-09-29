@@ -7,4 +7,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
+/**
+ * Only null (clear the logo) is accepted for now. Any id is rejected with 400 VALIDATION_FAILED, issue not_supported, until logos are served.
+ */
 export type TenantSettingsUpdateLogoAttachmentId = string | null;

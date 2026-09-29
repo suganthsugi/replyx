@@ -16,7 +16,7 @@ import type { RetentionPeriod } from './retentionPeriod';
 import type { AuditRetention } from './auditRetention';
 
 /**
- * Only the fields sent are changed; businessHoursId and notificationDefaults are not accepted here yet. Shortening retentionPeriod (from forever, or to fewer years) that would purge closed tickets needs confirmPurgeCount.
+ * Only the fields sent are changed; businessHoursId and notificationDefaults are not accepted here yet. Shortening retentionPeriod (from forever, or to fewer years) that would purge closed tickets needs confirmPurgeCount. Shortening auditRetention that would delete audit entries needs confirmAuditPurgeCount.
  */
 export interface TenantSettingsUpdate {
   /**
@@ -24,6 +24,7 @@ export interface TenantSettingsUpdate {
    * @maxLength 120
    */
   name?: string;
+  /** Only null (clear the logo) is accepted for now. Any id is rejected with 400 VALIDATION_FAILED, issue not_supported, until logos are served. */
   logoAttachmentId?: TenantSettingsUpdateLogoAttachmentId;
   brandColors?: BrandColors;
   /** @maxLength 500 */
@@ -47,4 +48,9 @@ export interface TenantSettingsUpdate {
    * @minimum 0
    */
   confirmPurgeCount?: number;
+  /**
+   * The purgeCount from a 409 AUDIT_RETENTION_CONFIRMATION_REQUIRED response, resent to confirm that many audit log entries are deleted by the next daily audit purge. Request only; never returned.
+   * @minimum 0
+   */
+  confirmAuditPurgeCount?: number;
 }

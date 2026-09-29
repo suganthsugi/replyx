@@ -13,7 +13,7 @@ export type ErrorResponseErrorDetailsItem = {
   /** A value that would pass this check, e.g. an AA-contrast-compliant color for insufficient_contrast */
   suggestion?: string;
   /**
-   * Only for RETENTION_CONFIRMATION_REQUIRED, the number of closed tickets the change would delete; resend it as confirmPurgeCount
+   * Only for RETENTION_CONFIRMATION_REQUIRED (the number of closed tickets the change would delete; resend it as confirmPurgeCount) and AUDIT_RETENTION_CONFIRMATION_REQUIRED (the number of audit log entries it would delete; resend it as confirmAuditPurgeCount)
    * @minimum 0
    */
   purgeCount?: number;
