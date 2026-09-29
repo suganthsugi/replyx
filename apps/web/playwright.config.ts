@@ -25,8 +25,8 @@ export default defineConfig({
   // after the other specs in their own desktop/mobile projects and wait out whatever is left of the
   // limit.
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/] },
-    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/] },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/] },
+    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/] },
     { name: 'desktop-chat', use: { ...devices['Desktop Chrome'] }, testMatch: /customer-chat/, dependencies: ['desktop', 'mobile'] },
     { name: 'mobile-chat', use: { ...devices['Pixel 7'] }, testMatch: /customer-chat/, dependencies: ['desktop', 'mobile'] },
     { name: 'desktop-agent', use: { ...devices['Desktop Chrome'] }, testMatch: /agent-conversation/, dependencies: ['desktop-chat', 'mobile-chat'] },
@@ -35,5 +35,8 @@ export default defineConfig({
     { name: 'desktop-realtime', use: { ...devices['Desktop Chrome'] }, testMatch: /realtime/, dependencies: ['desktop-agent', 'mobile-agent'] },
     // Two more staff browsers (manager, agent): after realtime, so the suite's sign-in budget has recovered.
     { name: 'desktop-triage', use: { ...devices['Desktop Chrome'] }, testMatch: /triage/, dependencies: ['desktop-realtime'] },
+    // The whole conversation flow (customer, manager, agent, admin), and it moves the shared dev clock so
+    // sessions expire: last, so nothing else runs while time is shifted.
+    { name: 'desktop-main-flow', use: { ...devices['Desktop Chrome'] }, testMatch: /main-flow/, dependencies: ['desktop-triage'] },
   ],
 });
