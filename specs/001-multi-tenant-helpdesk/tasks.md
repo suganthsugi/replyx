@@ -446,7 +446,7 @@ pass (ticket closes), send again (new linked follow-up; one continuous thread fo
 - [X] T186 [P] [US7] Concurrency test `apps/api/test/concurrency/auto-close-race.test.ts`: a customer message and the auto-close run at the same instant 100 times; each message lands on exactly one ticket and no message is lost
 - [X] T187 [P] [US7] Create `apps/web/src/pages/admin/settings/OrganizationSettingsPage.tsx` (branding with live contrast check and preview, timezone, self-registration, grace period, after-close behaviour, offline notification, out-of-hours message) and a one-action "Resolve again" control in `apps/web/src/pages/desk/inbox/TicketFocus.tsx`
 - [X] T188 [US7] Create `apps/web/src/data/settings.ts`
-- [ ] T189 [P] [US7] E2E `apps/web/e2e/main-flow.spec.ts`: the nine-step flow in quickstart.md "Main flow", using `dev:advance-clock` for step 9 (SC-016)
+- [X] T189 [P] [US7] E2E `apps/web/e2e/main-flow.spec.ts`: the nine-step flow in quickstart.md "Main flow", using `dev:advance-clock` for step 9 (SC-016)
 - [X] T190 [P] [US7] Admin guide `apps/docs/src/content/docs/admin/organization-settings.md` (grace period, after-close behaviour, branding)
 
 **Checkpoint**: the full customer ↔ agent lifecycle works and is covered end to end.
