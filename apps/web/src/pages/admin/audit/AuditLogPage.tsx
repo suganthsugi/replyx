@@ -129,9 +129,13 @@ export default function AuditLogPage() {
     helperText: errors[name],
   });
 
+  // A failed next page keeps the loaded entries; only a failed first load replaces the list.
+  const hasData = logsQuery.data !== undefined;
+  const nextPageFailed = logsQuery.isFetchNextPageError;
+
   const loadMore = async () => {
-    await logsQuery.fetchNextPage();
-    announce('More entries loaded');
+    const result = await logsQuery.fetchNextPage();
+    announce(result.isFetchNextPageError ? 'Couldn’t load more entries' : 'More entries loaded', 'polite');
   };
 
   return (
@@ -169,7 +173,7 @@ export default function AuditLogPage() {
 
         {logsQuery.isPending && <Skeleton variant="list" rows={8} label="audit log" />}
 
-        {logsQuery.isError && (
+        {logsQuery.isError && !hasData && (
           <EmptyState
             variant="error"
             title="Couldn't load the audit log"
@@ -178,14 +182,14 @@ export default function AuditLogPage() {
           />
         )}
 
-        {!logsQuery.isPending && !logsQuery.isError && entries.length === 0 && (
+        {!logsQuery.isPending && hasData && entries.length === 0 && (
           <EmptyState
             title={hasFilters(filters) ? 'No entries match these filters' : 'No audit entries yet'}
             message={hasFilters(filters) ? 'Widen the time range or clear a filter.' : 'Changes to users, roles, groups and settings appear here.'}
           />
         )}
 
-        {!logsQuery.isPending && !logsQuery.isError && entries.length > 0 && (
+        {!logsQuery.isPending && hasData && entries.length > 0 && (
           <>
             <TableContainer sx={{ maxWidth: '100%', border: 1, borderColor: 'divider', borderRadius: 1.5, bgcolor: 'background.paper' }}>
               <Table aria-label="Audit log" sx={{ minWidth: 720 }}>
@@ -229,9 +233,14 @@ export default function AuditLogPage() {
               </Table>
             </TableContainer>
             {logsQuery.hasNextPage && (
-              <Box sx={{ display: 'flex', justifyContent: 'center', mt: 4 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 2, flexWrap: 'wrap', mt: 4 }}>
+                {nextPageFailed && !logsQuery.isFetchingNextPage && (
+                  <Typography variant="body2" color="error">
+                    Couldn&apos;t load more entries{logsQuery.error?.message ? `: ${logsQuery.error.message}` : ''}
+                  </Typography>
+                )}
                 <Button onClick={() => void loadMore()} disabled={logsQuery.isFetchingNextPage}>
-                  {logsQuery.isFetchingNextPage ? 'Loading…' : 'Load more'}
+                  {logsQuery.isFetchingNextPage ? 'Loading…' : nextPageFailed ? 'Retry' : 'Load more'}
                 </Button>
               </Box>
             )}
