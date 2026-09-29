@@ -15,6 +15,8 @@ export interface UiError {
   fieldErrors?: Record<string, string>;
   /** A value that would pass validation, by field path (e.g. an AA-contrast shade for `insufficient_contrast`). */
   fieldSuggestions?: Record<string, string>;
+  /** `RETENTION_CONFIRMATION_REQUIRED`: closed tickets a shorter retention would delete; resend the save with `confirmPurgeCount`. */
+  retentionConfirmation?: { purgeCount: number };
 }
 
 export const NETWORK_ERROR: UiError = {
@@ -64,17 +66,28 @@ function toFieldSuggestions(details: unknown): Record<string, string> | undefine
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
+function toRetentionConfirmation(code: string, details: unknown): { purgeCount: number } | undefined {
+  if (code !== 'RETENTION_CONFIRMATION_REQUIRED' || !Array.isArray(details)) return undefined;
+  for (const detail of details) {
+    const { path, purgeCount } = (detail ?? {}) as { path?: unknown; purgeCount?: unknown };
+    if (path === 'confirmPurgeCount' && typeof purgeCount === 'number') return { purgeCount };
+  }
+  return undefined;
+}
+
 export function mapError(raw: unknown): UiError {
   if (!isApiError(raw)) return NETWORK_ERROR;
   const { code, message, details, retryAfter } = raw.error;
   const fieldErrors = toFieldErrors(details);
   const fieldSuggestions = toFieldSuggestions(details);
+  const retentionConfirmation = toRetentionConfirmation(code, details);
   return {
     code,
     message: FRIENDLY_MESSAGES[code] ?? message,
     ...(typeof retryAfter === 'number' ? { retryAfter } : {}),
     ...(fieldErrors === undefined ? {} : { fieldErrors }),
     ...(fieldSuggestions === undefined ? {} : { fieldSuggestions }),
+    ...(retentionConfirmation === undefined ? {} : { retentionConfirmation }),
   };
 }
 
