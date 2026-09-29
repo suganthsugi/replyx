@@ -410,6 +410,29 @@ describe('groups', () => {
     expect(hidden.body).toEqual((await asUser(outsider).get(`/groups/${UNKNOWN_ID}/eligible-owners`)).body);
     await expectCrossTenant404((id) => asUser(adminB).get(`/groups/${id}/eligible-owners`), group.id);
   });
+
+  it('GET /groups/destinations lists active groups by name for ticket.edit, without group.view', async () => {
+    const tenant = await createTenant();
+    const manager = await createUser(tenant, { roles: ['manager'] });
+    const viewOnly = await createRole(tenant, { permissions: ['ticket.view'] });
+    const reader = await createUser(tenant, { roles: [{ id: viewOnly.id }] });
+    const support = await createGroup(tenant, { name: 'Support' });
+    const billing = await createGroup(tenant, { name: 'Billing' });
+    await createGroup(tenant, { name: 'Archive', status: 'inactive' });
+    const foreign = await createGroup(b, { name: 'Elsewhere' });
+
+    // Managers can't list groups (no group.view) but can pick a destination.
+    expect((await asUser(manager).get('/groups')).status).toBe(403);
+    const response = await asUser(manager).get('/groups/destinations');
+    expect(response.status).toBe(200);
+    expect(items(response)).toEqual([
+      { id: billing.id, name: 'Billing' },
+      { id: support.id, name: 'Support' },
+    ]);
+    expect(items<{ id: string }>(response).map((group) => group.id)).not.toContain(foreign.id);
+
+    expect((await asUser(reader).get('/groups/destinations')).status).toBe(403);
+  });
 });
 
 describe('registry growth (SC-014)', () => {
