@@ -22,7 +22,8 @@ import type { Test } from 'supertest';
 /**
  * `POST /tickets/{id}/triage` (T176; contracts/tickets.yaml `triageTicket`, triage.service.ts,
  * tickets.service.ts `applyLocked`). Every case from the spec: success, 403/404 by permission,
- * cross-tenant 404, concurrent triage (409 ALREADY_TRIAGED), destination validation (409/404/400),
+ * cross-tenant 404, concurrent triage (409 ALREADY_TRIAGED, or 404 when the winner's group is
+ * invisible to the loser), destination validation (409/404/400),
  * `visibleToCaller` with the ticket.removed_from_view socket event, the arrived_in_group
  * notification (actor excluded), and SC-003 (a fresh ungrouped ticket reaches a Needs Triage
  * viewer's socket within 2 s).
@@ -173,14 +174,42 @@ describe('POST /tickets/{id}/triage', () => {
     await expectCrossTenant404((id) => asUser(otherAdmin).post(`/tickets/${id}/triage`, { groupId: destination.id }), ticket.id);
   });
 
-  it('two concurrent triages of the same ticket give exactly one 200 and one 409 ALREADY_TRIAGED, even when the winner\'s group is invisible to the loser', async () => {
+  it('two concurrent triages of the same ticket give exactly one 200 and one 409 ALREADY_TRIAGED', async () => {
     const tenant = await createTenant();
     const groupOne = await createGroup(tenant);
     const groupTwo = await createGroup(tenant);
     const customer = await createUser(tenant, { roles: ['customer'] });
     const ticket = await createTicket(tenant, { customer, group: null, state: 'open' });
 
-    // Each caller can edit Ungrouped and can see only their own target group, never the other's.
+    // Both callers can edit Ungrouped and see both destinations.
+    const both = [
+      { group: groupOne.id, flags: { view: true, edit: true } },
+      { group: groupTwo.id, flags: { view: true, edit: true } },
+    ];
+    const role = await roleWithUngrouped(tenant, { view: true, edit: true }, both);
+    const callerOne = await createUser(tenant, { roles: [{ id: role.id }] });
+    const callerTwo = await createUser(tenant, { roles: [{ id: role.id }] });
+
+    const [r1, r2] = await Promise.all([
+      asUser(callerOne).post(`/tickets/${ticket.id}/triage`, { groupId: groupOne.id }),
+      asUser(callerTwo).post(`/tickets/${ticket.id}/triage`, { groupId: groupTwo.id }),
+    ]);
+
+    expect([r1.status, r2.status].sort()).toEqual([200, 409]);
+    const [winner, loser] = r1.status === 200 ? [r1, r2] : [r2, r1];
+    expect(failure(loser).error.code).toBe('ALREADY_TRIAGED');
+    const finalRow = await inspect(tenant, (tx, repo) => repo.ticket(tx, ticket.id));
+    expect(finalRow?.group_id).toBe(body<TriageResponseBody>(winner).ticket?.group?.id);
+  });
+
+  it('gives the loser of a race the unknown-ticket 404 when the winner moved it to a group they cannot see', async () => {
+    const tenant = await createTenant();
+    const groupOne = await createGroup(tenant);
+    const groupTwo = await createGroup(tenant);
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const ticket = await createTicket(tenant, { customer, group: null, state: 'open' });
+
+    // Each caller can edit Ungrouped and see only their own destination, never the other's.
     const roleOne = await roleWithUngrouped(tenant, { view: true, edit: true }, [{ group: groupOne.id, flags: { view: true, edit: true } }]);
     const roleTwo = await roleWithUngrouped(tenant, { view: true, edit: true }, [{ group: groupTwo.id, flags: { view: true, edit: true } }]);
     const callerOne = await createUser(tenant, { roles: [{ id: roleOne.id }] });
@@ -191,16 +220,23 @@ describe('POST /tickets/{id}/triage', () => {
       asUser(callerTwo).post(`/tickets/${ticket.id}/triage`, { groupId: groupTwo.id }),
     ]);
 
-    const statuses = [r1.status, r2.status].sort();
-    expect(statuses).toEqual([200, 409]);
-    const [winner, loser] = r1.status === 200 ? [r1, r2] : [r2, r1];
-    expect(failure(loser).error.code).toBe('ALREADY_TRIAGED');
+    expect([r1.status, r2.status].sort()).toEqual([200, 404]);
+    const loser = r1.status === 404 ? { response: r1, caller: callerOne } : { response: r2, caller: callerTwo };
+    // Nothing tells the loser the ticket exists: the body equals an unknown id's.
+    const unknown = await asUser(loser.caller).post(`/tickets/${UNKNOWN_ID}/triage`, { groupId: groupOne.id });
+    expect(loser.response.body).toEqual(unknown.body);
+  });
 
-    const finalRow = await inspect(tenant, (tx, repo) => repo.ticket(tx, ticket.id));
-    const winnerGroupId = body<TriageResponseBody>(winner).ticket?.group?.id;
-    expect(finalRow?.group_id).toBe(winnerGroupId);
-    // The loser's own target never won, whichever request actually committed first.
-    expect([groupOne.id, groupTwo.id]).toContain(winnerGroupId);
+  it('is 403 on a grouped ticket the caller can see but whose Ungrouped they cannot edit', async () => {
+    const tenant = await createTenant();
+    const group = await createGroup(tenant);
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const ticket = await createTicket(tenant, { customer, group: group.id, state: 'open' });
+    const role = await roleWithUngrouped(tenant, { view: true, edit: false }, [{ group: group.id, flags: { view: true, edit: true } }]);
+    const caller = await createUser(tenant, { roles: [{ id: role.id }] });
+
+    const response = await asUser(caller).post(`/tickets/${ticket.id}/triage`, { groupId: group.id });
+    expect(response.status).toBe(403);
   });
 
   it('refuses an inactive destination (409 GROUP_INACTIVE), an ineligible owner (409 OWNER_NOT_ELIGIBLE), an unknown group (404) and bad bodies (400)', async () => {
