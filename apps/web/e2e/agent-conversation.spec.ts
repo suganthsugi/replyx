@@ -78,7 +78,13 @@ test('an agent works a ticket end to end, and a staff-started ticket reaches the
     // though the API responses themselves are fast.
     await expect(staffPage.getByRole('heading', { level: 2, name: question })).toBeVisible({ timeout: 60_000 });
 
-    // Assigns the ticket to themselves.
+    // Triages it to Support first (an ungrouped ticket shows the triage bar instead of the owner
+    // controls), then assigns it to themselves.
+    const triage = staffPage.getByRole('region', { name: 'Triage' });
+    await triage.getByRole('combobox', { name: 'Group' }).click();
+    await staffPage.getByRole('listbox').getByRole('option', { name: 'Support', exact: true }).click();
+    await triage.getByRole('button', { name: 'Assign' }).click();
+    await expect(triage).toHaveCount(0);
     await staffPage.getByRole('button', { name: 'Assign to me' }).click();
     await expect(staffPage.getByRole('combobox', { name: 'Owner' })).toHaveValue(STAFF_NAME);
 
