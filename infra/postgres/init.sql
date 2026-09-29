@@ -15,14 +15,21 @@
 --                    attributes as replyx_app. Migrations grant it DML on the
 --                    global tables only (tenants, platform_operators,
 --                    permission_definitions).
+--   replyx_retention The audit-log retention role (DATABASE_URL_RETENTION, research
+--                    D18, T193). Same attributes as replyx_app. Migration 0012 grants
+--                    it SELECT and DELETE on audit_logs and nothing else; it is the
+--                    only role that may delete audit entries. Optional: without a
+--                    password it is created NOLOGIN and the worker's audit
+--                    retention job reports that it cannot run.
 --
 -- Passwords
 --   Never hard-coded here. psql reads them from the environment of the process
 --   that runs this file:
---     REPLYX_OWNER_PASSWORD, REPLYX_APP_PASSWORD, REPLYX_PLATFORM_PASSWORD
+--     REPLYX_OWNER_PASSWORD, REPLYX_APP_PASSWORD, REPLYX_PLATFORM_PASSWORD,
+--     REPLYX_RETENTION_PASSWORD (optional, see above)
 --   They must match the passwords in DATABASE_URL_OWNER / _APP / _PLATFORM
 --   (.env.example dev defaults: replyx_owner_dev_password,
---   replyx_app_dev_password, replyx_platform_dev_password).
+--   replyx_app_dev_password, replyx_platform_dev_password, replyx_retention_dev_password).
 --
 --   docker compose: mount this file at /docker-entrypoint-initdb.d/init.sql and
 --   pass the three variables to the postgres service. The image runs it once,
@@ -49,6 +56,7 @@
 \getenv replyx_owner_password REPLYX_OWNER_PASSWORD
 \getenv replyx_app_password REPLYX_APP_PASSWORD
 \getenv replyx_platform_password REPLYX_PLATFORM_PASSWORD
+\getenv replyx_retention_password REPLYX_RETENTION_PASSWORD
 
 -- Fail loudly when a password is missing or empty. The check never prints the
 -- value.
@@ -64,10 +72,15 @@
 \else
   \set replyx_platform_password ''
 \endif
+\if :{?replyx_retention_password}
+\else
+  \set replyx_retention_password ''
+\endif
 
 SELECT :'replyx_owner_password' = '' AS owner_pw_missing,
        :'replyx_app_password' = '' AS app_pw_missing,
-       :'replyx_platform_password' = '' AS platform_pw_missing
+       :'replyx_platform_password' = '' AS platform_pw_missing,
+       :'replyx_retention_password' = '' AS retention_pw_missing
 \gset
 
 \if :owner_pw_missing
@@ -91,6 +104,8 @@ SELECT 'CREATE ROLE replyx_app'
  WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'replyx_app') \gexec
 SELECT 'CREATE ROLE replyx_platform'
  WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'replyx_platform') \gexec
+SELECT 'CREATE ROLE replyx_retention'
+ WHERE NOT EXISTS (SELECT FROM pg_roles WHERE rolname = 'replyx_retention') \gexec
 
 ALTER ROLE replyx_owner WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
   NOREPLICATION NOBYPASSRLS INHERIT PASSWORD :'replyx_owner_password';
@@ -99,23 +114,34 @@ ALTER ROLE replyx_app WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
 ALTER ROLE replyx_platform WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
   NOREPLICATION NOBYPASSRLS NOINHERIT PASSWORD :'replyx_platform_password';
 
+-- The retention role logs in only when a password was given; otherwise it exists (so the
+-- migration can grant to it) but nobody can connect as it.
+\if :retention_pw_missing
+  ALTER ROLE replyx_retention WITH NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
+    NOREPLICATION NOBYPASSRLS NOINHERIT PASSWORD NULL;
+\else
+  ALTER ROLE replyx_retention WITH LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE
+    NOREPLICATION NOBYPASSRLS NOINHERIT PASSWORD :'replyx_retention_password';
+\endif
+
 -- RLS must filter rows for the runtime roles, never be switched off.
 ALTER ROLE replyx_app SET row_security = on;
 ALTER ROLE replyx_platform SET row_security = on;
+ALTER ROLE replyx_retention SET row_security = on;
 
 -- ---------------------------------------------------------------------------
--- Database: only the three roles (and the superuser) may connect.
+-- Database: only the four roles (and the superuser) may connect.
 -- ---------------------------------------------------------------------------
 REVOKE ALL ON DATABASE :"DBNAME" FROM PUBLIC;
 GRANT CONNECT, TEMPORARY ON DATABASE :"DBNAME" TO replyx_owner;
-GRANT CONNECT ON DATABASE :"DBNAME" TO replyx_app, replyx_platform;
+GRANT CONNECT ON DATABASE :"DBNAME" TO replyx_app, replyx_platform, replyx_retention;
 
 -- ---------------------------------------------------------------------------
 -- Schema: replyx_owner owns `public`; the runtime roles can only use it.
 -- ---------------------------------------------------------------------------
 ALTER SCHEMA public OWNER TO replyx_owner;
 REVOKE ALL ON SCHEMA public FROM PUBLIC;
-GRANT USAGE ON SCHEMA public TO replyx_app, replyx_platform;
+GRANT USAGE ON SCHEMA public TO replyx_app, replyx_platform, replyx_retention;
 
 -- ---------------------------------------------------------------------------
 -- Extensions (created by the superuser, in `public`)
@@ -132,7 +158,7 @@ DO $$
 DECLARE
   r text;
 BEGIN
-  FOREACH r IN ARRAY ARRAY['replyx_app', 'replyx_platform'] LOOP
+  FOREACH r IN ARRAY ARRAY['replyx_app', 'replyx_platform', 'replyx_retention'] LOOP
     IF EXISTS (SELECT FROM pg_roles
                 WHERE rolname = r
                   AND (rolsuper OR rolbypassrls OR rolcreaterole OR rolcreatedb OR rolreplication)) THEN
@@ -159,3 +185,4 @@ COMMIT;
 \unset replyx_owner_password
 \unset replyx_app_password
 \unset replyx_platform_password
+\unset replyx_retention_password

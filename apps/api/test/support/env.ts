@@ -15,6 +15,7 @@ Object.assign(process.env, {
   DATABASE_URL_OWNER: inject('databaseUrlOwner'),
   DATABASE_URL_APP: inject('databaseUrlApp'),
   DATABASE_URL_PLATFORM: inject('databaseUrlPlatform'),
+  DATABASE_URL_RETENTION: inject('databaseUrlRetention'),
   REDIS_URL: inject('redisUrl'),
   BASE_DOMAIN: 'localhost',
   CONSOLE_HOST: 'console.localhost',

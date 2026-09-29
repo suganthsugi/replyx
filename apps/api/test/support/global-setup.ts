@@ -20,6 +20,7 @@ const PASSWORDS = {
   REPLYX_OWNER_PASSWORD: 'owner-test',
   REPLYX_APP_PASSWORD: 'app-test',
   REPLYX_PLATFORM_PASSWORD: 'platform-test',
+  REPLYX_RETENTION_PASSWORD: 'retention-test',
 };
 
 declare module 'vitest' {
@@ -27,6 +28,7 @@ declare module 'vitest' {
     databaseUrlOwner: string;
     databaseUrlApp: string;
     databaseUrlPlatform: string;
+    databaseUrlRetention: string;
     redisUrl: string;
   }
 }
@@ -54,6 +56,7 @@ export async function setup(project: TestProject): Promise<void> {
   project.provide('databaseUrlOwner', owner);
   project.provide('databaseUrlApp', `postgres://replyx_app:${PASSWORDS.REPLYX_APP_PASSWORD}@${base}`);
   project.provide('databaseUrlPlatform', `postgres://replyx_platform:${PASSWORDS.REPLYX_PLATFORM_PASSWORD}@${base}`);
+  project.provide('databaseUrlRetention', `postgres://replyx_retention:${PASSWORDS.REPLYX_RETENTION_PASSWORD}@${base}`);
   project.provide('redisUrl', `redis://${valkey.getHost()}:${valkey.getMappedPort(6379)}`);
 }
 

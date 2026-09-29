@@ -32,6 +32,8 @@ services:
       REPLYX_OWNER_PASSWORD: ${REPLYX_OWNER_PASSWORD:?set REPLYX_OWNER_PASSWORD in .env}
       REPLYX_APP_PASSWORD: ${REPLYX_APP_PASSWORD:?set REPLYX_APP_PASSWORD in .env}
       REPLYX_PLATFORM_PASSWORD: ${REPLYX_PLATFORM_PASSWORD:?set REPLYX_PLATFORM_PASSWORD in .env}
+      # Optional: without it replyx_retention is NOLOGIN and audit log retention does not run.
+      REPLYX_RETENTION_PASSWORD: ${REPLYX_RETENTION_PASSWORD:-}
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./infra/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
