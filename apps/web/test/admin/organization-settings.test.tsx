@@ -28,6 +28,8 @@ const settings: TenantSettings = {
   afterCloseBehavior: 'new_follow_up',
   offlineCustomerNotification: 'email',
   outOfHoursMessage: null,
+  retentionPeriod: 'forever',
+  auditRetention: 'forever',
 };
 
 function meWith(permissions: string[]): Me {

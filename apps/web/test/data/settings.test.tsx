@@ -28,6 +28,8 @@ function makeSettings(overrides: Partial<TenantSettings> = {}): TenantSettings {
     afterCloseBehavior: 'new_follow_up',
     offlineCustomerNotification: 'email',
     outOfHoursMessage: 'We are away.',
+    retentionPeriod: 'forever',
+    auditRetention: 'forever',
     ...overrides,
   };
 }
