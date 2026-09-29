@@ -20,6 +20,7 @@ import type {
   Ticket,
   TicketSummary,
   User,
+  UserRef,
   View,
 } from '../../src/api/generated/model';
 
@@ -204,6 +205,16 @@ export function tagsHandler(tags: TagRef[]) {
 
 export function usersHandler(users: User[]) {
   return http.get(`${API}/users`, () => HttpResponse.json<{ items: User[]; nextCursor: string | null }>({ items: users, nextCursor: null }));
+}
+
+/** Serves the ticket's @mention candidates by name prefix and records each request's `q` in `queries`. */
+export function mentionCandidatesHandler(ticketId: string, candidates: UserRef[], queries: string[] = []) {
+  return http.get(`${API}/tickets/${ticketId}/mention-candidates`, ({ request }) => {
+    const q = new URL(request.url).searchParams.get('q') ?? '';
+    queries.push(q);
+    const items = candidates.filter((candidate) => candidate.name.toLowerCase().startsWith(q.toLowerCase()));
+    return HttpResponse.json<{ items: UserRef[] }>({ items });
+  });
 }
 
 export function viewsHandler(views: View[]) {

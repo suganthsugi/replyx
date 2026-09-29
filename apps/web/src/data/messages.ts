@@ -1,7 +1,7 @@
-import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useInfiniteQuery, useQuery, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo } from 'react';
 
-import { listTicketMessages, postTicketMessage, useMoveTicketMessage as useMoveTicketMessageMutation } from '../api/generated/tickets/tickets';
+import { listMentionCandidates, listTicketMessages, postTicketMessage, useMoveTicketMessage as useMoveTicketMessageMutation } from '../api/generated/tickets/tickets';
 
 import { mapError } from './errors';
 import { ticketKeys } from './tickets';
@@ -23,6 +23,7 @@ export const messageKeys = {
   all: ['ticket-messages'] as const,
   list: (ticketId: string, includeMerged = false) => [...messageKeys.all, ticketId, includeMerged] as const,
   outbox: (ticketId: string) => [...messageKeys.all, ticketId, 'outbox'] as const,
+  mentionCandidates: (ticketId: string, query: string) => [...messageKeys.all, ticketId, 'mention-candidates', query] as const,
 };
 
 const PAGE_SIZE = 50;
@@ -108,6 +109,23 @@ export interface SendTicketMessageInput {
 }
 
 /** Send a public reply or add an internal note, with an idempotent `clientMessageId`. */
+/**
+ * Staff an internal note on the ticket can @mention (`GET /tickets/{id}/mention-candidates`, needs
+ * `ticket.edit`; id, name and avatar only, so no `user.view`). `query` is the text typed after the
+ * `@` (a name prefix); `null` keeps the query idle until the picker opens.
+ */
+export function useMentionCandidates(ticketId: string | undefined, query: string | null) {
+  const q = query?.trim() ?? '';
+  const result = useQuery({
+    queryKey: messageKeys.mentionCandidates(ticketId ?? '', q),
+    queryFn: ({ signal }) => listMentionCandidates(ticketId ?? '', q === '' ? undefined : { q }, { signal }),
+    enabled: ticketId !== undefined && query !== null,
+    placeholderData: keepPreviousData,
+    select: (page) => page.items,
+  });
+  return { ...result, error: result.error ? mapError(result.error) : undefined };
+}
+
 export function useSendTicketMessage(ticketId: string) {
   const queryClient = useQueryClient();
 

@@ -18,6 +18,7 @@ import {
   makeMessage,
   makeTicket,
   meHandler,
+  mentionCandidatesHandler,
   messagesHandler,
   tagsHandler,
   ticketHandler,
@@ -104,6 +105,39 @@ describe('TicketFocus', () => {
     expect(screen.getByRole('combobox', { name: 'Group' })).toBeEnabled();
     expect(screen.getByRole('combobox', { name: 'Owner' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Delete ticket' })).toBeInTheDocument();
+  });
+
+  it('offers @mention candidates from the ticket-scoped endpoint, fetched by prefix, without listing users', async () => {
+    const ticket = makeTicket({ allowedActions: ['reply', 'note', 'edit'] });
+    const queries: string[] = [];
+    let usersRequests = 0;
+    renderFocus(ticket);
+    server.use(
+      mentionCandidatesHandler(
+        ticket.id,
+        [
+          { id: 'u-ada', name: 'Ada Admin', avatarUrl: null },
+          { id: 'u-alex', name: 'Alex Agent', avatarUrl: null },
+          { id: 'u-sam', name: 'Sam Support', avatarUrl: null },
+        ],
+        queries,
+      ),
+      http.get(`${API}/users`, () => {
+        usersRequests += 1;
+        return errorResponse(403, 'PERMISSION_DENIED');
+      }),
+    );
+    await screen.findByRole('heading', { level: 2, name: ticket.title });
+    expect(queries).toEqual([]);
+
+    await userEvent.type(screen.getByRole('combobox', { name: 'Reply' }), 'Hi @al');
+    const option = await screen.findByRole('option', { name: 'Alex Agent' });
+    expect(screen.getAllByRole('option')).toHaveLength(1);
+    expect(queries).toContain('al');
+
+    await userEvent.click(option);
+    expect(screen.getByRole('combobox', { name: 'Reply' })).toHaveValue('Hi @Alex Agent ');
+    expect(usersRequests).toBe(0);
   });
 
   it('disables reply/note, edit, group, owner and tags, and hides delete, when no action is allowed', async () => {

@@ -30,7 +30,7 @@ import { TriageBar } from '../../../components/tickets/TriageBar';
 import { useAttachmentUploads } from '../../../data/attachments';
 import { useMe } from '../../../data/auth';
 import { useEligibleOwners, useGroupDestinations } from '../../../data/groups';
-import { useSendTicketMessage, useTicketMessages, useTicketMessageEvents } from '../../../data/messages';
+import { useMentionCandidates, useSendTicketMessage, useTicketMessages, useTicketMessageEvents } from '../../../data/messages';
 import { useRealtime } from '../../../data/realtime';
 import { useCreateTag, useTags } from '../../../data/tags';
 import {
@@ -46,7 +46,6 @@ import {
   useTicketTypingSignal,
   useUpdateTicket,
 } from '../../../data/tickets';
-import { useUsers } from '../../../data/users';
 
 import type { PresenceUser as PresenceRowUser } from '../../../components/tickets/types';
 import type { TagRef } from '../../../data/tags';
@@ -81,6 +80,7 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [addingLink, setAddingLink] = useState(false);
   const [linkTargetId, setLinkTargetId] = useState('');
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [linkKind, setLinkKind] = useState<CreateTicketLinkBodyKind>('related');
 
   useTicketRoom(client, ticketId);
@@ -122,12 +122,8 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
   const eligibleOwners = useEligibleOwners(groupId);
   const tags = useTags();
   const createTag = useCreateTag();
-  const staffUsers = useUsers({ kind: 'staff', status: 'active' });
-
-  const mentionCandidates = useMemo(
-    () => (staffUsers.data?.pages ?? []).flatMap((page) => page.items).map((user) => ({ id: user.id, name: user.name })),
-    [staffUsers.data],
-  );
+  // Only staff who can view this ticket, fetched by name prefix once the composer's @ opens.
+  const mentionCandidates = useMentionCandidates(ticketId, mentionQuery);
 
   const currentOwner = ticketQuery.data?.owner;
   const currentGroup = ticketQuery.data?.group;
@@ -135,14 +131,12 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
     const userNameById = new Map<string, string>();
     if (currentOwner) userNameById.set(currentOwner.id, currentOwner.name);
     for (const owner of eligibleOwners.data ?? []) userNameById.set(owner.id, owner.name);
-    for (const page of staffUsers.data?.pages ?? []) {
-      for (const user of page.items) userNameById.set(user.id, user.name);
-    }
+    for (const candidate of mentionCandidates.data ?? []) userNameById.set(candidate.id, candidate.name);
     const groupNameById = new Map<string, string>();
     if (currentGroup) groupNameById.set(currentGroup.id, currentGroup.name);
     for (const group of groups.data ?? []) groupNameById.set(group.id, group.name);
     return { userNameById, groupNameById };
-  }, [currentOwner, currentGroup, eligibleOwners.data, staffUsers.data, groups.data]);
+  }, [currentOwner, currentGroup, eligibleOwners.data, mentionCandidates.data, groups.data]);
 
   if (ticketQuery.isPending) {
     return (
@@ -369,7 +363,8 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
             onAttach={uploads.add}
             onRemoveAttachment={uploads.remove}
             onTyping={onTyping}
-            mentionCandidates={mentionCandidates}
+            mentionCandidates={mentionCandidates.data ?? []}
+            onMentionQueryChange={setMentionQuery}
             disabled={!canReplyOrNote}
           />
         </Box>
