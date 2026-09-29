@@ -106,8 +106,10 @@ export function TriageBar({ ticketId, onClose }: TriageBarProps) {
         ownerInputRef.current?.focus();
       }
     }
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    // Capture phase: the check above must see the listbox as it was before Autocomplete handles
+    // this Enter, or the Enter that picks an option (closing the listbox) would also assign.
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
   }, [group, handleAssign]);
 
   return (

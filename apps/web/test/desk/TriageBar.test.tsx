@@ -165,6 +165,30 @@ describe('TriageBar', () => {
     expect(container.ownerDocument.querySelector('[aria-live="polite"]')).toHaveTextContent('Ticket sent to Support');
   });
 
+  it('picks a group with the keyboard without assigning, then assigns on the next Enter', async () => {
+    setupTriageBarHandlers();
+    let requestBody: unknown;
+    server.use(
+      triageHandler('ticket-1', (body) => {
+        requestBody = body;
+        return { visibleToCaller: true };
+      }),
+    );
+    renderWithProviders(<TriageBar ticketId="ticket-1" onClose={vi.fn()} />);
+
+    await userEvent.keyboard('g');
+    const groupInput = screen.getByRole('combobox', { name: 'Group' });
+    await userEvent.keyboard('{ArrowDown}');
+    await screen.findByRole('listbox');
+    await userEvent.keyboard('{ArrowDown}{Enter}');
+    await waitFor(() => expect(groupInput).toHaveAttribute('aria-expanded', 'false'));
+    expect(groupInput).not.toHaveValue('');
+    expect(requestBody).toBeUndefined();
+
+    await userEvent.keyboard('{Enter}');
+    await waitFor(() => expect(requestBody).toMatchObject({ groupId: expect.any(String) as string }));
+  });
+
   it('does not assign on Enter before a group is chosen', async () => {
     setupTriageBarHandlers();
     let called = false;
