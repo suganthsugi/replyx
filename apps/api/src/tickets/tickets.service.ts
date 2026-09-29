@@ -51,10 +51,10 @@ export interface TicketUpdateInput {
   tagIds?: readonly string[];
 }
 
-const SUPPORT = 'support' as const;
-type Viewer = EffectiveAccess | typeof SUPPORT;
+export const SUPPORT = 'support' as const;
+export type Viewer = EffectiveAccess | typeof SUPPORT;
 
-function canView(access: Viewer, groupId: string | null): boolean {
+export function canView(access: Viewer, groupId: string | null): boolean {
   return access === SUPPORT || decide(access, 'ticket.view', { type: 'ticket', groupId }) === 'allow';
 }
 
@@ -100,115 +100,130 @@ export class TicketsService {
   async update(ctx: TenantContext, ticketId: string, input: TicketUpdateInput): Promise<TicketDto> {
     const access = await this.access(ctx);
     return this.unitOfWork.withTenant(ctx, async (tx) => {
-      const tickets = new TicketsRepository(ctx);
-      const before = await tickets.lock(tx, ticketId);
+      const before = await new TicketsRepository(ctx).lock(tx, ticketId);
       if (before === undefined || !canView(access, before.group_id)) throw notFound('ticket');
       require(access, 'ticket.edit', before.group_id);
-
-      const patch: TicketPatch = {};
-      const changes: FieldChange[] = [];
-
-      if (input.title !== undefined && input.title !== before.title) {
-        patch.title = input.title;
-        changes.push({ field: 'title', old: before.title, new: input.title });
-      }
-      if (input.priority !== undefined && input.priority !== before.priority) {
-        patch.priority = input.priority;
-        changes.push({ field: 'priority', old: before.priority, new: input.priority });
-      }
-
-      const targetGroupId = input.groupId === undefined ? before.group_id : input.groupId;
-      const groupChanged = targetGroupId !== before.group_id;
-      if (groupChanged) {
-        await this.checkGroupMove(ctx, tx, access, before.group_id, targetGroupId);
-        patch.group_id = targetGroupId;
-        changes.push({ field: 'group_id', old: before.group_id, new: targetGroupId });
-      }
-
-      if (input.ownerId !== undefined && input.ownerId !== before.owner_id) {
-        if (input.ownerId !== null) {
-          const eligible = await new AccessRepository(ctx).eligibleOwners(tx, targetGroupId);
-          if (!eligible.some((owner) => owner.id === input.ownerId)) {
-            throw conflict('OWNER_NOT_ELIGIBLE', 'This owner does not have edit access on the ticket’s group');
-          }
-        }
-        patch.owner_id = input.ownerId;
-        changes.push({ field: 'owner_id', old: before.owner_id, new: input.ownerId });
-      } else if (groupChanged && input.ownerId === undefined && before.owner_id !== null) {
-        // A move that doesn't name an owner keeps the current one only if they can edit the new group.
-        const eligible = await new AccessRepository(ctx).eligibleOwners(tx, targetGroupId);
-        if (!eligible.some((owner) => owner.id === before.owner_id)) {
-          patch.owner_id = null;
-          changes.push({ field: 'owner_id', old: before.owner_id, new: null });
-        }
-      }
-
-      let moved: TransitionResult | undefined;
-      if (input.state !== undefined || input.pendingUntil !== undefined) {
-        const settings = await new TenantSettingsRepository(ctx).conversation(tx);
-        const pendingUntil = input.pendingUntil === undefined ? undefined : input.pendingUntil === null ? null : new Date(input.pendingUntil);
-        moved = transition(timersOf(before), {
-          cause: 'agent',
-          to: input.state ?? before.state,
-          pendingUntil,
-          now: this.clock.now(),
-          gracePeriodHours: settings.gracePeriodHours,
-        });
-        Object.assign(patch, moved.changes);
-        if (moved.stateChanged) patch.state = moved.state;
-        changes.push(...transitionChanges(before, moved));
-      }
-
-      if (input.tagIds !== undefined) await this.replaceTags(tx, ticketId, input.tagIds);
-
-      const ticket = Object.keys(patch).length === 0 ? before : await tickets.update(tx, ticketId, patch);
-      const tagRefs = (await this.tags.tagsByTicketIds(tx, [ticket.id])).get(ticket.id) ?? [];
-
-      if (changes.length > 0) {
-        const eventId = await this.outbox.append(tx, {
-          type: 'ticket.updated',
-          payload: { ticket: await summaryOf(ctx, tx, ticket, tagRefs), changes },
-          streams: groupChanged
-            ? [ticketStream(ticket.id), groupStream(ticket.group_id), groupStream(before.group_id)]
-            : [ticketStream(ticket.id), groupStream(ticket.group_id)],
-        });
-        await this.history.record(tx, ticket.id, changes, { eventId });
-
-        if (moved?.stateChanged) {
-          await this.outbox.append(tx, {
-            type: 'ticket.state_changed',
-            payload: { ticketId: ticket.id, from: moved.from, to: moved.state },
-            streams: [ticketStream(ticket.id)],
-          });
-        }
-        if (patch.owner_id !== undefined) {
-          await this.outbox.append(tx, {
-            type: 'ticket.assigned',
-            payload: { ticketId: ticket.id, previousOwnerId: before.owner_id, ownerId: ticket.owner_id },
-            streams: [ticketStream(ticket.id)],
-          });
-        }
-        if (moved?.closed) {
-          await this.outbox.append(tx, { type: 'ticket.closed', payload: { ticketId: ticket.id }, streams: [ticketStream(ticket.id)] });
-        }
-        if (moved?.reopened) {
-          await this.outbox.append(tx, {
-            type: 'ticket.reopened',
-            payload: { ticketId: ticket.id, from: moved.from },
-            streams: [ticketStream(ticket.id)],
-          });
-        }
-        if (groupChanged) {
-          await this.outbox.append(tx, {
-            type: 'ticket.removed_from_view',
-            payload: { ticketId: ticket.id, reason: 'moved' },
-            streams: [groupStream(before.group_id)],
-          });
-        }
-      }
-
-      return this.toDto(ctx, tx, access, ticket, tagRefs);
+      const { ticket, tags } = await this.applyLocked(ctx, tx, access, before, input);
+      return this.toDto(ctx, tx, access, ticket, tags);
     });
+  }
+
+  /**
+   * Applies `input` to a ticket row the caller has locked and checked edit on, with history and
+   * events, in the caller's transaction. Shared by `update` and `TriageService`.
+   */
+  async applyLocked(
+    ctx: TenantContext,
+    tx: TenantTransaction,
+    access: Viewer,
+    before: TicketRow,
+    input: TicketUpdateInput,
+  ): Promise<{ ticket: TicketRow; tags: RefDto[] }> {
+    const ticketId = before.id;
+    const tickets = new TicketsRepository(ctx);
+    const patch: TicketPatch = {};
+    const changes: FieldChange[] = [];
+
+    if (input.title !== undefined && input.title !== before.title) {
+      patch.title = input.title;
+      changes.push({ field: 'title', old: before.title, new: input.title });
+    }
+    if (input.priority !== undefined && input.priority !== before.priority) {
+      patch.priority = input.priority;
+      changes.push({ field: 'priority', old: before.priority, new: input.priority });
+    }
+
+    const targetGroupId = input.groupId === undefined ? before.group_id : input.groupId;
+    const groupChanged = targetGroupId !== before.group_id;
+    if (groupChanged) {
+      await this.checkGroupMove(ctx, tx, access, before.group_id, targetGroupId);
+      patch.group_id = targetGroupId;
+      changes.push({ field: 'group_id', old: before.group_id, new: targetGroupId });
+    }
+
+    if (input.ownerId !== undefined && input.ownerId !== before.owner_id) {
+      if (input.ownerId !== null) {
+        const eligible = await new AccessRepository(ctx).eligibleOwners(tx, targetGroupId);
+        if (!eligible.some((owner) => owner.id === input.ownerId)) {
+          throw conflict('OWNER_NOT_ELIGIBLE', 'This owner does not have edit access on the ticket’s group');
+        }
+      }
+      patch.owner_id = input.ownerId;
+      changes.push({ field: 'owner_id', old: before.owner_id, new: input.ownerId });
+    } else if (groupChanged && input.ownerId === undefined && before.owner_id !== null) {
+      // A move that doesn't name an owner keeps the current one only if they can edit the new group.
+      const eligible = await new AccessRepository(ctx).eligibleOwners(tx, targetGroupId);
+      if (!eligible.some((owner) => owner.id === before.owner_id)) {
+        patch.owner_id = null;
+        changes.push({ field: 'owner_id', old: before.owner_id, new: null });
+      }
+    }
+
+    let moved: TransitionResult | undefined;
+    if (input.state !== undefined || input.pendingUntil !== undefined) {
+      const settings = await new TenantSettingsRepository(ctx).conversation(tx);
+      const pendingUntil = input.pendingUntil === undefined ? undefined : input.pendingUntil === null ? null : new Date(input.pendingUntil);
+      moved = transition(timersOf(before), {
+        cause: 'agent',
+        to: input.state ?? before.state,
+        pendingUntil,
+        now: this.clock.now(),
+        gracePeriodHours: settings.gracePeriodHours,
+      });
+      Object.assign(patch, moved.changes);
+      if (moved.stateChanged) patch.state = moved.state;
+      changes.push(...transitionChanges(before, moved));
+    }
+
+    if (input.tagIds !== undefined) await this.replaceTags(tx, ticketId, input.tagIds);
+
+    const ticket = Object.keys(patch).length === 0 ? before : await tickets.update(tx, ticketId, patch);
+    const tagRefs = (await this.tags.tagsByTicketIds(tx, [ticket.id])).get(ticket.id) ?? [];
+
+    if (changes.length > 0) {
+      const eventId = await this.outbox.append(tx, {
+        type: 'ticket.updated',
+        payload: { ticket: await summaryOf(ctx, tx, ticket, tagRefs), changes },
+        streams: groupChanged
+          ? [ticketStream(ticket.id), groupStream(ticket.group_id), groupStream(before.group_id)]
+          : [ticketStream(ticket.id), groupStream(ticket.group_id)],
+      });
+      await this.history.record(tx, ticket.id, changes, { eventId });
+
+      if (moved?.stateChanged) {
+        await this.outbox.append(tx, {
+          type: 'ticket.state_changed',
+          payload: { ticketId: ticket.id, from: moved.from, to: moved.state },
+          streams: [ticketStream(ticket.id)],
+        });
+      }
+      if (patch.owner_id !== undefined) {
+        await this.outbox.append(tx, {
+          type: 'ticket.assigned',
+          payload: { ticketId: ticket.id, previousOwnerId: before.owner_id, ownerId: ticket.owner_id },
+          streams: [ticketStream(ticket.id)],
+        });
+      }
+      if (moved?.closed) {
+        await this.outbox.append(tx, { type: 'ticket.closed', payload: { ticketId: ticket.id }, streams: [ticketStream(ticket.id)] });
+      }
+      if (moved?.reopened) {
+        await this.outbox.append(tx, {
+          type: 'ticket.reopened',
+          payload: { ticketId: ticket.id, from: moved.from },
+          streams: [ticketStream(ticket.id)],
+        });
+      }
+      if (groupChanged) {
+        await this.outbox.append(tx, {
+          type: 'ticket.removed_from_view',
+          payload: { ticketId: ticket.id, reason: 'moved' },
+          streams: [groupStream(before.group_id)],
+        });
+      }
+    }
+
+    return { ticket, tags: tagRefs };
   }
 
   async delete(ctx: TenantContext, ticketId: string): Promise<void> {
@@ -258,14 +273,14 @@ export class TicketsService {
     await this.tags.setTicketTags(tx, ticketId, unique);
   }
 
-  private async toDto(ctx: TenantContext, tx: TenantTransaction, access: Viewer, row: TicketRow, tags: readonly RefDto[]): Promise<TicketDto> {
+  async toDto(ctx: TenantContext, tx: TenantTransaction, access: Viewer, row: TicketRow, tags: readonly RefDto[]): Promise<TicketDto> {
     const refs = new TicketRefsRepository(ctx);
     const [names, links] = await Promise.all([refs.load(tx, [row]), refs.links(tx, row.id, (groupId) => canView(access, groupId))]);
     return toTicketDto(row, names, links, access === SUPPORT ? [] : allowedActions(access, row.group_id), tags);
   }
 
   /** Operators under a support-access grant are read-only (FR-001a): writes are always denied. */
-  private async access(ctx: TenantContext): Promise<Viewer> {
+  async access(ctx: TenantContext): Promise<Viewer> {
     if (ctx.actor.kind === 'operator') return SUPPORT;
     if (ctx.actor.kind !== 'user') throw new Error('Ticket updates need a user actor');
     return this.policy.effectiveAccess(ctx, ctx.actor.id);
