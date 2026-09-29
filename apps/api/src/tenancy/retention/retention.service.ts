@@ -57,6 +57,14 @@ export class RetentionService {
     return cutoff === null ? 0 : new RetentionRepository(ctx).countPurgeable(tx, cutoff);
   }
 
+  /** How many audit entries an `auditRetention` would delete at the next audit purge (the number an admin confirms). */
+  async countPurgeableAudit(tx: TenantTransaction, period: string): Promise<number> {
+    const ctx = tenantScopeOf(tx);
+    if (ctx === undefined) throw new Error('RetentionService.countPurgeableAudit must run inside withTenant');
+    const cutoff = retentionCutoff(this.clock.now(), period);
+    return cutoff === null ? 0 : new RetentionRepository(ctx).countAuditOlderThan(tx, cutoff);
+  }
+
   /** One tenant's daily run. Returns what was purged; writes one audit entry when anything was. */
   async purgeTenant(tenantId: string): Promise<PurgeCounts> {
     const ctx = TenantContext.create({ tenantId, actor: { kind: 'system' }, requestId: `retention:${uuidv7()}` });
@@ -141,5 +149,18 @@ export function retentionConfirmationRequired(purgeCount: number): AppError {
     409,
     'Shortening the retention period deletes closed tickets. Confirm the number of tickets that will be deleted.',
     [{ path: 'confirmPurgeCount', issue: 'confirmation_required', purgeCount }],
+  );
+}
+
+/**
+ * 409 for a settings change that would irreversibly delete audit entries (FR-005a): the admin
+ * confirms by resending `confirmAuditPurgeCount` equal to `purgeCount`, the number the response carries.
+ */
+export function auditRetentionConfirmationRequired(purgeCount: number): AppError {
+  return new AppError(
+    'AUDIT_RETENTION_CONFIRMATION_REQUIRED',
+    409,
+    'Shortening the audit retention deletes audit log entries. Confirm the number of entries that will be deleted.',
+    [{ path: 'confirmAuditPurgeCount', issue: 'confirmation_required', purgeCount }],
   );
 }

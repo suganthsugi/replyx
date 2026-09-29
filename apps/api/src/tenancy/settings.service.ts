@@ -7,7 +7,7 @@ import { validationFailed } from '../platform-kernel/http/app-error.js';
 
 import { meetsAAContrast, nearestAACompliantShade, SUGGESTED_TEXT_CONTRAST } from './contrast.js';
 import { isShortening, type AuditRetention, type RetentionPeriod } from './retention/retention-period.js';
-import { retentionConfirmationRequired, RetentionService } from './retention/retention.service.js';
+import { auditRetentionConfirmationRequired, retentionConfirmationRequired, RetentionService } from './retention/retention.service.js';
 
 import type { JsonValue } from '../platform-kernel/db/tables/column-types.js';
 import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
@@ -21,7 +21,8 @@ import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
  * Shortening `retentionPeriod` deletes closed tickets on the next daily purge, so it needs
  * `confirmPurgeCount` (a request-only field) equal to the number of tickets that would go; a
  * missing or stale count answers 409 `RETENTION_CONFIRMATION_REQUIRED` with the current count and
- * changes nothing.
+ * changes nothing. Shortening `auditRetention` works the same way with `confirmAuditPurgeCount`
+ * (audit entries older than the new cutoff) and 409 `AUDIT_RETENTION_CONFIRMATION_REQUIRED`.
  */
 
 export interface BrandColorsDto {
@@ -59,6 +60,8 @@ export interface TenantSettingsUpdate {
   auditRetention?: AuditRetention;
   /** Not stored: the confirmation for a shortened `retentionPeriod`. */
   confirmPurgeCount?: number;
+  /** Not stored: the confirmation for a shortened `auditRetention`. */
+  confirmAuditPurgeCount?: number;
 }
 
 interface SettingsRow {
@@ -134,11 +137,21 @@ export class TenantSettingsService {
     });
   }
 
-  /** FR-005a: a shorter retention period is applied to already-closed tickets, so the admin confirms the count first. */
+  /**
+   * FR-005a: a shorter retention period is applied to already-closed tickets (and a shorter audit
+   * retention to old audit entries), so the admin confirms the count first. When both periods
+   * shorten in one PATCH the ticket confirmation is checked first: the client gets the ticket 409,
+   * resends with `confirmPurgeCount`, and then gets the audit 409 (one 409 per request, never both).
+   */
   private async assertPurgeConfirmed(tx: TenantTransaction, before: TenantSettingsDto, input: TenantSettingsUpdate): Promise<void> {
-    if (input.retentionPeriod === undefined || !isShortening(before.retentionPeriod, input.retentionPeriod)) return;
-    const purgeCount = await this.retention.countPurgeable(tx, input.retentionPeriod);
-    if (purgeCount > 0 && input.confirmPurgeCount !== purgeCount) throw retentionConfirmationRequired(purgeCount);
+    if (input.retentionPeriod !== undefined && isShortening(before.retentionPeriod, input.retentionPeriod)) {
+      const purgeCount = await this.retention.countPurgeable(tx, input.retentionPeriod);
+      if (purgeCount > 0 && input.confirmPurgeCount !== purgeCount) throw retentionConfirmationRequired(purgeCount);
+    }
+    if (input.auditRetention !== undefined && isShortening(before.auditRetention, input.auditRetention)) {
+      const purgeCount = await this.retention.countPurgeableAudit(tx, input.auditRetention);
+      if (purgeCount > 0 && input.confirmAuditPurgeCount !== purgeCount) throw auditRetentionConfirmationRequired(purgeCount);
+    }
   }
 
   /**

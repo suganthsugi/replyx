@@ -17,7 +17,7 @@ import type { Request } from 'express';
  * `businessHoursId` and `notificationDefaults` are not accepted here yet (see
  * `settings.service.ts`); `.strict()` rejects them as unknown keys rather than silently ignoring
  * them. `retentionPeriod` / `auditRetention` (T193) are accepted; shortening `retentionPeriod`
- * needs `confirmPurgeCount`.
+ * needs `confirmPurgeCount`, shortening `auditRetention` needs `confirmAuditPurgeCount`.
  */
 
 const HexColor = z.string().trim().regex(/^#[0-9a-f]{6}$/i, { message: 'invalid_format' });
@@ -51,6 +51,7 @@ const PatchBody = z
     retentionPeriod: z.enum(RETENTION_PERIODS).optional(),
     auditRetention: z.enum(AUDIT_RETENTIONS).optional(),
     confirmPurgeCount: z.int().min(0).optional(),
+    confirmAuditPurgeCount: z.int().min(0).optional(),
   })
   .strict();
 
