@@ -13,6 +13,8 @@ export interface UiError {
   retryAfter?: number;
   /** Validation issues by field path (`title`, `items.0.id`) → snake_case issue. */
   fieldErrors?: Record<string, string>;
+  /** A value that would pass validation, by field path (e.g. an AA-contrast shade for `insufficient_contrast`). */
+  fieldSuggestions?: Record<string, string>;
 }
 
 export const NETWORK_ERROR: UiError = {
@@ -51,15 +53,28 @@ function toFieldErrors(details: unknown): Record<string, string> | undefined {
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
+/** A value that would pass validation, by field path, e.g. `brandColors.primary` → an AA-compliant shade for `insufficient_contrast`. */
+function toFieldSuggestions(details: unknown): Record<string, string> | undefined {
+  if (!Array.isArray(details) || details.length === 0) return undefined;
+  const result: Record<string, string> = {};
+  for (const detail of details) {
+    const { path, suggestion } = (detail ?? {}) as { path?: unknown; suggestion?: unknown };
+    if (typeof path === 'string' && typeof suggestion === 'string' && result[path] === undefined) result[path] = suggestion;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
 export function mapError(raw: unknown): UiError {
   if (!isApiError(raw)) return NETWORK_ERROR;
   const { code, message, details, retryAfter } = raw.error;
   const fieldErrors = toFieldErrors(details);
+  const fieldSuggestions = toFieldSuggestions(details);
   return {
     code,
     message: FRIENDLY_MESSAGES[code] ?? message,
     ...(typeof retryAfter === 'number' ? { retryAfter } : {}),
     ...(fieldErrors === undefined ? {} : { fieldErrors }),
+    ...(fieldSuggestions === undefined ? {} : { fieldSuggestions }),
   };
 }
 

@@ -36,6 +36,7 @@ const ISSUE_MESSAGES: Record<string, string> = {
   invalid_type: 'This value is not valid',
   invalid: 'This value is not valid',
   unrecognized_key: 'This field is not allowed',
+  insufficient_contrast: 'This color does not contrast enough against white for accessible text',
 };
 
 export function issueMessage(issue: string): string {
