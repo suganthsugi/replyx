@@ -115,14 +115,7 @@ export class CustomerConversationService {
 
   /** FR-052: idle, received ("Support has your message"), replying or answered. */
   async status(ctx: TenantContext, tx: TenantTransaction, customerId: string): Promise<FriendlyStatus> {
-    const active = await new ConversationRepository(ctx).activeTicket(tx, customerId);
-    let code: FriendlyStatusCode = 'idle';
-    if (active !== undefined) code = active.waiting_on === 'customer' ? 'answered' : 'received';
-    if (code === 'received' && active !== undefined && this.presence !== undefined) {
-      const { typing } = await this.presence.ticket(ctx.tenantId, active.id);
-      if (typing.some((member) => !member.startsWith('customer:'))) code = 'replying';
-    }
-    return friendlyStatus(code);
+    return friendlyStatus(await friendlyStatusCode(ctx, tx, customerId, this.presence));
   }
 
   /**
@@ -160,6 +153,28 @@ export class CustomerConversationService {
     ]);
     return { authors, attachments };
   }
+}
+
+/**
+ * The status code `GET /conversation` reports (FR-052), derived from the customer's most recently
+ * updated active ticket: idle without one, `answered` when waiting on the customer, otherwise
+ * `received`, or `replying` while staff are typing (needs `presence`). Live events that change the
+ * status (`announceResolved`) use this too, so a live update and a reload agree.
+ */
+export async function friendlyStatusCode(
+  ctx: TenantContext,
+  tx: TenantTransaction,
+  customerId: string,
+  presence?: PresenceService,
+): Promise<FriendlyStatusCode> {
+  const active = await new ConversationRepository(ctx).activeTicket(tx, customerId);
+  if (active === undefined) return 'idle';
+  if (active.waiting_on === 'customer') return 'answered';
+  if (presence !== undefined) {
+    const { typing } = await presence.ticket(ctx.tenantId, active.id);
+    if (typing.some((member) => !member.startsWith('customer:'))) return 'replying';
+  }
+  return 'received';
 }
 
 function toCursor(position: Position): { at: Date; key: string } {
@@ -206,18 +221,19 @@ class ConversationRepository extends TenantRepository {
       .executeTakeFirst();
   }
 
-  /** When each resolved or closed, unmerged ticket was resolved (or closed without resolving). */
+  /**
+   * When each resolved (or since closed), unmerged ticket was resolved. Only a resolution gets a
+   * marker (US7 scenario 1): it is what `announceResolved` sends live, so a ticket that was closed
+   * without ever being resolved (`closed_at` only) has none, live or on reload.
+   */
   async resolutions(tx: TenantTransaction, customerId: string): Promise<{ id: string; at: Date }[]> {
     const rows = await this.selectFrom(tx, 'tickets')
-      .select(['tickets.id', 'tickets.resolved_at', 'tickets.closed_at'])
+      .select(['tickets.id', 'tickets.resolved_at'])
       .where('tickets.customer_id', '=', customerId)
       .where('tickets.state', 'in', ['resolved', 'closed'])
       .where('tickets.merged_into_id', 'is', null)
       .execute();
-    return rows.flatMap((row) => {
-      const at = row.resolved_at ?? row.closed_at;
-      return at === null ? [] : [{ id: row.id, at }];
-    });
+    return rows.flatMap((row) => (row.resolved_at === null ? [] : [{ id: row.id, at: row.resolved_at }]));
   }
 
   activeTicket(tx: TenantTransaction, customerId: string) {
