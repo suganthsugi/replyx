@@ -1425,6 +1425,34 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /groups/destinations:
+    get:
+      operationId: listGroupDestinations
+      tags:
+        - access
+      summary: Active groups a ticket can be sent to, by name (ticket.edit)
+      description: >
+        For the triage bar and the ticket's group picker. Ids and names only (no description or
+        ticket counts), so it needs ticket.edit rather than group.view. The move itself is still
+        checked per group (FR-041).
+      responses:
+        "200":
+          description: Active groups ordered by name
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/GroupRef"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
   /groups/{id}:
     parameters:
       - $ref: "#/components/parameters/IdPath"
