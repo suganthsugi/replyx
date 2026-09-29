@@ -13,7 +13,7 @@ import type { APIRequestContext, Page } from '@playwright/test';
  * group, so a manager can never be notified about an internal note on a Support ticket (FR-081
  * drops recipients who cannot view the ticket). The note mentions the admin (full access) instead.
  *
- * Step 9 moves the development clock 73 h (the same Valkey offset `dev:advance-clock` writes),
+ * Step 9 moves the development clock by the grace period plus 1 h (the same Valkey offset `dev:advance-clock` writes),
  * which expires every staff session (12 h idle), so the admin signs in again to check the result.
  * Sign-ins: customer link, manager, agent, admin, admin again = 5 (the suite allows 10 a minute).
  */
@@ -111,6 +111,9 @@ test('the customer-to-agent main flow, from first message to follow-up after the
   const adminPage = await adminContext.newPage();
   const cleanup: (() => Promise<unknown>)[] = [];
 
+  // An aborted earlier run may have left a clock offset behind.
+  await resetClock();
+
   try {
     await signInCustomer(page, request, customerEmail, 'E2E Main Flow Customer');
     await signInStaffUi(managerPage, MANAGER_EMAIL, SEED_PASSWORD);
@@ -207,7 +210,12 @@ test('the customer-to-agent main flow, from first message to follow-up after the
     await expect(page.getByText('refund policy')).toHaveCount(0);
     await expect(page.getByText(/internal note|mentioned/i)).toHaveCount(0);
     await expect(page.getByRole('button', { name: /Notifications/ })).toHaveCount(0);
-    for (const mail of await messagesTo(request, customerEmail)) expect(mail).not.toContain('refund policy');
+    // Mail can arrive late: keep checking the customer's mailbox for a short window, not just once.
+    const mailDeadline = Date.now() + 6_000;
+    do {
+      for (const mail of await messagesTo(request, customerEmail)) expect(mail).not.toContain(note);
+      await new Promise((resolve) => setTimeout(resolve, 1_000));
+    } while (Date.now() < mailDeadline);
 
     // --- 7. The agent resolves; the customer sees the friendly marker. -------------------------
     await agentPage.getByRole('button', { name: 'Resolve', exact: true }).click();
@@ -228,7 +236,10 @@ test('the customer-to-agent main flow, from first message to follow-up after the
 
     // --- 9. Past the grace period: the old ticket closes, a follow-up starts in Needs Triage. --
     cleanup.push(resetClock);
-    await advanceClock(73);
+    const settings = await admin.api.get('/api/v1/settings');
+    expect(settings.status()).toBe(200);
+    const { gracePeriodHours } = (await settings.json()) as { gracePeriodHours: number };
+    await advanceClock(gracePeriodHours + 1);
     // The api has the new time once the staff sessions (12 h idle) read as expired.
     await expect.poll(async () => (await agent.api.get('/api/v1/me')).status(), { timeout: 15_000 }).toBe(401);
     const adminContext2 = await browser.newContext();
@@ -258,9 +269,16 @@ test('the customer-to-agent main flow, from first message to follow-up after the
     await expect(page.getByText(/#\d+/)).toHaveCount(0);
     await expect(page.getByText(/ticket/i)).toHaveCount(0);
   } finally {
-    // Back to real time first, so a failure never leaves the other specs in the future.
-    await resetClock();
+    // Back to real time first, so a failure never leaves the other specs in the future. A failing
+    // reset must not stop the contexts closing; it is rethrown afterwards.
+    let resetError: unknown;
+    try {
+      await resetClock();
+    } catch (error) {
+      resetError = error;
+    }
     for (const step of cleanup.reverse()) await step().catch(() => undefined);
     await Promise.all([managerContext.close(), agentContext.close(), adminContext.close()]);
+    expect(resetError, `resetClock failed: ${String(resetError)}`).toBeUndefined();
   }
 });
