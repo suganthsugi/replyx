@@ -12,9 +12,11 @@ import type { TenantSettingsUpdateWelcomeMessage } from './tenantSettingsUpdateW
 import type { AfterCloseBehavior } from './afterCloseBehavior';
 import type { OfflineCustomerNotification } from './offlineCustomerNotification';
 import type { TenantSettingsUpdateOutOfHoursMessage } from './tenantSettingsUpdateOutOfHoursMessage';
+import type { RetentionPeriod } from './retentionPeriod';
+import type { AuditRetention } from './auditRetention';
 
 /**
- * Only the fields sent are changed; retentionPeriod, auditRetention, businessHoursId and notificationDefaults are not accepted here yet.
+ * Only the fields sent are changed; businessHoursId and notificationDefaults are not accepted here yet. Shortening retentionPeriod (from forever, or to fewer years) that would purge closed tickets needs confirmPurgeCount.
  */
 export interface TenantSettingsUpdate {
   /**
@@ -38,4 +40,11 @@ export interface TenantSettingsUpdate {
   offlineCustomerNotification?: OfflineCustomerNotification;
   /** @maxLength 500 */
   outOfHoursMessage?: TenantSettingsUpdateOutOfHoursMessage;
+  retentionPeriod?: RetentionPeriod;
+  auditRetention?: AuditRetention;
+  /**
+   * The purgeCount from a 409 RETENTION_CONFIRMATION_REQUIRED response, resent to confirm the purge. Request only; never returned.
+   * @minimum 0
+   */
+  confirmPurgeCount?: number;
 }
