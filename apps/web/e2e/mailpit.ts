@@ -56,3 +56,17 @@ export function linkPath(body: string, pathFragment: string): string {
   const url = new URL(match[0].replace(/&amp;/g, '&'));
   return `${url.pathname}${url.search}`;
 }
+
+/** Every message sent to `to` so far, as raw JSON text (subject and body). */
+export async function messagesTo(request: APIRequestContext, to: string): Promise<string[]> {
+  const response = await request.get(`${MAILPIT}/api/v1/messages?limit=200`);
+  if (!response.ok()) throw new Error(`Mailpit list failed: ${response.status()}`);
+  const { messages } = (await response.json()) as { messages: MessageSummary[] };
+  const mine = messages.filter((message) => message.To.some((recipient) => recipient.Address.toLowerCase() === to.toLowerCase()));
+  const bodies: string[] = [];
+  for (const message of mine) {
+    const body = await request.get(`${MAILPIT}/api/v1/message/${message.ID}`);
+    if (body.ok()) bodies.push(JSON.stringify(await body.json()));
+  }
+  return bodies;
+}
