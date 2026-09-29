@@ -42,8 +42,8 @@ your own lists — it's still been triaged, just out of your view.
 
 ## If triage doesn't go through
 
-- **"Someone else already triaged this ticket."** — another user assigned it first; refresh to see
-  where it went (if you still have access to that group).
+- **"Someone else already triaged this ticket."** — another user assigned it first. The ticket updates to show
+  where it went if you can see that group; otherwise it leaves your lists.
 - An **inactive group** can't be chosen as a destination.
 - An **owner** who doesn't have edit access to the group you picked is refused — pick a different
   owner or leave it unassigned.
