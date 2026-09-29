@@ -42,6 +42,18 @@ export class RetentionRepository extends TenantRepository {
   }
 
   /**
+   * Audit entries older than `cutoff`, the same predicate the audit retention job deletes by. Read
+   * as `replyx_app` (SELECT on `audit_logs`), inside the caller's tenant transaction.
+   */
+  async countAuditOlderThan(tx: TenantTransaction, cutoff: Date): Promise<number> {
+    const row = await this.selectFrom(tx, 'audit_logs')
+      .select((eb) => eb.fn.countAll().as('count'))
+      .where('audit_logs.occurred_at', '<', cutoff)
+      .executeTakeFirstOrThrow();
+    return Number(row.count);
+  }
+
+  /**
    * One batch, locked so a concurrent purge skips it and a reopening ticket waits. State and age
    * are checked here, under the lock, not only when the batch was counted.
    */
