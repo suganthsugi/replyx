@@ -98,23 +98,33 @@ export class AuditRetentionJob extends JobProcessor implements OnApplicationBoot
     if (cutoff === null) return 0;
 
     let deleted = 0;
-    for (let batch = 0; batch < MAX_BATCHES_PER_RUN; batch += 1) {
-      const count = await retentionUnitOfWork.withTenant(ctx, (tx) =>
-        new AuditRetentionRepository(ctx).deleteOlderThan(tx, cutoff, DELETE_BATCH_SIZE),
-      );
-      deleted += count;
-      if (count < DELETE_BATCH_SIZE) break;
+    try {
+      for (let batch = 0; batch < MAX_BATCHES_PER_RUN; batch += 1) {
+        const count = await retentionUnitOfWork.withTenant(ctx, (tx) =>
+          new AuditRetentionRepository(ctx).deleteOlderThan(tx, cutoff, DELETE_BATCH_SIZE),
+        );
+        deleted += count;
+        if (count < DELETE_BATCH_SIZE) break;
+      }
+    } finally {
+      // Even for a run that failed part-way: what was deleted is on record.
+      if (deleted > 0) await this.recordPurge(ctx, auditRetention, cutoff, deleted);
     }
-    if (deleted > 0) {
-      // Counts only.
+    return deleted;
+  }
+
+  /** Counts only. A failure here is logged and never replaces the error of the run that led to it. */
+  private async recordPurge(ctx: TenantContext, auditRetention: string, cutoff: Date, entryCount: number): Promise<void> {
+    try {
       await this.unitOfWork.withTenant(ctx, (tx) =>
         this.audit.record(tx, {
           action: 'audit_log.purged',
           resourceType: 'audit_log',
-          details: { auditRetention, olderThan: cutoff.toISOString(), entryCount: deleted },
+          details: { auditRetention, olderThan: cutoff.toISOString(), entryCount },
         }),
       );
+    } catch (error) {
+      this.logger.error(`Audit purge entry failed for tenant ${ctx.tenantId}: ${error instanceof Error ? error.message : 'unknown'}`);
     }
-    return deleted;
   }
 }
