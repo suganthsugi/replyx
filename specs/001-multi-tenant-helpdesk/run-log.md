@@ -298,6 +298,105 @@ Start commit: b4afe6b
 - Reviewer didn't read: TicketFocus beyond the diff, NewTicketDialog and fixture diffs, generated client, `allowedActions`, repository internals, the docs sidebar.
 - Follow-ups: `areas.test.tsx`'s 10 s lazy wait is tight under full parallel load; the e2e after the P9-2 fixes was not rerun separately (covered by the Phase 10 checkpoint).
 
+### Resume notes (Phase 10) 2026-09-30
+- User scope: "analyse and continue from the current phase". Phase 10 (US7) had T187 (settings page half), T189 and T190 open; T179 was committed (59320ec, f32550f) but never ticked, now ticked. T183's two test files (`contrast.test.ts`, `settings.test.ts`) were left uncommitted by the last session; 24/24 pass, committed as 85e03f1 and 7da55b9.
+- User's uncommitted edits (agent models → sonnet, ui-components rule 9 for `docs/design-system`, CLAUDE.md catalog line, `docs/design-system/`) are left alone. The settings page follows rule 9 through the existing `DesignSystemScope` (T097).
+- Jira: the Atlassian connector needs interactive authentication this session; still skipped (7f369ba removed it from the workflow).
+
+- T187 b18fea7, 18b71ad (frontend-agent; no logo or accent control yet: no upload flow). T190 e5a79ca (documentator; docs build verified inline, 14 pages).
+- User: "start the next phase, if there is no dependency on the current test". Phase 11 doesn't depend on T189's spec. The shared dev stack does: edits don't hot-reload it (restarts are manual), so backend agents run Testcontainers tests only, with no restart, seed or dev migration until T189 finishes. T191+T192 and T193 run in parallel. T194 (openapi) comes after both. T197/T198 (web) wait for T189.
+
+### Phase 10/11 decisions (2026-09-30)
+- P10-1 The T189 e2e advances the clock by writing the `dev:advance-clock` Valkey key straight from the playwright container (`e2e/dev-clock.ts`) and resets it in `finally`. The 73 h jump expires staff sessions (12 h idle), so the spec signs the admin in again. Customer sessions (trusted device, 30 days) survive.
+- P10-2 User decision: agents get @mention candidates from a new narrow endpoint (active staff id, name and avatar; no `user.view`), as P9-4 did with `/groups/destinations`. Until then the main-flow e2e posts the note through the API with `mentionIds`. Scheduled after T194 so the two don't both edit openapi.yaml.
+- P10-3 User decision: quickstart step 6 mentions the admin, not the manager (the seeded Manager has no Support access, so FR-081 blocks the notification). Done in cb48371.
+- P10-4 In the full e2e run, `sign-in.spec.ts` "an invited agent accepts, signs in and signs out everywhere" fails on desktop and mobile. It passes alone and failed the same way on the HEAD playwright config. Suspected cause: `tenant-lifecycle.spec.ts` running in parallel (503 "workspace unavailable" on sign-in). Must be green before T189 is ticked.
+- P11-1 T192 lands with the `audit_log` cross-tenant fixture (tasks.md had it under T195), so the generated suite stays green.
+- P11-2 T193 adds a `replyx_retention` role (0012). It has DELETE on `audit_logs` only and stays under RLS. It is NOLOGIN without `REPLYX_RETENTION_PASSWORD`. Existing databases, dev included, need `infra/postgres/init.sql` re-run (idempotent) plus `DATABASE_URL_RETENTION` in `.env` before migration 0012 runs.
+
+- P10-4 resolved: the cause was the 10/min per-IP sign-in limit (the invitation accept got a 429 while tenant-lifecycle ran in the same first phase), not a shared tenant. tenant-lifecycle now runs in its own desktop/mobile projects after the sign-in specs (e880d8a). Full e2e 15/15.
+- P11-3 Updating the dev stack for 0012 (`.env` retention lines, re-running init.sql, restart) was refused by the permission classifier. The user was asked to run it. Until then the dev api/worker must not be restarted, since the migration would fail.
+- Commits: T191 3de3008; T192 030b8fa, 6fb0788; T193 335fec2, 0c02e76, 3461f6b; T194 d29c5ac, 1dfe8b1, 1e1b881 (web fixtures fixed inline); T189 27f068e, fd90100, e880d8a.
+
+- Phase 10 review round 1: FAIL.
+  - Critical: resolution.test.ts times out when it runs after auto-close-race (order dependence).
+  - Majors:
+    - the auto-close race never races (a frozen clock sets autoCloseAt = now);
+    - Save stays dirty after the API normalizes a value;
+    - the contrast announcement is untested.
+  - Warnings and minors: live resolved/idle status vs reload; logoAttachmentId unchecked; suggestion margin; the e2e 73 h clock jump is hard-coded, resetClock cleanup, the negative mail check runs too early; BrandPreview px literals; read-only flash while /me loads; double alert; TicketFocus resolve has no catch; no FOR UPDATE on the settings merge.
+  - Routing: test-automator (1, 2), frontend-agent (3, 4, 11-14, 16), backend-agent (5-7, 15), frontend-automator (8-10).
+
+- Phase 10 review API fixes:
+  - faca667: contrast suggestion aims at 4.6.
+  - eb3b677: FOR UPDATE on the settings row; a non-null logoAttachmentId gets 400 `not_supported` until US16.
+  - e5e89a2: openapi descriptions.
+  - 336cbd4: the resolve event sends the status a reload would show; only resolved tickets get a marker. The `closed_at` fallback is dropped, so a pending_close swept to closed shows no marker.
+- Commits: T195 5b749d0; T196 8bb7c14; T198 c5411f0, 4abf2ee, e4b5049; T197 (audit page) 6d79ba8, 708e413.
+- Audit page choices (agent defaults, accepted):
+  - the actor filter is a text id, since `useUsers` needs user.view;
+  - filters live in component state, as on the other admin pages;
+  - times use `toLocaleString`, since nothing formats in the tenant timezone yet.
+
+- P10-2 done:
+  - API 94aa487, openapi 1c5a1a0, client 2c9e2ab; web part pending.
+  - The endpoint is `GET /tickets/{id}/mention-candidates` (ticket.edit on the group; active staff who can view it; id, name, avatar; ≤ 20).
+  - The POST doesn't check that mentioned users can view the ticket, but `recipient-resolver.ts` filters mention notifications by `canView`, so FR-081 holds.
+  - Follow-up: TicketFocus history names no longer come from `useUsers`, so a former owner not in the candidates shows as "Unknown user". This needs names in the history payload.
+- Incident: a running agent ran `git stash` on the shared tree (27 real files, plus CRLF churn), so 94aa487 first landed with only its test file. The stash was restored and the commit amended (local, unpushed). All running agents were told not to change git state.
+- T189 review fixes: e501875.
+
+### Phase 10 complete (T181–T190) 2026-09-30
+- Review round 2: PASS. All 16 round-1 findings fixed:
+  - 63e47e1, b9b7520, 318a548 (tests);
+  - 4b6de18, b7270ad (web);
+  - 336cbd4, faca667, eb3b677, e5e89a2 (api);
+  - e501875 (e2e).
+- Round-2 minors:
+  - JSDoc fixed (65e9ee7);
+  - the race mix isn't asserted (accepted);
+  - history names for former owners (logged follow-up).
+- Warning: the organization-settings axe test hits the 20 s default timeout in the container. The fix agent says this predates the fixes (NewTicketDialog too); passes with `--testTimeout=90000`. To be settled at the checkpoint.
+- Mention web: eb448f1. Follow-ups: other TicketFocus selectors still `void mutateAsync` without catch; the settings page load error isn't mapped.
+
+### Phase 11 review (2026-09-30)
+- Full API suite 68 files / 820 tests; web 50 / 302; lint and typecheck clean both.
+- Reviewer: PASS, no critical findings. Majors M1 and M2 are fixed now rather than deferred, because both mean irreversible, unrecorded audit loss:
+  - M1: shortening auditRetention has no confirmation;
+  - M2: a partial audit purge isn't recorded.
+- Warnings:
+  - W1: the dialog should say "at least N, at the next daily run";
+  - W2: a load-more failure replaces the audit list;
+  - W3: the api container gets DATABASE_URL_RETENTION;
+  - W4: the cold-start axe timeout;
+  - W5: files are deleted before the rows commit (privacy-safe; to document);
+  - W6: retention role and rollback tests.
+- Minors m1–m4 are logged: `now()` vs `clock_timestamp()` for occurred_at; raw Modal plus double error announcement; the composer filters by substring while the server matches a prefix, and mention errors are ignored; the mention SQL duplicates `decide`.
+- Routing: backend-agent (M1 API, M2, W3, W6 in part), frontend-agent (W2 now; then the M1 dialog, W1 and W4 once the contract lands), documentator (W5).
+
+- Phase 11 fixes:
+  - API 0430050, 245dad5, acba5f5, fe0e94e, bd9ddba, 667607e;
+  - web 9cd4d56, 5d6a497, 638ec59, 88d4f07;
+  - docs 5b847fb.
+- Re-review: PASS (two tolerable minors).
+- M1 contract: 409 `AUDIT_RETENTION_CONFIRMATION_REQUIRED` until `confirmAuditPurgeCount` matches. When both periods shorten, the ticket confirmation comes first, one 409 per request.
+- Checkpoint:
+  - The web coverage gate first failed on `areas.test.tsx`, the Phase 9 10 s lazy wait, now slower under coverage instrumentation with the bigger admin chunk. The wait is now 30 s in a 60 s describe (this commit). Web 318 tests, 80.56% lines.
+  - API coverage 91.44% lines (829 tests). One run failed once on catch-up.test.ts SC-002 "count hints … once for a burst" (it passes 3/3 alone): a flake under load, logged. The re-run is green (69 files / 829).
+
+### Phase 11 status (T191–T199) 2026-09-30
+- All tasks ticked. Reviewer PASS (both rounds). Coverage green: api 91.44% / web 80.56% lines. Docs build passes (15 pages); redocly valid.
+- Not yet done: the full e2e run on the Phase 11 code. The dev stack still runs pre-0012 code and needs the user to run the `.env`/init.sql/restart steps (P11-3), then `seed:dev` and the e2e suite. The MVP checkpoint ("run the quickstart validation scenarios before deploying") waits on that.
+- Open follow-ups:
+  - TicketFocus history names for former owners;
+  - other TicketFocus selectors don't catch mutation errors;
+  - the settings page load error isn't mapped;
+  - composer substring vs server prefix match, and mention errors are ignored;
+  - `occurred_at` uses `now()`;
+  - the catch-up SC-002 flake under load;
+  - the auto-close race mix isn't asserted.
+- Jira: still skipped (the connector needs sign-in).
+
 ### Resume notes (Phase 4) 2026-09-25
 - User scope: finish Phase 3 and Phase 4, then stop. Phase 3 is done; Phase 4 (T074–T090) is next, starting at T074.
 - Checks: `docker compose run --rm -T tools bash -c 'set -o pipefail; pnpm turbo run lint typecheck test --continue'`; coverage `./scripts/check-coverage.sh`; e2e `docker compose --profile e2e run --rm -T playwright bash -c 'cd /repo && pnpm --filter web exec playwright test e2e/'` after `pnpm --filter api seed:dev`.
