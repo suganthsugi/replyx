@@ -17,6 +17,8 @@ export interface UiError {
   fieldSuggestions?: Record<string, string>;
   /** `RETENTION_CONFIRMATION_REQUIRED`: closed tickets a shorter retention would delete; resend the save with `confirmPurgeCount`. */
   retentionConfirmation?: { purgeCount: number };
+  /** `AUDIT_RETENTION_CONFIRMATION_REQUIRED`: audit log entries a shorter `auditRetention` would delete; resend the save with `confirmAuditPurgeCount`. */
+  auditRetentionConfirmation?: { purgeCount: number };
 }
 
 export const NETWORK_ERROR: UiError = {
@@ -66,11 +68,16 @@ function toFieldSuggestions(details: unknown): Record<string, string> | undefine
   return Object.keys(result).length > 0 ? result : undefined;
 }
 
-function toRetentionConfirmation(code: string, details: unknown): { purgeCount: number } | undefined {
-  if (code !== 'RETENTION_CONFIRMATION_REQUIRED' || !Array.isArray(details)) return undefined;
+function toPurgeConfirmation(
+  expectedCode: string,
+  path: string,
+  code: string,
+  details: unknown,
+): { purgeCount: number } | undefined {
+  if (code !== expectedCode || !Array.isArray(details)) return undefined;
   for (const detail of details) {
-    const { path, purgeCount } = (detail ?? {}) as { path?: unknown; purgeCount?: unknown };
-    if (path === 'confirmPurgeCount' && typeof purgeCount === 'number') return { purgeCount };
+    const { path: detailPath, purgeCount } = (detail ?? {}) as { path?: unknown; purgeCount?: unknown };
+    if (detailPath === path && typeof purgeCount === 'number') return { purgeCount };
   }
   return undefined;
 }
@@ -80,7 +87,13 @@ export function mapError(raw: unknown): UiError {
   const { code, message, details, retryAfter } = raw.error;
   const fieldErrors = toFieldErrors(details);
   const fieldSuggestions = toFieldSuggestions(details);
-  const retentionConfirmation = toRetentionConfirmation(code, details);
+  const retentionConfirmation = toPurgeConfirmation('RETENTION_CONFIRMATION_REQUIRED', 'confirmPurgeCount', code, details);
+  const auditRetentionConfirmation = toPurgeConfirmation(
+    'AUDIT_RETENTION_CONFIRMATION_REQUIRED',
+    'confirmAuditPurgeCount',
+    code,
+    details,
+  );
   return {
     code,
     message: FRIENDLY_MESSAGES[code] ?? message,
@@ -88,6 +101,7 @@ export function mapError(raw: unknown): UiError {
     ...(fieldErrors === undefined ? {} : { fieldErrors }),
     ...(fieldSuggestions === undefined ? {} : { fieldSuggestions }),
     ...(retentionConfirmation === undefined ? {} : { retentionConfirmation }),
+    ...(auditRetentionConfirmation === undefined ? {} : { auditRetentionConfirmation }),
   };
 }
 

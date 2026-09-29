@@ -165,4 +165,51 @@ describe('retention confirmation', () => {
     const retry = await attempt({ retentionPeriod: 'P1Y', confirmPurgeCount: 7 });
     expect(retry?.retentionConfirmation).toEqual({ purgeCount: 9 });
   });
+
+  it('maps AUDIT_RETENTION_CONFIRMATION_REQUIRED to auditRetentionConfirmation, and a stale retry to a fresh count', async () => {
+    const counts = [30, 44];
+    let call = 0;
+    server.use(
+      http.patch(`${API}/settings`, () =>
+        HttpResponse.json<ErrorResponse>(
+          {
+            error: {
+              code: 'AUDIT_RETENTION_CONFIRMATION_REQUIRED',
+              message: 'Confirm',
+              details: [{ path: 'confirmAuditPurgeCount', issue: 'confirmation_required', purgeCount: counts[call++] }],
+            },
+          },
+          { status: 409 },
+        ),
+      ),
+    );
+    const { result } = renderWithClient(() => useUpdateTenantSettings());
+
+    const attempt = async (data: Parameters<typeof result.current.mutateAsync>[0]) => {
+      try {
+        await result.current.mutateAsync(data);
+      } catch (error) {
+        return mapError(error);
+      }
+      return undefined;
+    };
+
+    const first = await attempt({ auditRetention: 'P1Y' });
+    expect(first?.auditRetentionConfirmation).toEqual({ purgeCount: 30 });
+    expect(first?.retentionConfirmation).toBeUndefined();
+    const retry = await attempt({ auditRetention: 'P1Y', confirmAuditPurgeCount: 30 });
+    expect(retry?.auditRetentionConfirmation).toEqual({ purgeCount: 44 });
+  });
+
+  it('keeps the two confirmations apart and ignores a detail on the wrong path', () => {
+    const wrongPath = mapError({
+      error: {
+        code: 'AUDIT_RETENTION_CONFIRMATION_REQUIRED',
+        message: 'Confirm',
+        details: [{ path: 'confirmPurgeCount', issue: 'confirmation_required', purgeCount: 3 }],
+      },
+    });
+    expect(wrongPath.auditRetentionConfirmation).toBeUndefined();
+    expect(wrongPath.retentionConfirmation).toBeUndefined();
+  });
 });

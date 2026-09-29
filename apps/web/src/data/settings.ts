@@ -26,6 +26,11 @@ import type { TenantSettings, TenantSettingsUpdate } from '../api/generated/mode
  * the thrown error gives `retentionConfirmation: { purgeCount }`. Show "This deletes N closed
  * tickets" and resend the same patch with `confirmPurgeCount: N`. If the count changed meanwhile,
  * the retry fails with the same code and the new `purgeCount`, to be confirmed again.
+ *
+ * Shortening `auditRetention` can likewise fail with 409 `AUDIT_RETENTION_CONFIRMATION_REQUIRED`
+ * (`auditRetentionConfirmation: { purgeCount }`, details path `confirmAuditPurgeCount`); resend with
+ * `confirmAuditPurgeCount: N`. When both periods shorten, the tickets 409 comes first; after that
+ * confirm the retry returns the audit 409, so keep `confirmPurgeCount` and add the audit count.
  */
 
 export const settingsKeys = {
