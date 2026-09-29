@@ -1788,6 +1788,71 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+  /tickets/{id}/triage:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    post:
+      operationId: triageTicket
+      tags:
+        - tickets
+      summary: Triage an ungrouped ticket in one step (ticket.edit on Ungrouped)
+      description: >
+        Sets the group, and optionally the owner, priority and tags, of an ungrouped ticket in one
+        transaction (FR-063). The destination must be active; the owner must have edit on it
+        (FR-040). A caller with edit on Ungrouped may send the ticket to any active group and keeps
+        access only if their roles grant it there (FR-041). The ticket leaves the Ungrouped stream
+        with ticket.removed_from_view (reason moved).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - groupId
+              additionalProperties: false
+              properties:
+                groupId:
+                  type: string
+                  format: uuid
+                ownerId:
+                  type: string
+                  format: uuid
+                priority:
+                  $ref: "#/components/schemas/Priority"
+                tagIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "200":
+          description: Triaged. visibleToCaller is false, and ticket absent, when the caller has no access to the new group.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - visibleToCaller
+                properties:
+                  visibleToCaller:
+                    type: boolean
+                  ticket:
+                    $ref: "#/components/schemas/Ticket"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: ALREADY_TRIAGED (someone else triaged it first), GROUP_INACTIVE or OWNER_NOT_ELIGIBLE
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tickets/{id}/messages:
     parameters:
       - $ref: "#/components/parameters/IdPath"
