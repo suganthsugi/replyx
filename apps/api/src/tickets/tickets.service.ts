@@ -263,6 +263,7 @@ export class TicketsService {
     if (currentGroupId !== null) require(access, 'ticket.create', targetGroupId);
     if (targetGroupId !== null) {
       const status = await new GroupStatusRepository(ctx).status(tx, targetGroupId);
+      if (status === undefined) throw notFound('group');
       if (status !== 'active') throw conflict('GROUP_INACTIVE', 'The destination group is not active');
     }
   }
