@@ -7,9 +7,11 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ErrorResponseErrorDetailsItem = {
-  path: string;
-  issue: string;
-  /** A value that would pass this check, e.g. an AA-contrast-compliant color for insufficient_contrast */
-  suggestion?: string;
-};
+export type OfflineCustomerNotification =
+  (typeof OfflineCustomerNotification)[keyof typeof OfflineCustomerNotification];
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const OfflineCustomerNotification = {
+  email: 'email',
+  off: 'off',
+} as const;

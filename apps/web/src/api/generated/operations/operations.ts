@@ -33,6 +33,8 @@ import type {
   NotificationPreferencesInput,
   PermissionDeniedResponse,
   SupportAccessGrant,
+  TenantSettings,
+  TenantSettingsUpdate,
   UnauthenticatedResponse,
   ValidationFailedResponse,
 } from '.././model';
@@ -41,6 +43,210 @@ import { http } from '../../../data/http';
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
 
+/**
+ * @summary Tenant settings (tenant_settings.view)
+ */
+export const getGetTenantSettingsUrl = () => {
+  return `/settings`;
+};
+
+export const getTenantSettings = async (options?: RequestInit): Promise<TenantSettings> => {
+  return http<TenantSettings>(getGetTenantSettingsUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetTenantSettingsQueryKey = () => {
+  return [`/settings`] as const;
+};
+
+export const getGetTenantSettingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getTenantSettings>>,
+  TError = PermissionDeniedResponse,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTenantSettings>>, TError, TData>>;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetTenantSettingsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTenantSettings>>> = ({ signal }) =>
+    getTenantSettings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getTenantSettings>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetTenantSettingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getTenantSettings>>
+>;
+export type GetTenantSettingsQueryError = PermissionDeniedResponse;
+
+export function useGetTenantSettings<
+  TData = Awaited<ReturnType<typeof getTenantSettings>>,
+  TError = PermissionDeniedResponse,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTenantSettings>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTenantSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getTenantSettings>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTenantSettings<
+  TData = Awaited<ReturnType<typeof getTenantSettings>>,
+  TError = PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTenantSettings>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getTenantSettings>>,
+          TError,
+          Awaited<ReturnType<typeof getTenantSettings>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetTenantSettings<
+  TData = Awaited<ReturnType<typeof getTenantSettings>>,
+  TError = PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTenantSettings>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Tenant settings (tenant_settings.view)
+ */
+
+export function useGetTenantSettings<
+  TData = Awaited<ReturnType<typeof getTenantSettings>>,
+  TError = PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTenantSettings>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetTenantSettingsQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Only the fields sent are changed. brandColors.primary must contrast at least 4.5:1 against white (it fills the customer chat bubble/button); a failing value returns 400 VALIDATION_FAILED with details[].path "brandColors.primary", details[].issue "insufficient_contrast" and details[].suggestion set to an AA-compliant shade of the same color. Retention, businessHoursId and notificationDefaults are not accepted here yet.
+ * @summary Update tenant settings (tenant_settings.edit, FR-005)
+ */
+export const getUpdateTenantSettingsUrl = () => {
+  return `/settings`;
+};
+
+export const updateTenantSettings = async (
+  tenantSettingsUpdate: TenantSettingsUpdate,
+  options?: RequestInit,
+): Promise<TenantSettings> => {
+  return http<TenantSettings>(getUpdateTenantSettingsUrl(), {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(tenantSettingsUpdate),
+  });
+};
+
+export const getUpdateTenantSettingsMutationOptions = <
+  TError = ValidationFailedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateTenantSettings>>,
+    TError,
+    { data: TenantSettingsUpdate },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateTenantSettings>>,
+  TError,
+  { data: TenantSettingsUpdate },
+  TContext
+> => {
+  const mutationKey = ['updateTenantSettings'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateTenantSettings>>,
+    { data: TenantSettingsUpdate }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateTenantSettings(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateTenantSettingsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateTenantSettings>>
+>;
+export type UpdateTenantSettingsMutationBody = TenantSettingsUpdate;
+export type UpdateTenantSettingsMutationError = ValidationFailedResponse | PermissionDeniedResponse;
+
+/**
+ * @summary Update tenant settings (tenant_settings.edit, FR-005)
+ */
+export const useUpdateTenantSettings = <
+  TError = ValidationFailedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateTenantSettings>>,
+      TError,
+      { data: TenantSettingsUpdate },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateTenantSettings>>,
+  TError,
+  { data: TenantSettingsUpdate },
+  TContext
+> => {
+  const mutationOptions = getUpdateTenantSettingsMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * @summary Support-access grants for this tenant (support_access.view)
  */

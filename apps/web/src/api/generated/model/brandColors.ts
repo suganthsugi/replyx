@@ -7,9 +7,12 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type ErrorResponseErrorDetailsItem = {
-  path: string;
-  issue: string;
-  /** A value that would pass this check, e.g. an AA-contrast-compliant color for insufficient_contrast */
-  suggestion?: string;
-};
+export interface BrandColors {
+  /**
+   * Fills the customer chat bubble/button; must contrast at least 4.5:1 against white
+   * @pattern ^#[0-9a-fA-F]{6}$
+   */
+  primary?: string;
+  /** @pattern ^#[0-9a-fA-F]{6}$ */
+  accent?: string;
+}
