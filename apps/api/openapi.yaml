@@ -2030,6 +2030,48 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+  /tickets/{id}/mention-candidates:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: listMentionCandidates
+      tags:
+        - tickets
+      summary: Active staff who can be @mentioned in an internal note on this ticket (ticket.edit on the ticket's group)
+      description: >
+        For the internal note composer. Only active staff who can view the ticket (FR-081), by name,
+        at most 20, with id, name and avatar only (no email or role data), so it needs no user.view.
+        A ticket the caller cannot view is 404, view without edit is 403.
+      parameters:
+        - name: q
+          in: query
+          description: Case-insensitive prefix of the name
+          schema:
+            type: string
+            maxLength: 80
+      responses:
+        "200":
+          description: Candidates ordered by name
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    maxItems: 20
+                    items:
+                      $ref: "#/components/schemas/UserRef"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /tickets/{id}/messages/{messageId}/move:
     parameters:
       - $ref: "#/components/parameters/IdPath"
