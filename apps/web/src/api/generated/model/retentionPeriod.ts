@@ -6,14 +6,20 @@
 
  * OpenAPI spec version: 0.1.0
  */
-import type { ErrorResponseErrorDetailsItem } from './errorResponseErrorDetailsItem';
 
-export type ErrorResponseError = {
-  /** @pattern ^[A-Z][A-Z0-9_]+$ */
-  code: string;
-  message: string;
-  /** Only present for validation errors and RETENTION_CONFIRMATION_REQUIRED */
-  details?: ErrorResponseErrorDetailsItem[];
-  /** Seconds, only for RATE_LIMITED */
-  retryAfter?: number;
-};
+/**
+ * How long after closure a closed ticket is kept before it is purged; forever keeps it indefinitely
+ */
+export type RetentionPeriod = (typeof RetentionPeriod)[keyof typeof RetentionPeriod];
+
+// eslint-disable-next-line @typescript-eslint/no-redeclare
+export const RetentionPeriod = {
+  forever: 'forever',
+  P1Y: 'P1Y',
+  P2Y: 'P2Y',
+  P3Y: 'P3Y',
+  P4Y: 'P4Y',
+  P5Y: 'P5Y',
+  P6Y: 'P6Y',
+  P7Y: 'P7Y',
+} as const;

@@ -6,14 +6,5 @@
 
  * OpenAPI spec version: 0.1.0
  */
-import type { ErrorResponseErrorDetailsItem } from './errorResponseErrorDetailsItem';
 
-export type ErrorResponseError = {
-  /** @pattern ^[A-Z][A-Z0-9_]+$ */
-  code: string;
-  message: string;
-  /** Only present for validation errors and RETENTION_CONFIRMATION_REQUIRED */
-  details?: ErrorResponseErrorDetailsItem[];
-  /** Seconds, only for RATE_LIMITED */
-  retryAfter?: number;
-};
+export type AuditLogDetails = { [key: string]: unknown };

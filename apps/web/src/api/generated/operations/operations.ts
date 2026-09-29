@@ -24,6 +24,9 @@ import type {
 
 import type {
   CreateSupportAccessGrantBody,
+  ErrorResponse,
+  ListAuditLogs200,
+  ListAuditLogsParams,
   ListNotifications200,
   ListNotificationsParams,
   MarkNotificationsRead200,
@@ -159,7 +162,7 @@ export function useGetTenantSettings<
 }
 
 /**
- * Only the fields sent are changed. brandColors.primary must contrast at least 4.5:1 against white (it fills the customer chat bubble/button); a failing value returns 400 VALIDATION_FAILED with details[].path "brandColors.primary", details[].issue "insufficient_contrast" and details[].suggestion set to an AA-compliant shade of the same color. Retention, businessHoursId and notificationDefaults are not accepted here yet.
+ * Only the fields sent are changed. brandColors.primary must contrast at least 4.5:1 against white (it fills the customer chat bubble/button); a failing value returns 400 VALIDATION_FAILED with details[].path "brandColors.primary", details[].issue "insufficient_contrast" and details[].suggestion set to an AA-compliant shade of the same color. businessHoursId and notificationDefaults are not accepted here yet. Shortening retentionPeriod (from forever, or to fewer years) deletes closed tickets past the new cutoff; when that would purge any, the request needs confirmPurgeCount equal to the current count, otherwise it returns 409 RETENTION_CONFIRMATION_REQUIRED carrying that count and nothing is changed.
  * @summary Update tenant settings (tenant_settings.edit, FR-005)
  */
 export const getUpdateTenantSettingsUrl = () => {
@@ -179,7 +182,7 @@ export const updateTenantSettings = async (
 };
 
 export const getUpdateTenantSettingsMutationOptions = <
-  TError = ValidationFailedResponse | PermissionDeniedResponse,
+  TError = ValidationFailedResponse | PermissionDeniedResponse | ErrorResponse,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -218,13 +221,14 @@ export type UpdateTenantSettingsMutationResult = NonNullable<
   Awaited<ReturnType<typeof updateTenantSettings>>
 >;
 export type UpdateTenantSettingsMutationBody = TenantSettingsUpdate;
-export type UpdateTenantSettingsMutationError = ValidationFailedResponse | PermissionDeniedResponse;
+export type UpdateTenantSettingsMutationError =
+  ValidationFailedResponse | PermissionDeniedResponse | ErrorResponse;
 
 /**
  * @summary Update tenant settings (tenant_settings.edit, FR-005)
  */
 export const useUpdateTenantSettings = <
-  TError = ValidationFailedResponse | PermissionDeniedResponse,
+  TError = ValidationFailedResponse | PermissionDeniedResponse | ErrorResponse,
   TContext = unknown,
 >(
   options?: {
@@ -546,6 +550,141 @@ export const useRevokeSupportAccessGrant = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * Unknown query parameters return 400. from and to are inclusive.
+ * @summary Append-only audit log, newest first (audit_log.view, FR-092)
+ */
+export const getListAuditLogsUrl = (params?: ListAuditLogsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/audit-logs?${stringifiedParams}` : `/audit-logs`;
+};
+
+export const listAuditLogs = async (
+  params?: ListAuditLogsParams,
+  options?: RequestInit,
+): Promise<ListAuditLogs200> => {
+  return http<ListAuditLogs200>(getListAuditLogsUrl(params), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListAuditLogsQueryKey = (params?: ListAuditLogsParams) => {
+  return [`/audit-logs`, ...(params ? [params] : [])] as const;
+};
+
+export const getListAuditLogsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAuditLogs>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params?: ListAuditLogsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditLogs>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAuditLogsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAuditLogs>>> = ({ signal }) =>
+    listAuditLogs(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAuditLogs>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListAuditLogsQueryResult = NonNullable<Awaited<ReturnType<typeof listAuditLogs>>>;
+export type ListAuditLogsQueryError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useListAuditLogs<
+  TData = Awaited<ReturnType<typeof listAuditLogs>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params: undefined | ListAuditLogsParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditLogs>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAuditLogs>>,
+          TError,
+          Awaited<ReturnType<typeof listAuditLogs>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListAuditLogs<
+  TData = Awaited<ReturnType<typeof listAuditLogs>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params?: ListAuditLogsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditLogs>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAuditLogs>>,
+          TError,
+          Awaited<ReturnType<typeof listAuditLogs>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListAuditLogs<
+  TData = Awaited<ReturnType<typeof listAuditLogs>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params?: ListAuditLogsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditLogs>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Append-only audit log, newest first (audit_log.view, FR-092)
+ */
+
+export function useListAuditLogs<
+  TData = Awaited<ReturnType<typeof listAuditLogs>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params?: ListAuditLogsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAuditLogs>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListAuditLogsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
 /**
  * @summary Own notification center, newest first (FR-078)
  */

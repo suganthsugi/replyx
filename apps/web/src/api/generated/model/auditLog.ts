@@ -6,14 +6,18 @@
 
  * OpenAPI spec version: 0.1.0
  */
-import type { ErrorResponseErrorDetailsItem } from './errorResponseErrorDetailsItem';
+import type { AuditLogActor } from './auditLogActor';
+import type { AuditLogResourceId } from './auditLogResourceId';
+import type { AuditLogDetails } from './auditLogDetails';
+import type { AuditLogIp } from './auditLogIp';
 
-export type ErrorResponseError = {
-  /** @pattern ^[A-Z][A-Z0-9_]+$ */
-  code: string;
-  message: string;
-  /** Only present for validation errors and RETENTION_CONFIRMATION_REQUIRED */
-  details?: ErrorResponseErrorDetailsItem[];
-  /** Seconds, only for RATE_LIMITED */
-  retryAfter?: number;
-};
+export interface AuditLog {
+  id: string;
+  occurredAt: string;
+  actor: AuditLogActor;
+  action: string;
+  resourceType: string;
+  resourceId: AuditLogResourceId;
+  details: AuditLogDetails;
+  ip: AuditLogIp;
+}

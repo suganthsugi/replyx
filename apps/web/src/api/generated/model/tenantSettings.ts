@@ -12,6 +12,8 @@ import type { TenantSettingsWelcomeMessage } from './tenantSettingsWelcomeMessag
 import type { AfterCloseBehavior } from './afterCloseBehavior';
 import type { OfflineCustomerNotification } from './offlineCustomerNotification';
 import type { TenantSettingsOutOfHoursMessage } from './tenantSettingsOutOfHoursMessage';
+import type { RetentionPeriod } from './retentionPeriod';
+import type { AuditRetention } from './auditRetention';
 
 export interface TenantSettings {
   /** @maxLength 120 */
@@ -32,4 +34,6 @@ export interface TenantSettings {
   offlineCustomerNotification: OfflineCustomerNotification;
   /** @maxLength 500 */
   outOfHoursMessage: TenantSettingsOutOfHoursMessage;
+  retentionPeriod: RetentionPeriod;
+  auditRetention: AuditRetention;
 }
