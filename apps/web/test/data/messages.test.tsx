@@ -3,8 +3,8 @@ import { renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 
-import { useSendTicketMessage, useTicketMessages } from '../../src/data/messages';
-import { API } from '../msw/handlers';
+import { useMentionCandidates, useSendTicketMessage, useTicketMessages } from '../../src/data/messages';
+import { API, errorResponse } from '../msw/handlers';
 import { server } from '../setup';
 
 import type { Message, PostTicketMessageBody } from '../../src/api/generated/model';
@@ -101,3 +101,44 @@ describe('useSendTicketMessage / useTicketMessages race', () => {
     expect(result.current.messages.items.find((item) => item.body === 'On it')?.id).toBe('m1');
   });
 });
+
+describe('useMentionCandidates', () => {
+  it('stays idle until the picker opens, then sends the typed prefix as q', async () => {
+    const queries: (string | null)[] = [];
+    server.use(
+      http.get(`${API}/tickets/t1/mention-candidates`, ({ request }) => {
+        queries.push(new URL(request.url).searchParams.get('q'));
+        return HttpResponse.json({ items: [{ id: 'u1', name: 'Alex Agent', avatarUrl: null }] });
+      }),
+    );
+    const { result, rerender } = renderHookWithQuery();
+
+    expect(result.current.fetchStatus).toBe('idle');
+    expect(queries).toEqual([]);
+
+    rerender({ query: '' });
+    await waitFor(() => expect(result.current.data).toEqual([{ id: 'u1', name: 'Alex Agent', avatarUrl: null }]));
+    expect(queries).toEqual([null]);
+
+    rerender({ query: ' al ' });
+    await waitFor(() => expect(queries).toEqual([null, 'al']));
+  });
+
+  it('maps a permission failure to a UiError', async () => {
+    server.use(http.get(`${API}/tickets/t1/mention-candidates`, () => errorResponse(403, 'PERMISSION_DENIED')));
+    const { result, rerender } = renderHookWithQuery();
+    rerender({ query: '' });
+    await waitFor(() => expect(result.current.error?.code).toBe('PERMISSION_DENIED'));
+  });
+});
+
+function renderHookWithQuery() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const wrapper = ({ children }: { children: React.ReactNode }) => (
+    <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+  );
+  return renderHook(({ query }: { query: string | null }) => useMentionCandidates('t1', query), {
+    wrapper,
+    initialProps: { query: null as string | null },
+  });
+}

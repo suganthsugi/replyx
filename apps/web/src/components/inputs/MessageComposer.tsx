@@ -10,6 +10,7 @@ import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
 import Typography from '@mui/material/Typography';
 import {
+  useEffect,
   useId,
   useMemo,
   useRef,
@@ -49,8 +50,13 @@ export interface MessageComposerProps {
   /** Files that passed the type and size checks; the caller uploads them. */
   onAttach: (files: File[]) => void;
   onRemoveAttachment: (localId: string) => void;
-  /** Staff who can view this ticket; the `@name` picker's candidate list. */
+  /** Staff who can view this ticket; the `@name` picker's candidate list (narrowed here by what is typed). */
   mentionCandidates: readonly MentionCandidate[];
+  /**
+   * Tells the caller what follows the `@` being typed (`''` right after it), or `null` when no
+   * mention is open, so a caller that fetches candidates by name prefix can do so.
+   */
+  onMentionQueryChange?: (query: string | null) => void;
   defaultMode?: ComposerMode;
   disabled?: boolean;
   /** Called on every keystroke in the body, for a typing signal (`useTicketTypingSignal`). */
@@ -73,6 +79,7 @@ export function MessageComposer({
   onAttach,
   onRemoveAttachment,
   mentionCandidates,
+  onMentionQueryChange,
   defaultMode = 'reply',
   disabled = false,
   onTyping,
@@ -97,6 +104,10 @@ export function MessageComposer({
     return mentionCandidates.filter((candidate) => candidate.name.toLowerCase().includes(query)).slice(0, MAX_MENTION_RESULTS);
   }, [mention, mentionCandidates]);
   const mentionOpen = mention !== null;
+  const mentionQueryText = mention === null ? null : mention.query;
+  useEffect(() => {
+    onMentionQueryChange?.(mentionQueryText);
+  }, [mentionQueryText, onMentionQueryChange]);
   const activeOptionId = mentionOpen && mentionResults.length > 0 ? `${listboxId}-option-${mention.activeIndex}` : undefined;
 
   const send = () => {
