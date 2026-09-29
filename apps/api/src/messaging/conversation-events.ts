@@ -19,6 +19,7 @@ import {
 } from '../platform-kernel/realtime/socket-context.js';
 import { ACTIVE_STATES } from '../tickets/tickets.repository.js';
 
+import { friendlyStatusCode } from './customer-conversation.service.js';
 import { customerEvents, resolvedMarker } from './customer-projection.js';
 
 import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
@@ -44,17 +45,24 @@ import type { Namespace, Server } from 'socket.io';
 
 /**
  * Tells the customer a ticket was resolved (T182, FR-035, US7 scenario 1): the resolved marker
- * ("Glad we could help, just reply if you need anything else") and the idle status, on their
+ * ("Glad we could help, just reply if you need anything else") and their status, on their
  * `conversation` stream, in the caller's transaction. The marker id is derived from `resolvedAt`,
  * so it matches the marker `GET /conversation` builds for the same resolution.
+ *
+ * The status is what `GET /conversation` would return now: `idle` only when no other ticket of
+ * the customer is active, otherwise the state of the most recently updated one. Call it after the
+ * resolution is written in `tx`, so the resolved ticket is no longer counted as active. Typing is
+ * ephemeral and is only read when `presence` is passed.
  */
 export async function announceResolved(
   outbox: OutboxService,
   tx: TenantTransaction,
   ctx: TenantContext,
   ticket: { id: string; customerId: string; resolvedAt: Date },
+  presence?: PresenceService,
 ): Promise<void> {
   const stream = `conversation:${ticket.customerId}` as const;
+  const status = await friendlyStatusCode(ctx, tx, ticket.customerId, presence);
   await outbox.append(tx, {
     type: 'conversation.resolved',
     payload: { customerId: ticket.customerId, ticketId: ticket.id },
@@ -63,8 +71,8 @@ export async function announceResolved(
   });
   await outbox.append(tx, {
     type: 'conversation.status_changed',
-    payload: { customerId: ticket.customerId, status: 'idle' },
-    customerPayload: customerEvents.status('idle'),
+    payload: { customerId: ticket.customerId, status },
+    customerPayload: customerEvents.status(status),
     streams: [stream],
   });
 }
