@@ -62,6 +62,10 @@ and tags. If a newer follow-up ticket survives, its link to the deleted ticket
 shows as "removed". The audit log gets one entry per purge that records the
 counts only, not the content.
 
+Attachment files are removed before their tickets. If a purge is interrupted,
+a few tickets can remain without their attachment files. The next run removes
+them anyway, unless you lengthen the period in between.
+
 ### Keep audit log
 
 **Keep audit log** offers **Forever**, **1**, **2**, **3**, **5**, **7** or
