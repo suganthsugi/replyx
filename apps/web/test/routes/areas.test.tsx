@@ -28,8 +28,9 @@ describe('resolveArea', () => {
   });
 });
 
-// The first import of a lazy area is transformed on demand; allow for a cold, busy runner.
-const LAZY = { timeout: 10_000 };
+// The first import of a lazy area is transformed on demand (and instrumented under coverage);
+// allow for a cold, busy runner. The describe block's timeout leaves room for this wait.
+const LAZY = { timeout: 30_000 };
 
 const customerMe: CustomerMe = { id: 'c1', name: 'Cam Customer', email: 'cam@example.test', hasPassword: false };
 
@@ -48,7 +49,7 @@ function renderAt(hostname: string, path: string) {
   );
 }
 
-describe('AreaRoutes', () => {
+describe('AreaRoutes', { timeout: 60_000 }, () => {
   it('shows the customer area on a tenant host', async () => {
     server.use(http.get(`${API}/customer/me`, () => HttpResponse.json(customerMe)));
     const { container } = renderAt('acme.localhost', '/');
