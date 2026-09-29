@@ -169,7 +169,7 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
   const canEdit = allowed.has('edit');
   const canReplyOrNote = allowed.has('reply') || allowed.has('note');
   // FR-063: an ungrouped ticket with edit on Ungrouped (`change_group`) is triaged through
-  // TriageBar instead of the regular Group control, which would otherwise duplicate it.
+  // TriageBar instead of the strip's Priority, Group, Owner and Tags controls, which it replaces.
   const showTriage = ticket.group === null && allowed.has('change_group');
 
   const presence: PresenceRowUser[] = [
@@ -252,7 +252,9 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
           />
         </Box>
         <PriorityMark priority={ticket.priority} />
-        <PrioritySelector value={ticket.priority} disabled={!canEdit} onChange={(priority) => void updateTicket.mutateAsync({ id: ticketId, priority })} />
+        {!showTriage && (
+          <PrioritySelector value={ticket.priority} disabled={!canEdit} onChange={(priority) => void updateTicket.mutateAsync({ id: ticketId, priority })} />
+        )}
         {!showTriage && (
           <Box sx={{ minWidth: 180 }}>
             <GroupSelector
@@ -265,30 +267,34 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
             />
           </Box>
         )}
-        <Box sx={{ minWidth: 180 }}>
-          <UserSelector
-            label="Owner"
-            value={ticket.owner}
-            options={eligibleOwners.data ?? []}
-            loading={eligibleOwners.isPending}
-            disabled={!allowed.has('assign')}
-            onChange={(next) => void updateTicket.mutateAsync({ id: ticketId, ownerId: next?.id ?? null })}
-          />
-        </Box>
-        {allowed.has('assign') && ticket.owner === null && (
-          <Button size="small" variant="outlined" onClick={() => void assignToMe()}>
-            Assign to me
-          </Button>
+        {!showTriage && (
+          <>
+            <Box sx={{ minWidth: 180 }}>
+              <UserSelector
+                label="Owner"
+                value={ticket.owner}
+                options={eligibleOwners.data ?? []}
+                loading={eligibleOwners.isPending}
+                disabled={!allowed.has('assign')}
+                onChange={(next) => void updateTicket.mutateAsync({ id: ticketId, ownerId: next?.id ?? null })}
+              />
+            </Box>
+            {allowed.has('assign') && ticket.owner === null && (
+              <Button size="small" variant="outlined" onClick={() => void assignToMe()}>
+                Assign to me
+              </Button>
+            )}
+            <Box sx={{ minWidth: 220, flex: 1 }}>
+              <TagInput
+                value={ticket.tags}
+                options={tags.data ?? []}
+                disabled={!canEdit}
+                onCreateTag={(name) => void createTag.mutateAsync({ name })}
+                onChange={(next: TagRef[]) => void updateTicket.mutateAsync({ id: ticketId, tagIds: next.map((tag) => tag.id) })}
+              />
+            </Box>
+          </>
         )}
-        <Box sx={{ minWidth: 220, flex: 1 }}>
-          <TagInput
-            value={ticket.tags}
-            options={tags.data ?? []}
-            disabled={!canEdit}
-            onCreateTag={(name) => void createTag.mutateAsync({ name })}
-            onChange={(next: TagRef[]) => void updateTicket.mutateAsync({ id: ticketId, tagIds: next.map((tag) => tag.id) })}
-          />
-        </Box>
       </Box>
 
       {showTriage && <TriageBar ticketId={ticketId} onClose={onClose} />}
