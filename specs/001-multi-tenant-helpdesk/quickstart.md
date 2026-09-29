@@ -93,7 +93,7 @@ This is the end-to-end scenario (spec User Stories 1, 5, 6 and 7, SC-016). It is
 | 3 | Manager triages it to **Support** | It leaves Needs Triage. It appears in Support's **Unassigned & Open**. |
 | 4 | Agent (Support Agent role) | Gets an in-app notification "New ticket in Support" and replies publicly. |
 | 5 | Customer | Sees the typing indicator, then the reply with the agent's name and avatar, live. Customer answers. The agent sees it live. |
-| 6 | Agent adds an internal note mentioning the manager | Manager is notified. The customer's chat shows nothing and the customer gets no notification. |
+| 6 | Agent adds an internal note mentioning the admin (the seeded Manager has no access to Support, so FR-081 would not notify them) | Admin is notified. The customer's chat shows nothing and the customer gets no notification. |
 | 7 | Agent resolves the ticket | Customer sees the friendly resolved marker. |
 | 8 | Customer replies "thanks" within the grace period | The same ticket reopens (same group and owner). The agent re-resolves in one action. |
 | 9 | Fast-forward past the grace period (`docker compose run --rm api pnpm --filter api dev:advance-clock --hours 73`, development only), then the customer writes again | The old ticket is closed. A new ticket is created, linked **follow-up of** the old one, and appears in Needs Triage. The customer still sees one continuous thread. |
