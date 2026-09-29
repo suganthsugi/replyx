@@ -1210,7 +1210,8 @@ paths:
       description: Only the fields sent are changed. brandColors.primary must contrast at least 4.5:1 against white (it
         fills the customer chat bubble/button); a failing value returns 400 VALIDATION_FAILED with
         details[].path "brandColors.primary", details[].issue "insufficient_contrast" and details[].suggestion set to an
-        AA-compliant shade of the same color. businessHoursId and notificationDefaults are not accepted here yet.
+        AA-compliant shade of the same color (aimed at 4.6:1, slightly above the 4.5:1 threshold). brandColors.accent is
+        not checked; the web theme derives a compliant shade from it. businessHoursId and notificationDefaults are not accepted here yet.
         Shortening retentionPeriod (from forever, or to fewer years) deletes closed tickets past the new cutoff; when that
         would purge any, the request needs confirmPurgeCount equal to the current count, otherwise it returns 409
         RETENTION_CONFIRMATION_REQUIRED carrying that count and nothing is changed.
@@ -3547,6 +3548,8 @@ components:
             - string
             - "null"
           format: uuid
+          description: Only null (clear the logo) is accepted for now. Any id is rejected with 400 VALIDATION_FAILED, issue
+            not_supported, until logos are served.
         brandColors:
           $ref: "#/components/schemas/BrandColors"
         welcomeMessage:
