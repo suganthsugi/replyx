@@ -27,6 +27,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   { path: 'roles', label: 'Roles', permission: 'role.view' },
   { path: 'groups', label: 'Groups', permission: 'group.view' },
   { path: 'support-access', label: 'Support access', permission: 'support_access.view' },
+  { path: 'settings', label: 'Organization', permission: 'tenant_settings.view' },
 ];
 
 const ADMIN_BASE = `${WORKSPACE_BASE}/admin`;
