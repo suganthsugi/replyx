@@ -91,6 +91,10 @@ services:
           export TSC_WATCHFILE=DynamicPriorityPolling TSC_WATCHDIRECTORY=RecursiveDirectoryUsingDynamicPriorityPolling
         fi
         exec pnpm --filter api dev:api
+    environment:
+      # Only the worker deletes audit rows (replyx_retention, research D18). `environment` wins over
+      # `env_file`, so the api process never sees the credential (the api role never builds that pool).
+      DATABASE_URL_RETENTION: ""
     ports:
       - "3000:3000"
     volumes:
