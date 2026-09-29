@@ -30,6 +30,8 @@ import type {
   CustomerProfile,
   ErrorResponse,
   GetViewCounts200,
+  ListMentionCandidates200,
+  ListMentionCandidatesParams,
   ListTags200,
   ListTagsParams,
   ListTicketHistory200,
@@ -961,6 +963,185 @@ export const usePostTicketMessage = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * For the internal note composer. Only active staff who can view the ticket (FR-081), by name, at most 20, with id, name and avatar only (no email or role data), so it needs no user.view. A ticket the caller cannot view is 404, view without edit is 403.
+
+ * @summary Active staff who can be @mentioned in an internal note on this ticket (ticket.edit on the ticket's group)
+ */
+export const getListMentionCandidatesUrl = (id: string, params?: ListMentionCandidatesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/tickets/${id}/mention-candidates?${stringifiedParams}`
+    : `/tickets/${id}/mention-candidates`;
+};
+
+export const listMentionCandidates = async (
+  id: string,
+  params?: ListMentionCandidatesParams,
+  options?: RequestInit,
+): Promise<ListMentionCandidates200> => {
+  return http<ListMentionCandidates200>(getListMentionCandidatesUrl(id, params), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListMentionCandidatesQueryKey = (
+  id?: string,
+  params?: ListMentionCandidatesParams,
+) => {
+  return [`/tickets/${id}/mention-candidates`, ...(params ? [params] : [])] as const;
+};
+
+export const getListMentionCandidatesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMentionCandidates>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params?: ListMentionCandidatesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMentionCandidates>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMentionCandidatesQueryKey(id, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listMentionCandidates>>> = ({ signal }) =>
+    listMentionCandidates(id, params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMentionCandidates>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListMentionCandidatesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listMentionCandidates>>
+>;
+export type ListMentionCandidatesQueryError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+export function useListMentionCandidates<
+  TData = Awaited<ReturnType<typeof listMentionCandidates>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params: undefined | ListMentionCandidatesParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMentionCandidates>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMentionCandidates>>,
+          TError,
+          Awaited<ReturnType<typeof listMentionCandidates>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListMentionCandidates<
+  TData = Awaited<ReturnType<typeof listMentionCandidates>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params?: ListMentionCandidatesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMentionCandidates>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMentionCandidates>>,
+          TError,
+          Awaited<ReturnType<typeof listMentionCandidates>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListMentionCandidates<
+  TData = Awaited<ReturnType<typeof listMentionCandidates>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params?: ListMentionCandidatesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMentionCandidates>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Active staff who can be @mentioned in an internal note on this ticket (ticket.edit on the ticket's group)
+ */
+
+export function useListMentionCandidates<
+  TData = Awaited<ReturnType<typeof listMentionCandidates>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params?: ListMentionCandidatesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listMentionCandidates>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListMentionCandidatesQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
 /**
  * @summary Move a customer message to another of the same customer's tickets (ticket.move_message)
  */

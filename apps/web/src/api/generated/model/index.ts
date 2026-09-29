@@ -93,6 +93,8 @@ export * from './listGroupDestinations200';
 export * from './listGroups200';
 export * from './listGroupsParams';
 export * from './listGroupsStatus';
+export * from './listMentionCandidates200';
+export * from './listMentionCandidatesParams';
 export * from './listNotifications200';
 export * from './listNotifications200AllOf';
 export * from './listNotificationsParams';
