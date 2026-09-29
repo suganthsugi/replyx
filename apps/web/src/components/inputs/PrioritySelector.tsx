@@ -6,7 +6,8 @@ import { Priority } from '../../data/tickets';
 /** The ticket's priority, as a small pill-shaped exclusive choice (docs/design-system triage chip). */
 
 export interface PrioritySelectorProps {
-  value: Priority;
+  /** `null` for "unset" (e.g. an optional priority in `TriageBar` that hasn't been touched yet). */
+  value: Priority | null;
   onChange: (value: Priority) => void;
   disabled?: boolean;
   label?: string;

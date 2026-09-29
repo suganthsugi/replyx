@@ -1,6 +1,8 @@
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 
+import type { Ref } from 'react';
+
 /**
  * Picks one staff member (an owner, an approver, whoever a screen needs) from a list the caller
  * already has. A structural shape rather than the generated `UserRef`/`EligibleOwner` models, so
@@ -24,6 +26,8 @@ export interface UserSelectorProps {
   placeholder?: string;
   helperText?: string;
   error?: string;
+  /** Lets a caller (e.g. a keyboard shortcut) focus the underlying `<input>` directly. */
+  inputRef?: Ref<HTMLInputElement>;
 }
 
 export function UserSelector({
@@ -36,6 +40,7 @@ export function UserSelector({
   placeholder,
   helperText,
   error,
+  inputRef,
 }: UserSelectorProps) {
   return (
     <Autocomplete
@@ -49,7 +54,14 @@ export function UserSelector({
       noOptionsText="No matching people"
       loadingText="Loading people…"
       renderInput={(params) => (
-        <TextField {...params} label={label} placeholder={placeholder} error={error !== undefined} helperText={error ?? helperText} />
+        <TextField
+          {...params}
+          label={label}
+          placeholder={placeholder}
+          error={error !== undefined}
+          helperText={error ?? helperText}
+          inputRef={inputRef}
+        />
       )}
     />
   );

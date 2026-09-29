@@ -1,6 +1,8 @@
 import Autocomplete from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 
+import type { Ref } from 'react';
+
 /**
  * Picks one group (a ticket's queue) from a list the caller already has, matching the shape of
  * the generated `GroupRef`. MUI `Autocomplete` supplies the combobox/listbox semantics.
@@ -21,6 +23,8 @@ export interface GroupSelectorProps {
   placeholder?: string;
   helperText?: string;
   error?: string;
+  /** Lets a caller (e.g. a keyboard shortcut) focus the underlying `<input>` directly. */
+  inputRef?: Ref<HTMLInputElement>;
 }
 
 export function GroupSelector({
@@ -33,6 +37,7 @@ export function GroupSelector({
   placeholder,
   helperText,
   error,
+  inputRef,
 }: GroupSelectorProps) {
   return (
     <Autocomplete
@@ -46,7 +51,14 @@ export function GroupSelector({
       noOptionsText="No matching groups"
       loadingText="Loading groups…"
       renderInput={(params) => (
-        <TextField {...params} label={label} placeholder={placeholder} error={error !== undefined} helperText={error ?? helperText} />
+        <TextField
+          {...params}
+          label={label}
+          placeholder={placeholder}
+          error={error !== undefined}
+          helperText={error ?? helperText}
+          inputRef={inputRef}
+        />
       )}
     />
   );
