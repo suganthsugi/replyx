@@ -1214,7 +1214,11 @@ paths:
         not checked; the web theme derives a compliant shade from it. businessHoursId and notificationDefaults are not accepted here yet.
         Shortening retentionPeriod (from forever, or to fewer years) deletes closed tickets past the new cutoff; when that
         would purge any, the request needs confirmPurgeCount equal to the current count, otherwise it returns 409
-        RETENTION_CONFIRMATION_REQUIRED carrying that count and nothing is changed.
+        RETENTION_CONFIRMATION_REQUIRED carrying that count and nothing is changed. The same applies to auditRetention
+        (when the new value is shorter and audit entries older than its cutoff exist, confirmAuditPurgeCount must equal
+        their count), otherwise 409 AUDIT_RETENTION_CONFIRMATION_REQUIRED. If both periods shorten in one request, the
+        ticket confirmation is checked first (409 RETENTION_CONFIRMATION_REQUIRED); once confirmed, the audit one follows.
+        Only one 409 is returned per request.
       requestBody:
         required: true
         content:
@@ -1234,7 +1238,9 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "409":
           description: RETENTION_CONFIRMATION_REQUIRED, details[0] has path "confirmPurgeCount", issue
-            "confirmation_required" and purgeCount, the number of closed tickets the change would delete
+            "confirmation_required" and purgeCount, the number of closed tickets the change would delete. Or
+            AUDIT_RETENTION_CONFIRMATION_REQUIRED, details[0] has path "confirmAuditPurgeCount", issue
+            "confirmation_required" and purgeCount, the number of audit log entries the change would delete
           content:
             application/json:
               schema:
@@ -2965,7 +2971,8 @@ components:
               type: string
             details:
               type: array
-              description: Only present for validation errors and RETENTION_CONFIRMATION_REQUIRED
+              description: Only present for validation errors, RETENTION_CONFIRMATION_REQUIRED and
+                AUDIT_RETENTION_CONFIRMATION_REQUIRED
               items:
                 type: object
                 required:
@@ -2982,8 +2989,9 @@ components:
                   purgeCount:
                     type: integer
                     minimum: 0
-                    description: Only for RETENTION_CONFIRMATION_REQUIRED, the number of closed tickets the change would delete;
-                      resend it as confirmPurgeCount
+                    description: Only for RETENTION_CONFIRMATION_REQUIRED (the number of closed tickets the change would
+                      delete; resend it as confirmPurgeCount) and AUDIT_RETENTION_CONFIRMATION_REQUIRED (the number of audit
+                      log entries it would delete; resend it as confirmAuditPurgeCount)
             retryAfter:
               type: integer
               description: Seconds, only for RATE_LIMITED
@@ -3579,6 +3587,7 @@ components:
       type: object
       description: Only the fields sent are changed; businessHoursId and notificationDefaults are not accepted here yet.
         Shortening retentionPeriod (from forever, or to fewer years) that would purge closed tickets needs confirmPurgeCount.
+        Shortening auditRetention that would delete audit entries needs confirmAuditPurgeCount.
       additionalProperties: false
       properties:
         name:
@@ -3626,6 +3635,11 @@ components:
           minimum: 0
           description: The purgeCount from a 409 RETENTION_CONFIRMATION_REQUIRED response, resent to confirm the purge.
             Request only; never returned.
+        confirmAuditPurgeCount:
+          type: integer
+          minimum: 0
+          description: The purgeCount from a 409 AUDIT_RETENTION_CONFIRMATION_REQUIRED response, resent to confirm that many
+            audit log entries are deleted by the next daily audit purge. Request only; never returned.
     SupportSession:
       type: object
       required:
