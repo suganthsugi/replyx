@@ -21,6 +21,7 @@ import { TicketQueryService } from './ticket-query.service.js';
 import { TicketsController } from './tickets.controller.js';
 import { TicketsRepository } from './tickets.repository.js';
 import { TicketsService } from './tickets.service.js';
+import { TriageService } from './triage.service.js';
 
 import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
 
@@ -107,6 +108,7 @@ export class TicketsModule {}
     TicketLinksService,
     TicketHistoryQueryService,
     MessageMoveService,
+    TriageService,
   ],
 })
 export class TicketsHttpModule {}

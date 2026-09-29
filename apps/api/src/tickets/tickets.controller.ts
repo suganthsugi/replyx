@@ -13,6 +13,7 @@ import { StaffStartedTicketService } from './staff-started-ticket.service.js';
 import { TicketHistoryQueryService, type HistoryEntryDto } from './ticket-history-query.service.js';
 import { TicketQueryService } from './ticket-query.service.js';
 import { TicketsService } from './tickets.service.js';
+import { TriageService, type TriageResult } from './triage.service.js';
 
 import type { TicketDto, TicketSummaryDto } from './ticket-dto.js';
 import type { MessageDto } from '../messaging/message-dto.js';
@@ -76,6 +77,15 @@ const CreateBody = z
   })
   .strict();
 
+const TriageBody = z
+  .object({
+    groupId: z.uuid(),
+    ownerId: z.uuid().optional(),
+    priority: Priority.optional(),
+    tagIds: z.array(z.uuid()).optional(),
+  })
+  .strict();
+
 const HistoryQuery = z.object({ ...paginationQuery }).strict();
 
 const MoveMessageParams = z.object({ id: z.uuid(), messageId: z.uuid() }).strict();
@@ -98,6 +108,7 @@ export class TicketsController {
     private readonly staffStarted: StaffStartedTicketService,
     private readonly historyQuery: TicketHistoryQueryService,
     private readonly messageMove: MessageMoveService,
+    private readonly triageService: TriageService,
   ) {}
 
   @Get()
@@ -133,6 +144,18 @@ export class TicketsController {
   @HttpCode(204)
   async delete(@Req() req: Request, @Param(new ZodValidationPipe(IdParams)) params: z.infer<typeof IdParams>): Promise<void> {
     await this.tickets.delete(tenantContextOf(req), params.id);
+  }
+
+  /** Group, and optionally owner, priority and tags, for an ungrouped ticket in one step (FR-063). */
+  @Post(':id/triage')
+  @RequirePermission('ticket.edit')
+  @HttpCode(200)
+  triage(
+    @Req() req: Request,
+    @Param(new ZodValidationPipe(IdParams)) params: z.infer<typeof IdParams>,
+    @Body(new ZodValidationPipe(TriageBody)) body: z.infer<typeof TriageBody>,
+  ): Promise<TriageResult> {
+    return this.triageService.triage(tenantContextOf(req), params.id, body);
   }
 
   @Get(':id/history')
