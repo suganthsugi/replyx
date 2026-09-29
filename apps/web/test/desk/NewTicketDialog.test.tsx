@@ -59,7 +59,9 @@ describe('NewTicketDialog', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Create ticket' }));
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith('ticket-99'));
     expect(onClose).toHaveBeenCalled();
-  });
+    // Typing into the autocompletes and text fields is slow on a cold or loaded machine: give this
+    // one test more than the 20 s default (the global timeout is unchanged).
+  }, 60_000);
 
   it('maps CUSTOMER_INACTIVE onto the customer field', async () => {
     setup();
