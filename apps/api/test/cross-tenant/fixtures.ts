@@ -78,6 +78,12 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       'UsersController.erase': () => ({ confirm: 'ERASE' }),
     },
   },
+  audit_log: {
+    async create(tenant) {
+      const id = await insertAuditEntry(tenant);
+      return { params: {}, ids: [id] };
+    },
+  },
   support_access: {
     async create(tenant) {
       const admin = await createUser(tenant, { roles: ['admin'] });
@@ -213,6 +219,31 @@ class NotificationFixtureRepository extends TenantRepository {
       title: 'Fixture notification',
       summary: null,
       event_id: uuidv7(),
+    })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    return row.id;
+  }
+}
+
+/** An audit entry for the fixture; the app role may insert but never update or delete it. */
+async function insertAuditEntry(tenant: TestTenant): Promise<string> {
+  const unitOfWork = await service(UnitOfWork);
+  const ctx = TenantContext.create({ tenantId: tenant.id, actor: { kind: 'system' }, requestId: 'cross-tenant-fixture' });
+  return unitOfWork.withTenant(ctx, (tx) => new AuditFixtureRepository(ctx).insert(tx));
+}
+
+class AuditFixtureRepository extends TenantRepository {
+  async insert(tx: TenantTransaction): Promise<string> {
+    const row = await this.insertInto(tx, 'audit_logs', {
+      actor_kind: 'system',
+      actor_id: null,
+      action: 'ticket.assigned',
+      resource_type: 'ticket',
+      resource_id: uuidv7(),
+      details: '{}',
+      ip: null,
+      request_id: 'cross-tenant-fixture',
     })
       .returning('id')
       .executeTakeFirstOrThrow();
