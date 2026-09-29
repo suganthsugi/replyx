@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import { useId, useState, type ChangeEvent, type ReactNode } from 'react';
 
 import { EmptyState } from '../../../components/foundations/EmptyState';
+import { useAnnounce } from '../../../components/foundations/LiveRegion';
 import { Skeleton } from '../../../components/foundations/Skeleton';
 import { DesignSystemScope } from '../../../components/shell/DesignSystemScope';
 import { Form, FormError, FormField, SubmitButton } from '../../../components/shell/Form';
@@ -60,7 +61,10 @@ function parseGrace(value: string): number | undefined {
 
 export default function OrganizationSettingsPage() {
   const settingsQuery = useTenantSettings();
-  const held = new Set(useMe().data?.permissions ?? []);
+  const meQuery = useMe();
+  const held = new Set(meQuery.data?.permissions ?? []);
+  // The form needs both: without the caller's permissions it would flash as read-only.
+  const loading = !settingsQuery.isError && (settingsQuery.isPending || meQuery.isPending);
 
   return (
     <DesignSystemScope>
@@ -73,7 +77,7 @@ export default function OrganizationSettingsPage() {
           after a conversation is closed.
         </Typography>
 
-        {settingsQuery.isPending && <Skeleton variant="block" label="organization settings" />}
+        {loading && <Skeleton variant="block" label="organization settings" />}
 
         {settingsQuery.isError && (
           <EmptyState
@@ -84,7 +88,7 @@ export default function OrganizationSettingsPage() {
           />
         )}
 
-        {settingsQuery.data !== undefined && <SettingsForm settings={settingsQuery.data} canEdit={held.has('tenant_settings.edit')} />}
+        {!loading && settingsQuery.data !== undefined && <SettingsForm settings={settingsQuery.data} canEdit={held.has('tenant_settings.edit')} />}
       </Box>
     </DesignSystemScope>
   );
@@ -116,6 +120,7 @@ function Section({ title, description, children }: { title: string; description?
 function SettingsForm({ settings, canEdit }: { settings: TenantSettings; canEdit: boolean }) {
   const update = useUpdateTenantSettings();
   const toast = useToast();
+  const announce = useAnnounce();
 
   const [name, setName] = useState(settings.name);
   const [color, setColor] = useState(settings.brandColors.primary ?? '');
@@ -146,9 +151,10 @@ function SettingsForm({ settings, canEdit }: { settings: TenantSettings; canEdit
 
   const patch: TenantSettingsUpdate = {};
   if (name.trim() !== settings.name) patch.name = name.trim();
-  if (color !== (settings.brandColors.primary ?? '') && colorStatus.valid) patch.brandColors = { primary: color.toLowerCase() };
-  if (welcome !== (settings.welcomeMessage ?? '')) patch.welcomeMessage = welcome.trim() === '' ? null : welcome;
-  if (outOfHours !== (settings.outOfHoursMessage ?? '')) patch.outOfHoursMessage = outOfHours.trim() === '' ? null : outOfHours;
+  // Compare what the API would store (trimmed messages, lower-case color), so a saved form isn't dirty again.
+  if (color.toLowerCase() !== (settings.brandColors.primary ?? '').toLowerCase() && colorStatus.valid) patch.brandColors = { primary: color.toLowerCase() };
+  if (welcome.trim() !== (settings.welcomeMessage ?? '')) patch.welcomeMessage = welcome.trim() === '' ? null : welcome.trim();
+  if (outOfHours.trim() !== (settings.outOfHoursMessage ?? '')) patch.outOfHoursMessage = outOfHours.trim() === '' ? null : outOfHours.trim();
   if (timezone !== settings.timezone) patch.timezone = timezone;
   if (selfRegistration !== settings.selfRegistration) patch.selfRegistration = selfRegistration;
   if (graceValue !== undefined && graceValue !== settings.gracePeriodHours) patch.gracePeriodHours = graceValue;
@@ -165,7 +171,11 @@ function SettingsForm({ settings, canEdit }: { settings: TenantSettings; canEdit
     } catch (caught) {
       const mapped = mapError(caught);
       const issue = mapped.fieldErrors?.[COLOR_PATH];
-      if (issue !== undefined) setRejected({ color, issue, suggestion: mapped.fieldSuggestions?.[COLOR_PATH] });
+      if (issue !== undefined) {
+        setRejected({ color, issue, suggestion: mapped.fieldSuggestions?.[COLOR_PATH] });
+        // The live check may have passed this color; tell the person the API disagreed.
+        if (issue === 'insufficient_contrast' && !liveFail) announce('The server says this color does not have enough contrast with white text.', 'polite');
+      }
       // The shell `Form` maps the same error onto the other fields.
       throw caught;
     }
@@ -248,8 +258,10 @@ function SettingsForm({ settings, canEdit }: { settings: TenantSettings; canEdit
           />
         </Box>
         {suggestion !== undefined && !readOnly && PRIMARY_HEX_PATTERN.test(suggestion) && (
+          // Not role=alert: the preview announces a contrast change politely, so this stays a visible note.
           <Alert
             severity="warning"
+            role="note"
             action={
               <Button
                 color="inherit"

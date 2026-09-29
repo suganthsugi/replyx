@@ -6,6 +6,8 @@ import { useEffect, useRef } from 'react';
 import { useAnnounce } from '../../../components/foundations/LiveRegion';
 import { AA_NORMAL_TEXT_CONTRAST, contrastRatio } from '../../../theme/brand-accent';
 
+import type { Theme } from '@mui/material/styles';
+
 /**
  * A small mock of the customer chat in the chosen primary color (docs/design-system "Customer
  * Chat"): a support bubble, the customer's own bubble and the send button. The color fills the
@@ -17,6 +19,10 @@ import { AA_NORMAL_TEXT_CONTRAST, contrastRatio } from '../../../theme/brand-acc
 /** The API accepts six-digit hex colors only. */
 export const PRIMARY_HEX_PATTERN = /^#[0-9a-fA-F]{6}$/;
 const WHITE = '#ffffff';
+
+/** Chat bubbles use the design system's shell radius (twice the control radius) with a tight tail corner. */
+const bubbleRadius = (theme: Theme) => Number(theme.shape.borderRadius) * 2;
+const tailRadius = (theme: Theme) => Number(theme.shape.borderRadius) / 2;
 
 export interface BrandPreviewProps {
   /** The color in the field; anything that isn't a six-digit hex is shown in the theme's own color. */
@@ -36,16 +42,19 @@ export function contrastStatus(color: string): ContrastStatus {
 export function BrandPreview({ color, welcomeMessage, tenantName }: BrandPreviewProps) {
   const announce = useAnnounce();
   const status = contrastStatus(color);
-  const outcome = !status.valid ? 'invalid' : status.passes ? 'pass' : 'fail';
-  const previous = useRef(outcome);
+  const verdict = status.valid ? (status.passes ? 'pass' : 'fail') : undefined;
+  // The last usable verdict: a half-typed color in between doesn't count as a change.
+  const previous = useRef<'pass' | 'fail' | undefined>(verdict);
 
-  // Announce only when the outcome flips, not on every keystroke that keeps it the same.
+  // Announce only when the verdict flips (pass to fail or back), not on every keystroke that keeps it.
+  // A first verdict of "pass" needs no announcement; a first "fail" does.
   useEffect(() => {
-    if (previous.current === outcome) return;
-    previous.current = outcome;
-    if (outcome === 'pass') announce('This color has enough contrast with white text.', 'polite');
-    if (outcome === 'fail') announce('This color does not have enough contrast with white text.', 'polite');
-  }, [outcome, announce]);
+    if (verdict === undefined || previous.current === verdict) return;
+    const before = previous.current;
+    previous.current = verdict;
+    if (verdict === 'pass' && before !== undefined) announce('This color has enough contrast with white text.', 'polite');
+    if (verdict === 'fail') announce('This color does not have enough contrast with white text.', 'polite');
+  }, [verdict, announce]);
 
   // The tenant's own choice is shown as chosen (that is the point of a preview), so the fill is
   // data, not a theme token; an unusable value falls back to the theme's primary.
@@ -58,7 +67,7 @@ export function BrandPreview({ color, welcomeMessage, tenantName }: BrandPreview
         sx={{
           border: 1,
           borderColor: 'divider',
-          borderRadius: '16px',
+          borderRadius: bubbleRadius,
           bgcolor: 'background.default',
           p: 4,
           display: 'flex',
@@ -78,8 +87,8 @@ export function BrandPreview({ color, welcomeMessage, tenantName }: BrandPreview
             bgcolor: 'background.paper',
             border: 1,
             borderColor: 'divider',
-            borderRadius: '16px',
-            borderBottomLeftRadius: '4px',
+            borderRadius: bubbleRadius,
+            borderBottomLeftRadius: tailRadius,
           }}
         >
           <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
@@ -94,26 +103,14 @@ export function BrandPreview({ color, welcomeMessage, tenantName }: BrandPreview
             py: 2,
             bgcolor: fill,
             color: 'common.white',
-            borderRadius: '16px',
-            borderBottomRightRadius: '4px',
+            borderRadius: bubbleRadius,
+            borderBottomRightRadius: tailRadius,
           }}
         >
           <Typography variant="body2">I need help with my order</Typography>
         </Box>
-        <Box
-          sx={{
-            alignSelf: 'flex-end',
-            px: 4,
-            py: 1.5,
-            bgcolor: fill,
-            color: 'common.white',
-            borderRadius: '9999px',
-            fontWeight: 600,
-            fontSize: '0.8125rem',
-          }}
-        >
-          Send
-        </Box>
+        {/* A non-interactive chip carries the theme's pill radius and button type. */}
+        <Chip label="Send" sx={{ alignSelf: 'flex-end', bgcolor: fill, color: 'common.white' }} />
       </Box>
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap', mt: 3 }}>
