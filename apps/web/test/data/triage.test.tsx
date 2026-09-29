@@ -131,6 +131,34 @@ describe('useTriageTicket', () => {
     await waitFor(() => expect(getCalls).toBe(1));
   });
 
+  it('treats a 404 as a lost race into an invisible group: resolves alreadyTriaged and drops the ticket', async () => {
+    const ticketId = 't6';
+    server.use(http.post(`${API}/tickets/${ticketId}/triage`, () => errorResponse(404, 'TICKET_NOT_FOUND', 'Ticket not found')));
+
+    const { result, queryClient } = renderWithClient(() => useTriageTicket(ticketId));
+    queryClient.setQueryData(ticketKeys.list({}), { pages: [{ items: [makeSummary(ticketId)], nextCursor: null }], pageParams: [undefined] });
+    queryClient.setQueryData(ticketKeys.detail(ticketId), makeTicket(ticketId));
+
+    await expect(result.current.mutateAsync({ groupId: 'g2' })).resolves.toEqual({ visibleToCaller: false, alreadyTriaged: true });
+
+    await waitFor(() => expect(queryClient.getQueryData(ticketKeys.detail(ticketId))).toBeUndefined());
+    const cachedList = queryClient.getQueryData<{ pages: Array<{ items: TicketSummary[] }> }>(ticketKeys.list({}));
+    expect(cachedList?.pages[0]?.items).toEqual([]);
+    expect(result.current.error).toBeUndefined();
+  });
+
+  it('survives a failed refetch after ALREADY_TRIAGED', async () => {
+    const ticketId = 't7';
+    server.use(
+      http.post(`${API}/tickets/${ticketId}/triage`, () => errorResponse(409, 'ALREADY_TRIAGED', 'Already triaged')),
+      http.get(`${API}/tickets/${ticketId}`, () => errorResponse(404, 'TICKET_NOT_FOUND', 'Ticket not found')),
+    );
+
+    const { result } = renderWithClient(() => useTriageTicket(ticketId));
+    await expect(result.current.mutateAsync({ groupId: 'g2' })).rejects.toBeTruthy();
+    await waitFor(() => expect(result.current.error?.code).toBe('ALREADY_TRIAGED'));
+  });
+
   it('maps GROUP_INACTIVE and OWNER_NOT_ELIGIBLE to friendly messages', async () => {
     const ticketId = 't4';
     server.use(http.post(`${API}/tickets/${ticketId}/triage`, () => errorResponse(409, 'GROUP_INACTIVE', 'inactive')));
