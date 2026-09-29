@@ -111,7 +111,9 @@ export function planNotifications(event: DomainEvent<Handled>, ticket: TicketFac
       const planned: PlannedNotification[] = [];
       const groupChange = changes.find((change) => change.field === 'group_id');
       if (groupChange !== undefined && groupChange.new !== null && ticket.groupId !== null) {
-        planned.push(on('ticket.arrived_in_group', `${ref} moved to ${ticket.groupName ?? 'a group'}`, ticket.title));
+        // Out of Ungrouped (triage) it is new work for the group; between groups it moved.
+        const title = groupChange.old === null ? `New ticket ${ref} in ${ticket.groupName ?? 'a group'}` : `${ref} moved to ${ticket.groupName ?? 'a group'}`;
+        planned.push(on('ticket.arrived_in_group', title, ticket.title));
       }
       // Assigned in the same change: `ticket.assigned_to_me` already tells the new owner.
       if (changes.some((change) => change.field === 'priority') && !changes.some((change) => change.field === 'owner_id')) {
