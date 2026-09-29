@@ -614,7 +614,7 @@ export const useDeleteTicket = <
   return useMutation(mutationOptions, queryClient);
 };
 /**
- * Sets the group, and optionally the owner, priority and tags, of an ungrouped ticket in one transaction (FR-063). The destination must be active; the owner must have edit on it (FR-040). A caller with edit on Ungrouped may send the ticket to any active group and keeps access only if their roles grant it there (FR-041). The ticket leaves the Ungrouped stream with ticket.removed_from_view (reason moved).
+ * Sets the group, and optionally the owner, priority and tags, of an ungrouped ticket in one transaction (FR-063). The destination must be active; the owner must have edit on it (FR-040). A caller with edit on Ungrouped may send the ticket to any active group and keeps access only if their roles grant it there (FR-041). The ticket leaves the Ungrouped stream with ticket.removed_from_view (reason moved). A caller who loses a race to a triage into a group they can't see gets the same 404 as an unknown ticket, not ALREADY_TRIAGED.
 
  * @summary Triage an ungrouped ticket in one step (ticket.edit on Ungrouped)
  */
