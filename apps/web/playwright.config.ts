@@ -25,10 +25,14 @@ export default defineConfig({
   // after the other specs in their own desktop/mobile projects and wait out whatever is left of the
   // limit.
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/] },
-    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/] },
-    { name: 'desktop-chat', use: { ...devices['Desktop Chrome'] }, testMatch: /customer-chat/, dependencies: ['desktop', 'mobile'] },
-    { name: 'mobile-chat', use: { ...devices['Pixel 7'] }, testMatch: /customer-chat/, dependencies: ['desktop', 'mobile'] },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/] },
+    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/] },
+    // Tenant lifecycle signs in four times a run (operator, admin twice, customer) and is slow: on its own,
+    // after the sign-in specs, so together they stay inside the 10 sign-ins a minute.
+    { name: 'desktop-lifecycle', use: { ...devices['Desktop Chrome'] }, testMatch: /tenant-lifecycle/, dependencies: ['desktop', 'mobile'] },
+    { name: 'mobile-lifecycle', use: { ...devices['Pixel 7'] }, testMatch: /tenant-lifecycle/, dependencies: ['desktop-lifecycle'] },
+    { name: 'desktop-chat',use: { ...devices['Desktop Chrome'] }, testMatch: /customer-chat/, dependencies: ['mobile-lifecycle'] },
+    { name: 'mobile-chat', use: { ...devices['Pixel 7'] }, testMatch: /customer-chat/, dependencies: ['mobile-lifecycle'] },
     { name: 'desktop-agent', use: { ...devices['Desktop Chrome'] }, testMatch: /agent-conversation/, dependencies: ['desktop-chat', 'mobile-chat'] },
     { name: 'mobile-agent', use: { ...devices['Pixel 7'] }, testMatch: /agent-conversation/, dependencies: ['desktop-chat', 'mobile-chat'] },
     // Two staff browsers side by side: desktop only (the one-pane phone inbox has no rail beside the list).
