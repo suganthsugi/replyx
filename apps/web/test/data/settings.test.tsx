@@ -130,3 +130,39 @@ describe('useUpdateTenantSettings', () => {
   });
 });
 
+
+describe('retention confirmation', () => {
+  it('maps RETENTION_CONFIRMATION_REQUIRED to retentionConfirmation and surfaces a new count on a stale retry', async () => {
+    const counts = [7, 9];
+    let call = 0;
+    server.use(
+      http.patch(`${API}/settings`, () =>
+        HttpResponse.json<ErrorResponse>(
+          {
+            error: {
+              code: 'RETENTION_CONFIRMATION_REQUIRED',
+              message: 'Confirm',
+              details: [{ path: 'confirmPurgeCount', issue: 'confirmation_required', purgeCount: counts[call++] }],
+            },
+          },
+          { status: 409 },
+        ),
+      ),
+    );
+    const { result } = renderWithClient(() => useUpdateTenantSettings());
+
+    const attempt = async (data: Parameters<typeof result.current.mutateAsync>[0]) => {
+      try {
+        await result.current.mutateAsync(data);
+      } catch (error) {
+        return mapError(error);
+      }
+      return undefined;
+    };
+
+    const first = await attempt({ retentionPeriod: 'P1Y' });
+    expect(first?.retentionConfirmation).toEqual({ purgeCount: 7 });
+    const retry = await attempt({ retentionPeriod: 'P1Y', confirmPurgeCount: 7 });
+    expect(retry?.retentionConfirmation).toEqual({ purgeCount: 9 });
+  });
+});
