@@ -5,7 +5,8 @@ import { createDatabase } from '../../../src/platform-kernel/db/database.js';
 import { TenantContext } from '../../../src/platform-kernel/db/tenant-context.js';
 import { TenantRepository } from '../../../src/platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../../../src/platform-kernel/db/unit-of-work.js';
-import { meetsAAContrast } from '../../../src/tenancy/contrast.js';
+import { uuidv7 } from '../../../src/platform-kernel/ids.js';
+import { contrastRatio, meetsAAContrast, SUGGESTED_TEXT_CONTRAST } from '../../../src/tenancy/contrast.js';
 import { getTestApp, service } from '../../support/app.js';
 import { createTenant, createUser, type TestTenant } from '../../support/factories.js';
 import { asUser } from '../../support/http.js';
@@ -177,11 +178,50 @@ describe('PATCH /settings', () => {
     expect(detail).toMatchObject({ path: 'brandColors.primary', issue: 'insufficient_contrast' });
     expect(detail.suggestion).toBeDefined();
     expect(meetsAAContrast(detail.suggestion as string)).toBe(true);
+    // The suggestion carries the web theme's safety margin, so other checkers agree it passes.
+    expect(contrastRatio(detail.suggestion as string, '#ffffff')).toBeGreaterThanOrEqual(SUGGESTED_TEXT_CONTRAST);
 
     // Patching the suggestion back succeeds.
     const applied = await asUser(admin).patch('/settings', { brandColors: { primary: detail.suggestion } });
     expect(applied.status).toBe(200);
     expect(settings(applied).brandColors.primary).toBe(detail.suggestion);
+  });
+
+  it('rejects any logoAttachmentId until logos are served, and still accepts null', async () => {
+    const tenant = await createTenant();
+    const admin = await createUser(tenant, { roles: ['admin'] });
+
+    const response = await asUser(admin).patch('/settings', { logoAttachmentId: uuidv7() });
+    expect(response.status).toBe(400);
+    expect(failure(response).error).toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: [{ path: 'logoAttachmentId', issue: 'not_supported' }],
+    });
+
+    const cleared = await asUser(admin).patch('/settings', { logoAttachmentId: null });
+    expect(cleared.status).toBe(200);
+    expect(settings(cleared).logoAttachmentId).toBeNull();
+    expect(await auditEntries(tenant)).toHaveLength(0);
+  });
+
+  it('serializes concurrent brandColors patches: neither key is lost and each audit diff is against the state it replaced', async () => {
+    const tenant = await createTenant();
+    const admin = await createUser(tenant, { roles: ['admin'] });
+
+    const [first, second] = await Promise.all([
+      asUser(admin).patch('/settings', { brandColors: { primary: '#123456' } }),
+      asUser(admin).patch('/settings', { brandColors: { accent: '#654321' } }),
+    ]);
+    expect([first.status, second.status]).toEqual([200, 200]);
+    expect(settings(await asUser(admin).get('/settings')).brandColors).toEqual({ primary: '#123456', accent: '#654321' });
+
+    const entries = await auditEntries(tenant);
+    expect(entries).toHaveLength(2);
+    // Whichever ran second started from the first's result, so the two diffs chain (audit
+    // timestamps can tie under TestClock, so accept either order).
+    const [a, b] = entries.map((entry) => (entry.details as { brandColors: { old: object; new: object } }).brandColors);
+    const chained = JSON.stringify(a?.new) === JSON.stringify(b?.old) || JSON.stringify(b?.new) === JSON.stringify(a?.old);
+    expect(chained).toBe(true);
   });
 
   it('writes one audit entry per effective PATCH with old/new of only the changed fields, none for a no-op', async () => {
