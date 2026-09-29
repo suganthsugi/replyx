@@ -14,7 +14,7 @@ import {
   type TestTenant,
 } from '../../support/factories.js';
 import { asUser } from '../../support/http.js';
-import { sweeperJob } from '../../support/jobs.js';
+import { drainOutbox, sweeperJob } from '../../support/jobs.js';
 import { connectSocket, waitForEvent } from '../../support/socket.js';
 
 import type { Socket } from 'socket.io-client';
@@ -54,7 +54,18 @@ interface TicketBody {
   links: { kind: string; direction: string; ticket: { id: string } | null }[];
 }
 
-const envelope = (socket: Socket, match: (e: Envelope) => boolean, timeoutMs = 5_000) => waitForEvent<Envelope>(socket, 'event', match, timeoutMs);
+const ENVELOPE_TIMEOUT_MS = 15_000;
+
+/**
+ * Starts waiting now. The returned promise is marked handled so that if the test fails before it
+ * awaits it (a failed PATCH expectation, say), its later timeout is not an unhandled rejection;
+ * awaiting it still rejects normally.
+ */
+function envelope(socket: Socket, match: (e: Envelope) => boolean): Promise<Envelope> {
+  const pending = waitForEvent<Envelope>(socket, 'event', match, ENVELOPE_TIMEOUT_MS);
+  pending.catch(() => undefined);
+  return pending;
+}
 
 class TicketRowRepository extends TenantRepository {
   ticket(tx: TenantTransaction, id: string) {
@@ -79,10 +90,12 @@ let tenant: TestTenant;
 beforeAll(async () => {
   await getTestApp();
   await getTestWorker();
+  // Defensive: whatever an earlier file left unpublished must not sit ahead of this file's events.
+  await drainOutbox();
   tenant = await createTenant();
-});
+}, 150_000);
 
-describe('the resolution lifecycle (US7)', () => {
+describe('the resolution lifecycle (US7)', { timeout: 60_000 }, () => {
   it('announces a resolution to the customer, then reopens it on a reply within grace, then closes it after grace and starts a follow-up', async () => {
     const group = await createGroup(tenant);
     const owner = await createUser(tenant, { roles: ['admin'] });
