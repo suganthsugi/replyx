@@ -26,6 +26,7 @@ import { PresenceStack } from '../../../components/tickets/PresenceStack';
 import { PriorityMark } from '../../../components/tickets/PriorityMark';
 import { StatePill } from '../../../components/tickets/StatePill';
 import { TicketConversation } from '../../../components/tickets/TicketConversation';
+import { TriageBar } from '../../../components/tickets/TriageBar';
 import { useAttachmentUploads } from '../../../data/attachments';
 import { useMe } from '../../../data/auth';
 import { useEligibleOwners, useGroups } from '../../../data/groups';
@@ -167,6 +168,9 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
   const allowed = new Set(ticket.allowedActions);
   const canEdit = allowed.has('edit');
   const canReplyOrNote = allowed.has('reply') || allowed.has('note');
+  // FR-063: an ungrouped ticket with edit on Ungrouped (`change_group`) is triaged through
+  // TriageBar instead of the regular Group control, which would otherwise duplicate it.
+  const showTriage = ticket.group === null && allowed.has('change_group');
 
   const presence: PresenceRowUser[] = [
     ...presenceRaw.viewers.map((viewer) => ({ id: viewer.id, name: viewer.name, status: 'viewing' as const })),
@@ -249,16 +253,18 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
         </Box>
         <PriorityMark priority={ticket.priority} />
         <PrioritySelector value={ticket.priority} disabled={!canEdit} onChange={(priority) => void updateTicket.mutateAsync({ id: ticketId, priority })} />
-        <Box sx={{ minWidth: 180 }}>
-          <GroupSelector
-            label="Group"
-            value={ticket.group}
-            options={groups.data ?? []}
-            loading={groups.isPending}
-            disabled={!allowed.has('change_group')}
-            onChange={(next) => void updateTicket.mutateAsync({ id: ticketId, groupId: next?.id ?? null })}
-          />
-        </Box>
+        {!showTriage && (
+          <Box sx={{ minWidth: 180 }}>
+            <GroupSelector
+              label="Group"
+              value={ticket.group}
+              options={groups.data ?? []}
+              loading={groups.isPending}
+              disabled={!allowed.has('change_group')}
+              onChange={(next) => void updateTicket.mutateAsync({ id: ticketId, groupId: next?.id ?? null })}
+            />
+          </Box>
+        )}
         <Box sx={{ minWidth: 180 }}>
           <UserSelector
             label="Owner"
@@ -284,6 +290,8 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
           />
         </Box>
       </Box>
+
+      {showTriage && <TriageBar ticketId={ticketId} onClose={onClose} />}
 
       <LinksPanel
         links={ticket.links}
