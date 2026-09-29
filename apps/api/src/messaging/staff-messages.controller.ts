@@ -7,7 +7,7 @@ import { tenantContextOf } from '../platform-kernel/http/request-context.js';
 import { ZodValidationPipe } from '../platform-kernel/http/validation.pipe.js';
 
 import { MAX_ATTACHMENTS, MessageBody } from './customer.controller.js';
-import { StaffMessagesService } from './staff-messages.service.js';
+import { StaffMessagesService, type MentionCandidateDto } from './staff-messages.service.js';
 
 import type { MessageDto } from './message-dto.js';
 import type { TicketDto } from '../tickets/ticket-dto.js';
@@ -29,6 +29,8 @@ const MessagesQuery = z
     includeMerged: z.enum(['true', 'false']).optional(),
   })
   .strict();
+
+const MentionQuery = z.object({ q: z.string().trim().max(80).default('') }).strict();
 
 const PostBody = z
   .object({
@@ -58,6 +60,17 @@ export class StaffMessagesController {
     @Query(new ZodValidationPipe(MessagesQuery)) query: z.infer<typeof MessagesQuery>,
   ): Promise<Page<MessageDto>> {
     return this.messages.messages(tenantContextOf(req), params.id, query);
+  }
+
+  /** Composer @mention picker: needs `ticket.edit`, and edit on the ticket's group (checked in the service). */
+  @Get(':id/mention-candidates')
+  @RequirePermission('ticket.edit')
+  async mentionCandidates(
+    @Req() req: Request,
+    @Param(new ZodValidationPipe(IdParams)) params: z.infer<typeof IdParams>,
+    @Query(new ZodValidationPipe(MentionQuery)) query: z.infer<typeof MentionQuery>,
+  ): Promise<{ items: MentionCandidateDto[] }> {
+    return { items: await this.messages.mentionCandidates(tenantContextOf(req), params.id, query.q) };
   }
 
   /** 201 with the message; a repeated `clientMessageId` returns the original. */
