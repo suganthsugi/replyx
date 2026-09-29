@@ -202,6 +202,8 @@ export * from './ticketSummaryGroup';
 export * from './ticketSummaryLastCustomerMessageAt';
 export * from './ticketSummaryOwner';
 export * from './timestamp';
+export * from './triageTicket200';
+export * from './triageTicketBody';
 export * from './unauthenticatedResponse';
 export * from './updateCustomerBody';
 export * from './updateCustomerMeBody';

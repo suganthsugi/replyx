@@ -48,6 +48,8 @@ import type {
   TagRef,
   Ticket,
   TicketLink,
+  TriageTicket200,
+  TriageTicketBody,
   UnauthenticatedResponse,
   UpdateCustomerBody,
   UpdateTagBody,
@@ -608,6 +610,110 @@ export const useDeleteTicket = <
   TContext
 > => {
   const mutationOptions = getDeleteTicketMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Sets the group, and optionally the owner, priority and tags, of an ungrouped ticket in one transaction (FR-063). The destination must be active; the owner must have edit on it (FR-040). A caller with edit on Ungrouped may send the ticket to any active group and keeps access only if their roles grant it there (FR-041). The ticket leaves the Ungrouped stream with ticket.removed_from_view (reason moved).
+
+ * @summary Triage an ungrouped ticket in one step (ticket.edit on Ungrouped)
+ */
+export const getTriageTicketUrl = (id: string) => {
+  return `/tickets/${id}/triage`;
+};
+
+export const triageTicket = async (
+  id: string,
+  triageTicketBody: TriageTicketBody,
+  options?: RequestInit,
+): Promise<TriageTicket200> => {
+  return http<TriageTicket200>(getTriageTicketUrl(id), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(triageTicketBody),
+  });
+};
+
+export const getTriageTicketMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof triageTicket>>,
+    TError,
+    { id: string; data: TriageTicketBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof triageTicket>>,
+  TError,
+  { id: string; data: TriageTicketBody },
+  TContext
+> => {
+  const mutationKey = ['triageTicket'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof triageTicket>>,
+    { id: string; data: TriageTicketBody }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return triageTicket(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TriageTicketMutationResult = NonNullable<Awaited<ReturnType<typeof triageTicket>>>;
+export type TriageTicketMutationBody = TriageTicketBody;
+export type TriageTicketMutationError =
+  | ValidationFailedResponse
+  | UnauthenticatedResponse
+  | PermissionDeniedResponse
+  | NotFoundResponse
+  | ErrorResponse;
+
+/**
+ * @summary Triage an ungrouped ticket in one step (ticket.edit on Ungrouped)
+ */
+export const useTriageTicket = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof triageTicket>>,
+      TError,
+      { id: string; data: TriageTicketBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof triageTicket>>,
+  TError,
+  { id: string; data: TriageTicketBody },
+  TContext
+> => {
+  const mutationOptions = getTriageTicketMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
