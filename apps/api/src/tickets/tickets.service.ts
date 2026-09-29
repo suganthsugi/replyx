@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 
 import { AuditService } from '../audit/audit.service.js';
 import { AccessRepository, decide, PolicyService, type EffectiveAccess } from '../authorization/policy.service.js';
+import { announceResolved } from '../messaging/conversation-events.js';
 import { Clock } from '../platform-kernel/clock.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
@@ -203,6 +204,9 @@ export class TicketsService {
           payload: { ticketId: ticket.id, previousOwnerId: before.owner_id, ownerId: ticket.owner_id },
           streams: [ticketStream(ticket.id)],
         });
+      }
+      if (moved?.stateChanged && moved.state === 'resolved' && ticket.resolved_at !== null) {
+        await announceResolved(this.outbox, tx, ctx, { id: ticket.id, customerId: ticket.customer_id, resolvedAt: ticket.resolved_at });
       }
       if (moved?.closed) {
         await this.outbox.append(tx, { type: 'ticket.closed', payload: { ticketId: ticket.id }, streams: [ticketStream(ticket.id)] });

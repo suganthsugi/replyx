@@ -19,7 +19,10 @@ import {
 } from '../platform-kernel/realtime/socket-context.js';
 import { ACTIVE_STATES } from '../tickets/tickets.repository.js';
 
+import { customerEvents, resolvedMarker } from './customer-projection.js';
+
 import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
+import type { OutboxService } from '../platform-kernel/outbox/outbox.service.js';
 import type { Namespace, Server } from 'socket.io';
 
 /**
@@ -38,6 +41,33 @@ import type { Namespace, Server } from 'socket.io';
  * Ephemeral signals are emitted as `ephemeral { type, stream, data }` and have no `id` or `seq`.
  */
 
+
+/**
+ * Tells the customer a ticket was resolved (T182, FR-035, US7 scenario 1): the resolved marker
+ * ("Glad we could help, just reply if you need anything else") and the idle status, on their
+ * `conversation` stream, in the caller's transaction. The marker id is derived from `resolvedAt`,
+ * so it matches the marker `GET /conversation` builds for the same resolution.
+ */
+export async function announceResolved(
+  outbox: OutboxService,
+  tx: TenantTransaction,
+  ctx: TenantContext,
+  ticket: { id: string; customerId: string; resolvedAt: Date },
+): Promise<void> {
+  const stream = `conversation:${ticket.customerId}` as const;
+  await outbox.append(tx, {
+    type: 'conversation.resolved',
+    payload: { customerId: ticket.customerId, ticketId: ticket.id },
+    customerPayload: customerEvents.resolved(resolvedMarker(ctx.tenantId, ticket.id, ticket.resolvedAt)),
+    streams: [stream],
+  });
+  await outbox.append(tx, {
+    type: 'conversation.status_changed',
+    payload: { customerId: ticket.customerId, status: 'idle' },
+    customerPayload: customerEvents.status('idle'),
+    streams: [stream],
+  });
+}
 export const EPHEMERAL_EVENT = 'ephemeral';
 
 export interface EphemeralSignal {
