@@ -3,6 +3,7 @@ import { Module } from '@nestjs/common';
 import { IdentityModule } from '../identity/identity.module.js';
 
 import { BrandingController } from './branding.controller.js';
+import { RetentionModule } from './retention/retention.module.js';
 import { SettingsController } from './settings.controller.js';
 import { TenantSettingsService } from './settings.service.js';
 import { SupportAccessController } from './support-access.controller.js';
@@ -16,7 +17,7 @@ import { TenancyModule } from './tenant-provisioning.service.js';
  * (IdentityModule) and the worker has no reason to carry the HTTP surface.
  */
 @Module({
-  imports: [IdentityModule, TenancyModule],
+  imports: [IdentityModule, TenancyModule, RetentionModule],
   controllers: [SupportAccessController, BrandingController, SettingsController],
   providers: [SuspensionService, SupportAccessService, TenantSettingsService],
   exports: [SuspensionService, SupportAccessService],

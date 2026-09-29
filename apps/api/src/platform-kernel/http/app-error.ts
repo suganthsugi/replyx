@@ -12,6 +12,8 @@ export interface ErrorDetail {
   /** A value the client could resubmit that would pass (e.g. an AA-compliant color). Only set by
    * checks that can compute one; never a raw echo of secret or message-body input. */
   suggestion?: string;
+  /** Set only by `retentionConfirmationRequired`: the number of tickets a shorter retention would delete. */
+  purgeCount?: number;
 }
 
 const CODE_PATTERN = /^[A-Z][A-Z0-9_]+$/;
