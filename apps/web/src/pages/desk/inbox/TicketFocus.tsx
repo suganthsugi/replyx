@@ -29,6 +29,7 @@ import { TicketConversation } from '../../../components/tickets/TicketConversati
 import { TriageBar } from '../../../components/tickets/TriageBar';
 import { useAttachmentUploads } from '../../../data/attachments';
 import { useMe } from '../../../data/auth';
+import { mapError } from '../../../data/errors';
 import { useEligibleOwners, useGroupDestinations } from '../../../data/groups';
 import { useMentionCandidates, useSendTicketMessage, useTicketMessages, useTicketMessageEvents } from '../../../data/messages';
 import { useRealtime } from '../../../data/realtime';
@@ -177,14 +178,27 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
 
   // One action to resolve, e.g. again after the customer's "thanks" reopened it (US7 scenario 2).
   const canResolve = canEdit && !showTriage && ticket.state !== 'resolved' && ticket.state !== 'closed';
+  // A rejected update (403 no longer allowed, 409 someone else changed it) shows the mapped error
+  // as a toast instead of escaping as an unhandled rejection.
+  const reportFailure = (error: unknown) => toast({ message: mapError(error).message, severity: 'error' });
   const resolve = async () => {
-    await updateTicket.mutateAsync({ id: ticketId, state: 'resolved' });
+    try {
+      await updateTicket.mutateAsync({ id: ticketId, state: 'resolved' });
+    } catch (error) {
+      reportFailure(error);
+      return;
+    }
     toast({ message: 'Ticket resolved', severity: 'success' });
   };
 
   const assignToMe = async () => {
     if (meQuery.data === undefined) return;
-    await updateTicket.mutateAsync({ id: ticketId, ownerId: meQuery.data.id });
+    try {
+      await updateTicket.mutateAsync({ id: ticketId, ownerId: meQuery.data.id });
+    } catch (error) {
+      reportFailure(error);
+      return;
+    }
     toast({ message: 'Assigned to you', severity: 'success' });
   };
 

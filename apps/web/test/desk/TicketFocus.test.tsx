@@ -176,6 +176,29 @@ describe('TicketFocus', () => {
     await waitFor(() => expect(patched).toEqual({ state: 'resolved' }));
   });
 
+  it('shows the mapped error as a toast when resolving is rejected (409)', async () => {
+    const ticket = makeTicket({ state: 'open', allowedActions: ['edit'] });
+    server.use(http.patch(`${API}/tickets/${ticket.id}`, () => errorResponse(409, 'CONFLICT', 'Someone else changed this ticket.')));
+    renderFocus(ticket);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Resolve' }));
+
+    expect((await screen.findAllByText('Someone else changed this ticket.')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Ticket resolved')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Resolve' })).toBeEnabled();
+  });
+
+  it('shows the mapped error as a toast when assigning to me is rejected (403)', async () => {
+    const ticket = makeTicket({ allowedActions: ['assign'], owner: null });
+    server.use(http.patch(`${API}/tickets/${ticket.id}`, () => errorResponse(403, 'FORBIDDEN', 'You can no longer assign this ticket.')));
+    renderFocus(ticket);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Assign to me' }));
+
+    expect((await screen.findAllByText('You can no longer assign this ticket.')).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Assigned to you')).not.toBeInTheDocument();
+  });
+
   it('shows no Resolve button on a resolved ticket', async () => {
     renderFocus(makeTicket({ state: 'resolved', allowedActions: ['edit'] }));
     await screen.findByRole('heading', { level: 2 });
