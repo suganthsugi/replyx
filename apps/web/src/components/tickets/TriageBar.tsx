@@ -68,6 +68,11 @@ export function TriageBar({ ticketId, onClose }: TriageBarProps) {
         priority: priority ?? undefined,
         tagIds: ticketTags.length > 0 ? ticketTags.map((tag) => tag.id) : undefined,
       });
+      if (result.alreadyTriaged) {
+        announce('Someone else already triaged this ticket.', 'assertive');
+        onClose();
+        return;
+      }
       announce(`Ticket sent to ${destination.name}`, 'polite');
       if (!result.visibleToCaller) onClose();
     } catch {

@@ -39,6 +39,18 @@ function refreshAfterTriage(queryClient: QueryClient, ticketId: string): void {
   void queryClient.invalidateQueries({ queryKey: viewCountKeys.all });
 }
 
+/**
+ * What `mutateAsync` resolves to. `alreadyTriaged` marks a lost race whose winner sent the ticket
+ * to a group the caller can't see: the server answers 404 (it won't confirm a ticket the caller
+ * has no access to), which for triage can only mean the ticket left Ungrouped.
+ */
+export type TriageOutcome = TriageTicket200 & { alreadyTriaged?: true };
+
+function dropTicket(queryClient: QueryClient, ticketId: string): void {
+  removeFromLists(queryClient, ticketId);
+  queryClient.removeQueries({ queryKey: ticketKeys.detail(ticketId) });
+}
+
 /** One-step triage of an ungrouped ticket: sets its group and optionally owner, priority and tags. */
 export function useTriageTicket(ticketId: string) {
   const queryClient = useQueryClient();
@@ -48,14 +60,20 @@ export function useTriageTicket(ticketId: string) {
         if (result.visibleToCaller && result.ticket) {
           queryClient.setQueryData<Ticket>(ticketKeys.detail(ticketId), result.ticket);
         } else {
-          removeFromLists(queryClient, ticketId);
-          queryClient.removeQueries({ queryKey: ticketKeys.detail(ticketId) });
+          dropTicket(queryClient, ticketId);
         }
         refreshAfterTriage(queryClient, ticketId);
       },
       onError: (error) => {
-        if (mapError(error).code === 'ALREADY_TRIAGED') {
-          void queryClient.fetchQuery({ queryKey: ticketKeys.detail(ticketId), queryFn: ({ signal }) => getTicket(ticketId, { signal }), staleTime: 0 });
+        const code = mapError(error).code;
+        if (code === 'ALREADY_TRIAGED') {
+          // Shows where it went; a failed refetch just leaves the cached ticket.
+          queryClient
+            .fetchQuery({ queryKey: ticketKeys.detail(ticketId), queryFn: ({ signal }) => getTicket(ticketId, { signal }), staleTime: 0 })
+            .catch(() => undefined);
+          refreshAfterTriage(queryClient, ticketId);
+        } else if (code === 'TICKET_NOT_FOUND') {
+          dropTicket(queryClient, ticketId);
           refreshAfterTriage(queryClient, ticketId);
         }
       },
@@ -63,8 +81,15 @@ export function useTriageTicket(ticketId: string) {
   });
   return {
     ...mutation,
-    mutateAsync: (data: TriageTicketBody) => mutation.mutateAsync({ id: ticketId, data }),
-    error: mutation.error ? mapError(mutation.error) : undefined,
+    mutateAsync: async (data: TriageTicketBody): Promise<TriageOutcome> => {
+      try {
+        return await mutation.mutateAsync({ id: ticketId, data });
+      } catch (error) {
+        if (mapError(error).code === 'TICKET_NOT_FOUND') return { visibleToCaller: false, alreadyTriaged: true };
+        throw error;
+      }
+    },
+    error: mutation.error && mapError(mutation.error).code !== 'TICKET_NOT_FOUND' ? mapError(mutation.error) : undefined,
   };
 }
 
