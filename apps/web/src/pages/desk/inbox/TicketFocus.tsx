@@ -181,6 +181,13 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
 
   const conversationItems = messages.items.map((message) => ({ kind: 'message' as const, id: message.id, message }));
 
+  // One action to resolve, e.g. again after the customer's "thanks" reopened it (US7 scenario 2).
+  const canResolve = canEdit && !showTriage && ticket.state !== 'resolved' && ticket.state !== 'closed';
+  const resolve = async () => {
+    await updateTicket.mutateAsync({ id: ticketId, state: 'resolved' });
+    toast({ message: 'Ticket resolved', severity: 'success' });
+  };
+
   const assignToMe = async () => {
     if (meQuery.data === undefined) return;
     await updateTicket.mutateAsync({ id: ticketId, ownerId: meQuery.data.id });
@@ -251,6 +258,11 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
             onChange={({ state, pendingUntil }) => void updateTicket.mutateAsync({ id: ticketId, state, pendingUntil })}
           />
         </Box>
+        {canResolve && (
+          <Button size="small" variant="contained" onClick={() => void resolve()} disabled={updateTicket.isPending}>
+            Resolve
+          </Button>
+        )}
         <PriorityMark priority={ticket.priority} />
         {!showTriage && (
           <PrioritySelector value={ticket.priority} disabled={!canEdit} onChange={(priority) => void updateTicket.mutateAsync({ id: ticketId, priority })} />

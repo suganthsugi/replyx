@@ -1,5 +1,6 @@
-import { screen } from '@testing-library/react';
-import { http } from 'msw';
+import { screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 
 import { TicketFocus } from '../../src/pages/desk/inbox/TicketFocus';
@@ -124,5 +125,26 @@ describe('TicketFocus', () => {
     const ticket = makeTicket({ allowedActions: ['assign'], owner: null });
     renderFocus(ticket);
     expect(await screen.findByRole('button', { name: 'Assign to me' })).toBeInTheDocument();
+  });
+
+  it('resolves an unresolved ticket in one action', async () => {
+    const ticket = makeTicket({ state: 'open', allowedActions: ['edit'] });
+    let patched: unknown;
+    server.use(
+      http.patch(`${API}/tickets/${ticket.id}`, async ({ request }) => {
+        patched = await request.json();
+        return HttpResponse.json(makeTicket({ ...ticket, state: 'resolved' }));
+      }),
+    );
+    renderFocus(ticket);
+
+    await userEvent.click(await screen.findByRole('button', { name: 'Resolve' }));
+    await waitFor(() => expect(patched).toEqual({ state: 'resolved' }));
+  });
+
+  it('shows no Resolve button on a resolved ticket', async () => {
+    renderFocus(makeTicket({ state: 'resolved', allowedActions: ['edit'] }));
+    await screen.findByRole('heading', { level: 2 });
+    expect(screen.queryByRole('button', { name: 'Resolve' })).not.toBeInTheDocument();
   });
 });
