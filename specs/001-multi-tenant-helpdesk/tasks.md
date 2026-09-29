@@ -422,7 +422,7 @@ notified (spec US5).
 - [X] T177 [P] [US5] Create `apps/web/src/components/tickets/TriageBar.tsx` (Group required, Owner from eligible owners of the chosen group, Priority, Tags, Assign; shortcuts `G`, `O`, `Enter`; at most three actions for group + assign, SC-005) and show it in `apps/web/src/pages/desk/inbox/TicketFocus.tsx` for ungrouped tickets
 - [X] T178 [US5] Create `apps/web/src/data/triage.ts` (triage mutation; on `visibleToCaller: false` close the focus and remove the ticket from cached lists)
 - [ ] T179 [P] [US5] E2E `apps/web/e2e/triage.spec.ts`: manager triages to Support in ≤ 3 actions, ticket leaves Needs Triage and appears in Support's Unassigned & Open for the agent, who is notified; keyboard-only variant
-- [ ] T180 [P] [US5] Guide `apps/docs/src/content/docs/guides/triage.md`
+- [X] T180 [P] [US5] Guide `apps/docs/src/content/docs/guides/triage.md`
 
 **Checkpoint**: tickets that match no rule reliably reach a team.
 
