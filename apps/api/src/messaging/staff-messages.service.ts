@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 
-import { decide, PolicyService, type EffectiveAccess } from '../authorization/policy.service.js';
+import { AccessRepository, decide, PolicyService, type EffectiveAccess } from '../authorization/policy.service.js';
 import { Clock } from '../platform-kernel/clock.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
@@ -50,6 +50,14 @@ const Position = z.object({ createdAt: z.iso.datetime(), id: z.uuid() }).strict(
 
 const ATTACHMENT_TTL_MS = 24 * 3_600_000;
 
+const MAX_MENTION_CANDIDATES = 20;
+
+export interface MentionCandidateDto {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
 const SUPPORT = 'support' as const;
 type Viewer = EffectiveAccess | typeof SUPPORT;
 
@@ -96,6 +104,23 @@ export class StaffMessagesService {
     // Support sessions are read-only; only a staff member's own reading counts as delivery.
     if (ctx.actor.kind === 'user' && !ctx.readOnly) await this.markDelivered(ctx, page.ticket);
     return page.page;
+  }
+
+  /**
+   * Who an internal note on the ticket can @mention (FR-081): active staff who can view its group,
+   * id, name and avatar only. Gated like posting a note (`ticket.edit` on the group), and a ticket
+   * outside the caller's view is the same 404 as a missing one.
+   */
+  async mentionCandidates(ctx: TenantContext, ticketId: string, prefix: string): Promise<MentionCandidateDto[]> {
+    const access = await this.access(ctx);
+    return this.unitOfWork.withTenantReadOnly(ctx, async (tx) => {
+      const row = await new TicketsRepository(ctx).find(tx, ticketId);
+      if (row === undefined) throw notFound('ticket');
+      require(access, 'ticket.edit', row.group_id);
+      const staff = await new AccessRepository(ctx).mentionableStaff(tx, row.group_id, prefix, MAX_MENTION_CANDIDATES);
+      // Avatars arrive with the attachments module.
+      return staff.map((user) => ({ id: user.id, name: user.name, avatarUrl: null }));
+    });
   }
 
   async post(ctx: TenantContext, ticketId: string, input: StaffMessageInput): Promise<MessageDto> {

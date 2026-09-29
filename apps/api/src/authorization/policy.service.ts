@@ -282,6 +282,54 @@ export class AccessRepository extends TenantRepository {
     return (await this.staffWithGroupGrant(tx, groupId, 'can_view')).map((user) => user.id);
   }
 
+  /**
+   * Active staff who can view tickets of the group (`null` = Ungrouped), matching `decide` for
+   * `ticket.view`: the registry key and the group's view flag, each from any of the user's roles.
+   * `prefix` narrows by a case-insensitive name prefix; by name, at most `limit`.
+   */
+  mentionableStaff(tx: TenantTransaction, groupId: string | null, prefix: string, limit: number): Promise<{ id: string; name: string }[]> {
+    return this.selectFrom(tx, 'users')
+      .select(['users.id', 'users.name'])
+      .where('users.status', '=', 'active')
+      .where('users.kind', '=', 'staff')
+      .where(sql<SqlBool>`starts_with(lower(${sql.ref('users.name')}), lower(${prefix}))`)
+      .where((eb) =>
+        eb.and([
+          eb.exists(
+            eb
+              .selectFrom('user_roles')
+              .innerJoin('role_permissions', (join) =>
+                join
+                  .onRef('role_permissions.tenant_id', '=', 'user_roles.tenant_id')
+                  .onRef('role_permissions.role_id', '=', 'user_roles.role_id'),
+              )
+              .select(sql`1`.as('one'))
+              .whereRef('user_roles.tenant_id', '=', 'users.tenant_id')
+              .whereRef('user_roles.user_id', '=', 'users.id')
+              .where('role_permissions.permission_key', '=', 'ticket.view'),
+          ),
+          eb.exists(
+            eb
+              .selectFrom('user_roles')
+              .innerJoin('role_group_access', (join) =>
+                join
+                  .onRef('role_group_access.tenant_id', '=', 'user_roles.tenant_id')
+                  .onRef('role_group_access.role_id', '=', 'user_roles.role_id'),
+              )
+              .select(sql`1`.as('one'))
+              .whereRef('user_roles.tenant_id', '=', 'users.tenant_id')
+              .whereRef('user_roles.user_id', '=', 'users.id')
+              .where('role_group_access.can_view', '=', true)
+              .where('role_group_access.group_id', groupId === null ? 'is' : '=', groupId),
+          ),
+        ]),
+      )
+      .orderBy('users.name')
+      .orderBy('users.id')
+      .limit(limit)
+      .execute();
+  }
+
   private staffWithGroupGrant(tx: TenantTransaction, groupId: string | null, grant: 'can_view' | 'can_edit'): Promise<EligibleOwner[]> {
     return this.selectFrom(tx, 'users')
       .select(['users.id', 'users.name', 'users.availability'])
