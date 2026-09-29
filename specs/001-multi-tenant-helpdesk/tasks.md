@@ -438,8 +438,8 @@ safe; tenant settings are editable.
 pass (ticket closes), send again (new linked follow-up; one continuous thread for the customer)
 (spec US7).
 
-- [ ] T181 [US7] Extend `apps/api/src/tickets/sweeper.job.ts`: `resolved` with `auto_close_at` passed → close under the customer's advisory lock after re-checking state (research D11, FR-035)
-- [ ] T182 [US7] Emit `conversation.resolved` (resolved marker text "Glad we could help, just reply if you need anything else") and `conversation.status` on entering `resolved` in `apps/api/src/messaging/conversation-events.ts`; the conversation service shows the marker in the thread
+- [X] T181 [US7] Extend `apps/api/src/tickets/sweeper.job.ts`: `resolved` with `auto_close_at` passed → close under the customer's advisory lock after re-checking state (research D11, FR-035)
+- [X] T182 [US7] Emit `conversation.resolved` (resolved marker text "Glad we could help, just reply if you need anything else") and `conversation.status` on entering `resolved` in `apps/api/src/messaging/conversation-events.ts`; the conversation service shows the marker in the thread
 - [ ] T183 [US7] Implement tenant settings in `apps/api/src/tenancy/settings.controller.ts` + `settings.service.ts`: `GET/PATCH /settings` for name, logo, brand colors (primary must pass WCAG AA contrast; 400 `VALIDATION_FAILED` with a suggested color), welcome message ≤ 500, timezone, self-registration, `gracePeriodHours` 1–720, `afterCloseBehavior`, `offlineCustomerNotification`, `outOfHoursMessage`; audited `tenant_settings.changed` (FR-005)
 - [ ] T184 [US7] Merge `/settings` (without retention fields yet) into `apps/api/openapi.yaml`
 - [ ] T185 [P] [US7] Integration tests `apps/api/test/integration/tickets/resolution.test.ts`: resolve → marker in customer thread; "thanks" within grace reopens the same ticket keeping group and owner, and one PATCH re-resolves; after grace the sweeper closes it; next message creates a `follow_up_of`-linked ticket that goes to Needs Triage; `reopen_previous` setting reopens instead
