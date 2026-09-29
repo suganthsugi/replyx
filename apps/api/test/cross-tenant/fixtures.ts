@@ -120,6 +120,9 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       'TicketsController.update': () => ({ title: 'Renamed by another tenant' }),
       'TicketLinksController.create': (resource) => ({ targetTicketId: resource.ids[1] ?? uuidv7(), kind: 'related' }),
       'TicketsController.moveMessage': (resource) => ({ targetTicketId: resource.ids[1] ?? uuidv7() }),
+      // Zod requires groupId before the tenant-scoped lookup runs; a well-formed but unrelated id
+      // is enough since the ticket lookup 404s first either way (tenant B, or an unknown id).
+      'TicketsController.triage': () => ({ groupId: uuidv7() }),
     },
   },
   tag: {
