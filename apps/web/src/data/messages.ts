@@ -108,7 +108,6 @@ export interface SendTicketMessageInput {
   mentionIds?: string[];
 }
 
-/** Send a public reply or add an internal note, with an idempotent `clientMessageId`. */
 /**
  * Staff an internal note on the ticket can @mention (`GET /tickets/{id}/mention-candidates`, needs
  * `ticket.edit`; id, name and avatar only, so no `user.view`). `query` is the text typed after the
@@ -126,6 +125,7 @@ export function useMentionCandidates(ticketId: string | undefined, query: string
   return { ...result, error: result.error ? mapError(result.error) : undefined };
 }
 
+/** Send a public reply or add an internal note, with an idempotent `clientMessageId`. */
 export function useSendTicketMessage(ticketId: string) {
   const queryClient = useQueryClient();
 
