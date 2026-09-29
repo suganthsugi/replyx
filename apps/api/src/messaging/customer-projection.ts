@@ -123,6 +123,9 @@ export const customerEvents = {
   attachment(messageId: string | null, attachment: CustomerAttachment): CustomerProjection {
     return { type: 'conversation.attachment', data: { messageId, attachment } };
   },
+  resolved(marker: ResolvedMarker): CustomerProjection {
+    return { type: 'conversation.resolved', data: marker };
+  },
   status(code: FriendlyStatusCode): CustomerProjection {
     return { type: 'conversation.status', data: friendlyStatus(code) };
   },
