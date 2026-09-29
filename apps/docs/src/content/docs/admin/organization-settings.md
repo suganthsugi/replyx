@@ -74,6 +74,12 @@ that arrives once the ticket is closed:
 Customers never see this split. They see one continuous conversation either
 way.
 
+## Data retention
+
+**Keep closed tickets** and **Keep audit log** decide how long data is kept
+before it is deleted for good. Shortening ticket retention asks you to confirm
+first. See [Audit log and data retention](/admin/audit-and-retention/).
+
 ## Audit log
 
 Each save is recorded in the audit log with who made the change and the old
