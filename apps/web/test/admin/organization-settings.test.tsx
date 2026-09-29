@@ -1,4 +1,4 @@
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { Route, Routes } from 'react-router';
@@ -33,7 +33,16 @@ const settings: TenantSettings = {
 };
 
 function meWith(permissions: string[]): Me {
-  return { id: 'u1', email: 'ada@acme.test', name: 'Ada', kind: 'staff', roles: [], permissions, groupAccess: [], accessVersion: 1 };
+  return {
+    id: 'u1',
+    email: 'ada@acme.test',
+    name: 'Ada',
+    kind: 'staff',
+    roles: [],
+    permissions,
+    groupAccess: [],
+    accessVersion: 1,
+  };
 }
 
 const EDITOR = ['tenant_settings.view', 'tenant_settings.edit'];
@@ -81,7 +90,9 @@ async function replaceText(field: HTMLElement, text: string) {
 describe('OrganizationSettingsPage', () => {
   it('shows the saved values with a passing contrast check and no axe violations', async () => {
     const { container } = renderPage();
-    expect(screen.getByRole('heading', { level: 1, name: 'Organization settings' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 1, name: 'Organization settings' }),
+    ).toBeInTheDocument();
     expect(await screen.findByLabelText(/Organization name/)).toHaveValue('Acme');
     expect(screen.getByLabelText('Primary color')).toHaveValue('#1d4ed8');
     expect(screen.getByLabelText('Welcome message')).toHaveValue('Welcome to Acme');
@@ -169,12 +180,16 @@ describe('OrganizationSettingsPage', () => {
     // Give the settings request time to settle while /me is still pending.
     await new Promise((resolve) => setTimeout(resolve, 100));
     expect(screen.getByRole('status')).toHaveTextContent(/Loading organization settings/);
-    expect(screen.queryByText('You can view these settings but not change them.')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('You can view these settings but not change them.'),
+    ).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Organization name/)).not.toBeInTheDocument();
 
     release();
     expect(await screen.findByLabelText(/Organization name/)).toBeEnabled();
-    expect(screen.queryByText('You can view these settings but not change them.')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('You can view these settings but not change them.'),
+    ).not.toBeInTheDocument();
   });
 
   it('rejects a color that is not a six-digit hex and blocks saving', async () => {
@@ -212,7 +227,11 @@ describe('OrganizationSettingsPage', () => {
       http.patch(`${API}/settings`, async ({ request }) => {
         body = await request.json();
         // The API trims the message; the color comes back as sent (lower-case).
-        return HttpResponse.json({ ...settings, welcomeMessage: 'Hello there', brandColors: { primary: '#1d4ed9' } });
+        return HttpResponse.json({
+          ...settings,
+          welcomeMessage: 'Hello there',
+          brandColors: { primary: '#1d4ed9' },
+        });
       }),
     );
     const welcome = await screen.findByLabelText('Welcome message');
@@ -220,7 +239,9 @@ describe('OrganizationSettingsPage', () => {
     const user = await replaceText(screen.getByLabelText('Primary color'), '#1D4ED9');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
 
-    await waitFor(() => expect(body).toEqual({ welcomeMessage: 'Hello there', brandColors: { primary: '#1d4ed9' } }));
+    await waitFor(() =>
+      expect(body).toEqual({ welcomeMessage: 'Hello there', brandColors: { primary: '#1d4ed9' } }),
+    );
     expect((await screen.findAllByText('Organization settings saved')).length).toBeGreaterThan(0);
     expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
   });
@@ -255,7 +276,13 @@ describe('OrganizationSettingsPage', () => {
             error: {
               code: 'VALIDATION_FAILED',
               message: 'Validation failed',
-              details: [{ path: 'brandColors.primary', issue: 'insufficient_contrast', suggestion: '#767676' }],
+              details: [
+                {
+                  path: 'brandColors.primary',
+                  issue: 'insufficient_contrast',
+                  suggestion: '#767676',
+                },
+              ],
             },
           },
           { status: 400 },
@@ -267,7 +294,9 @@ describe('OrganizationSettingsPage', () => {
     const user = await replaceText(field, '#777777');
     await user.click(screen.getByRole('button', { name: 'Save changes' }));
 
-    expect(await screen.findByText('#767676 is the closest color that passes.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('#767676 is the closest color that passes.'),
+    ).toBeInTheDocument();
     expect(field).toHaveAttribute('aria-invalid', 'true');
 
     await user.click(screen.getByRole('button', { name: 'Use suggested color' }));
@@ -278,7 +307,13 @@ describe('OrganizationSettingsPage', () => {
     server.use(
       http.patch(`${API}/settings`, () =>
         HttpResponse.json(
-          { error: { code: 'VALIDATION_FAILED', message: 'Validation failed', details: [{ path: 'timezone', issue: 'invalid' }] } },
+          {
+            error: {
+              code: 'VALIDATION_FAILED',
+              message: 'Validation failed',
+              details: [{ path: 'timezone', issue: 'invalid' }],
+            },
+          },
           { status: 400 },
         ),
       ),
@@ -293,10 +328,202 @@ describe('OrganizationSettingsPage', () => {
 
   it('is read-only without the edit permission', async () => {
     renderPage(['tenant_settings.view']);
-    expect(await screen.findByText('You can view these settings but not change them.')).toBeInTheDocument();
+    expect(
+      await screen.findByText('You can view these settings but not change them.'),
+    ).toBeInTheDocument();
     expect(screen.getByLabelText(/Organization name/)).toBeDisabled();
     expect(screen.getByLabelText('Primary color')).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument();
+  });
+
+  describe('data retention', () => {
+    function confirmationRequired(purgeCount: number) {
+      return HttpResponse.json(
+        {
+          error: {
+            code: 'RETENTION_CONFIRMATION_REQUIRED',
+            message: 'Confirm',
+            details: [{ path: 'confirmPurgeCount', issue: 'confirmation_required', purgeCount }],
+          },
+        },
+        { status: 409 },
+      );
+    }
+
+    it('shows both periods with readable labels and helper text', async () => {
+      renderPage();
+      const tickets = await screen.findByLabelText('Keep closed tickets');
+      expect(tickets).toHaveValue('forever');
+      expect(within(tickets).getByRole('option', { name: 'Forever' })).toBeInTheDocument();
+      expect(within(tickets).getByRole('option', { name: '1 year' })).toBeInTheDocument();
+      expect(within(tickets).getByRole('option', { name: '7 years' })).toBeInTheDocument();
+      expect(tickets).toHaveAccessibleDescription(/deleted daily once they have been closed/);
+      const audit = screen.getByLabelText('Keep audit log');
+      expect(within(audit).getByRole('option', { name: '10 years' })).toBeInTheDocument();
+      expect(within(audit).queryByRole('option', { name: '4 years' })).not.toBeInTheDocument();
+      expect(audit).toHaveAccessibleDescription(/at least 1 year/);
+    });
+
+    it('saves a lengthened period, or the first save, without a dialog', async () => {
+      const bodies: unknown[] = [];
+      server.use(
+        http.patch(`${API}/settings`, async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          bodies.push(body);
+          return HttpResponse.json({ ...settings, ...body });
+        }),
+      );
+      renderPage();
+      const user = userEvent.setup();
+      await user.selectOptions(await screen.findByLabelText('Keep closed tickets'), 'P3Y');
+      await user.selectOptions(screen.getByLabelText('Keep audit log'), 'P5Y');
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+      await waitFor(() =>
+        expect(bodies).toEqual([{ retentionPeriod: 'P3Y', auditRetention: 'P5Y' }]),
+      );
+      expect((await screen.findAllByText('Organization settings saved')).length).toBeGreaterThan(0);
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    });
+
+    it('asks before deleting, then resends the same patch with the confirmed count', async () => {
+      const bodies: Record<string, unknown>[] = [];
+      server.use(
+        http.patch(`${API}/settings`, async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          bodies.push(body);
+          if (body.confirmPurgeCount === undefined) return confirmationRequired(12);
+          const { confirmPurgeCount: _confirmed, ...saved } = body;
+          return HttpResponse.json({ ...settings, ...saved });
+        }),
+      );
+      renderPage();
+      const user = userEvent.setup();
+      await user.selectOptions(await screen.findByLabelText('Keep closed tickets'), 'P1Y');
+      const save = screen.getByRole('button', { name: 'Save changes' });
+      await user.click(save);
+
+      const dialog = await screen.findByRole('dialog', { name: 'Delete closed tickets?' });
+      expect(dialog).toHaveTextContent(
+        "Shortening retention permanently deletes 12 closed tickets (messages, attachments and history) older than 1 year. This can't be undone.",
+      );
+      expect(bodies).toEqual([{ retentionPeriod: 'P1Y' }]);
+      await expectNoAxeViolations(dialog);
+      // Focus is inside the dialog.
+      await waitFor(() => expect(dialog.contains(document.activeElement)).toBe(true));
+
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Delete 12 closed tickets and save' }),
+      );
+      await waitFor(() =>
+        expect(bodies).toEqual([
+          { retentionPeriod: 'P1Y' },
+          { retentionPeriod: 'P1Y', confirmPurgeCount: 12 },
+        ]),
+      );
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect((await screen.findAllByText('Organization settings saved')).length).toBeGreaterThan(0);
+      // Save is disabled now, so focus lands on the section heading instead of dropping to the body.
+      const heading = screen.getByRole('heading', { level: 2, name: 'Data retention' });
+      await waitFor(() => expect(heading).toHaveFocus());
+      // ...and stays there once the dialog's exit transition has finished.
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      expect(heading).toHaveFocus();
+      expect(screen.getByLabelText('Keep closed tickets')).toHaveValue('P1Y');
+      expect(screen.getByRole('button', { name: 'Save changes' })).toBeDisabled();
+    });
+
+    it('saves nothing on cancel, keeps the form dirty and returns focus to Save', async () => {
+      const bodies: unknown[] = [];
+      server.use(
+        http.patch(`${API}/settings`, async ({ request }) => {
+          bodies.push(await request.json());
+          return confirmationRequired(3);
+        }),
+      );
+      renderPage();
+      const user = userEvent.setup();
+      await user.selectOptions(await screen.findByLabelText('Keep closed tickets'), 'P2Y');
+      const save = screen.getByRole('button', { name: 'Save changes' });
+      await user.click(save);
+      const dialog = await screen.findByRole('dialog');
+      expect(dialog).toHaveTextContent('permanently deletes 3 closed tickets');
+
+      await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      expect(bodies).toHaveLength(1);
+      expect(screen.getByLabelText('Keep closed tickets')).toHaveValue('P2Y');
+      expect(screen.getByRole('button', { name: 'Save changes' })).toBeEnabled();
+      await waitFor(() => expect(save).toHaveFocus());
+      expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent(
+        'Nothing was deleted or saved.',
+      );
+    });
+
+    it('asks again when the count changed, and sends the new count once confirmed', async () => {
+      const bodies: Record<string, unknown>[] = [];
+      server.use(
+        http.patch(`${API}/settings`, async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          bodies.push(body);
+          if (body.confirmPurgeCount === undefined) return confirmationRequired(1);
+          if (body.confirmPurgeCount === 1) return confirmationRequired(5);
+          return HttpResponse.json({ ...settings, retentionPeriod: 'P1Y' });
+        }),
+      );
+      renderPage();
+      const user = userEvent.setup();
+      await user.selectOptions(await screen.findByLabelText('Keep closed tickets'), 'P1Y');
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+
+      let dialog = await screen.findByRole('dialog');
+      expect(dialog).toHaveTextContent('permanently deletes 1 closed ticket ');
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Delete 1 closed ticket and save' }),
+      );
+
+      const again = await within(dialog).findByRole('button', {
+        name: 'Delete 5 closed tickets and save',
+      });
+      dialog = screen.getByRole('dialog');
+      expect(dialog).toHaveTextContent('permanently deletes 5 closed tickets');
+      expect(dialog).toHaveTextContent('The number changed from 1 since you last looked.');
+      expect(document.querySelector('[aria-live="assertive"]')).toHaveTextContent('changed to 5');
+      expect(bodies).toHaveLength(2);
+
+      await user.click(again);
+      await waitFor(() =>
+        expect(bodies[2]).toEqual({ retentionPeriod: 'P1Y', confirmPurgeCount: 5 }),
+      );
+      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    });
+
+    it('keeps the dialog open and explains a failure while confirming', async () => {
+      server.use(
+        http.patch(`${API}/settings`, async ({ request }) => {
+          const body = (await request.json()) as Record<string, unknown>;
+          return body.confirmPurgeCount === undefined
+            ? confirmationRequired(2)
+            : errorResponse(500, 'INTERNAL', 'Something broke');
+        }),
+      );
+      renderPage();
+      const user = userEvent.setup();
+      await user.selectOptions(await screen.findByLabelText('Keep closed tickets'), 'P1Y');
+      await user.click(screen.getByRole('button', { name: 'Save changes' }));
+      const dialog = await screen.findByRole('dialog');
+      await user.click(
+        within(dialog).getByRole('button', { name: 'Delete 2 closed tickets and save' }),
+      );
+      expect(await within(dialog).findByRole('alert')).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    it('is read-only without the edit permission', async () => {
+      renderPage(['tenant_settings.view']);
+      expect(await screen.findByLabelText('Keep closed tickets')).toBeDisabled();
+      expect(screen.getByLabelText('Keep audit log')).toBeDisabled();
+      expect(screen.queryByRole('button', { name: 'Save changes' })).not.toBeInTheDocument();
+    });
   });
 
   it('explains a load failure and retries', async () => {
@@ -315,7 +542,9 @@ describe('OrganizationSettingsPage', () => {
       </Routes>,
       { route: '/desk/admin/settings' },
     );
-    expect(await screen.findByRole('heading', { name: "Couldn't load organization settings" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: "Couldn't load organization settings" }),
+    ).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Try again' }));
     expect(await screen.findByLabelText(/Organization name/)).toHaveValue('Acme');
   });
