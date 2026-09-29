@@ -21,6 +21,11 @@ import type { TenantSettings, TenantSettingsUpdate } from '../api/generated/mode
  * a `VALIDATION_FAILED` error whose `brandColors.primary` field issue is `insufficient_contrast`
  * and whose matching `fieldSuggestions.brandColors.primary` (from `mapError`) is an AA-compliant
  * shade of the same color, for a "Use suggested color" action.
+ *
+ * Shortening `retentionPeriod` can fail with 409 `RETENTION_CONFIRMATION_REQUIRED`; `mapError` of
+ * the thrown error gives `retentionConfirmation: { purgeCount }`. Show "This deletes N closed
+ * tickets" and resend the same patch with `confirmPurgeCount: N`. If the count changed meanwhile,
+ * the retry fails with the same code and the new `purgeCount`, to be confirmed again.
  */
 
 export const settingsKeys = {
