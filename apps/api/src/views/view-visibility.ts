@@ -8,10 +8,14 @@ import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
 import type { TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
 
 /**
- * Whether a view is visible to a viewer (data-model.md "views", FR-076, FR-077): `all_staff` to
- * every staff user; `personal` only to its owner; `roles`/`groups` when the viewer holds one of
- * the shared roles or groups. An invisible view is 404, the same as a missing one (constitution
- * I) — callers throw that themselves; this only answers the yes/no question.
+ * Whether a view is visible to a viewer (data-model.md "views", FR-076, FR-077): its owner (the
+ * user who created it, `owner_id`) always sees it, whatever its visibility, so sharing a view with
+ * roles or groups the creator is not in never hides it from them; otherwise `all_staff` to every
+ * staff user; `personal` only to its owner; `roles`/`groups` when the viewer holds one of the
+ * shared roles or groups. Default views have no owner. Seeing a view never widens which tickets
+ * it lists: those stay limited by the viewer's group access (FR-077). An invisible view is 404,
+ * the same as a missing one (constitution I) — callers throw that themselves; this only answers
+ * the yes/no question.
  *
  * Shared by every view read: `GET /tickets?viewId=` (T135), and `GET /views`, `GET /views/{id}`
  * (T141).
@@ -25,6 +29,7 @@ export interface ViewAccessRow {
 
 export class ViewVisibilityRepository extends TenantRepository {
   async canSee(tx: TenantTransaction, view: ViewAccessRow, viewerId: string, access: EffectiveAccess): Promise<boolean> {
+    if (view.ownerId !== null && view.ownerId === viewerId) return true;
     switch (view.visibility) {
       case 'all_staff':
         return true;

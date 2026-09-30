@@ -299,7 +299,7 @@ When a linked ticket is purged by retention, the surviving side keeps a tombston
 | id, tenant_id | uuid | |
 | name, description | text | |
 | system_key | text | default views (FR-073); editable, hideable, reorderable |
-| owner_id | uuid | set for personal views |
+| owner_id | uuid | the creating user (required for personal views); null for default views |
 | visibility | text | `personal` \| `all_staff` \| `roles` \| `groups` |
 | shared_role_ids, shared_group_ids | uuid[] | |
 | conditions | jsonb | expression tree (below) |
@@ -342,7 +342,8 @@ nesting depth 3, maximum 20 conditions.
 | Closed | state is closed |
 
 Needs Triage is visible only to viewers with Ungrouped view access. Every view is additionally
-limited by the viewer's access filter (FR-077).
+limited by the viewer's access filter (FR-077). A view's owner always sees it, whatever roles or
+groups it is shared with.
 
 ### notifications
 `id`, `tenant_id`, `recipient_id`, `event_type`, `ticket_id`, `group_key`, `count`, `title`,

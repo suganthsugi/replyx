@@ -77,6 +77,16 @@ interface Sharing {
   sharedGroupIds: readonly string[];
 }
 
+/**
+ * The owner an edited view keeps: the editor's own once it is (or becomes) personal, otherwise the
+ * stored one — an editor with `view.edit` doesn't take a colleague's view, and a default view
+ * stays ownerless.
+ */
+function ownerAfter(before: ViewRow, values: ViewValues, viewerId: string): string | null {
+  if (before.systemKey !== null) return before.ownerId;
+  return values.visibility === 'personal' ? viewerId : before.ownerId;
+}
+
 function sameIds(a: readonly string[], b: readonly string[]): boolean {
   return a.length === b.length && a.every((id) => b.includes(id));
 }
@@ -100,8 +110,9 @@ function valuesOf(input: ViewInput, viewerId: string): ViewValues {
   return {
     name: input.name,
     description: input.description === undefined || input.description === '' ? null : input.description,
-    // `owner_id` is set only for a personal view (data-model.md "views").
-    ownerId: input.visibility === 'personal' ? viewerId : null,
+    // The creator owns the view whatever its visibility, so a shared view stays visible to them
+    // (data-model.md "views"); `update` keeps the stored owner instead (`ownerAfter`).
+    ownerId: viewerId,
     visibility: input.visibility,
     sharedRoleIds,
     sharedGroupIds,
@@ -184,7 +195,7 @@ export class ViewsService {
       const before = await this.visibleView(ctx, tx, id, viewerId, access);
       this.authorizeUpdate(before, values, viewerId, access);
       await this.assertSharedTargetsExist(ctx, tx, values);
-      await new ViewWritesRepository(ctx).update(tx, id, values);
+      await new ViewWritesRepository(ctx).update(tx, id, { ...values, ownerId: ownerAfter(before, values, viewerId) });
       const after = await this.reload(ctx, tx, id);
       await this.auditWrite(tx, 'view.updated', after, before);
       const viewers = await this.announce(ctx, tx, viewerId, before, after);
