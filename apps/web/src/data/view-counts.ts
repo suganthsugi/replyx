@@ -19,9 +19,12 @@ import type { GetViewCounts200, ReorderViewsBody, View } from '../api/generated/
  *
  * `useViewCountEvents` is the one place that registers the `views` stream
  * (`client.registerStreamKeys('views', ...)`): a `views.counts_changed` hint (already debounced
- * 500 ms server-side) refetches `/views/counts` and the view list (`viewKeys.list()`), because
- * creating, editing or sharing a view (`view-builder.ts`) emits the same hint to every viewer
- * who can see it, and their rail must show the new or renamed view.
+ * 500 ms server-side) refetches `/views/counts` at once. Creating, editing or sharing a view
+ * (`view-builder.ts`) emits the same hint type, and its payload (`viewIds`) cannot tell those
+ * apart from ticket-driven hints, so the view list (`viewKeys.list()`) is invalidated by a
+ * trailing throttle: at most once per `VIEW_LIST_REFRESH_MS` after the first hint of a burst.
+ * That refresh is skipped when a reorder is in flight (`reorderViewsMutationKey`), so it cannot
+ * overwrite the optimistic order; the reorder's own `onSettled` refetches the list anyway.
  */
 
 export const viewCountKeys = {
@@ -34,6 +37,12 @@ export const viewCountKeys = {
  */
 export const VIEW_COUNTS_REFETCH_MS = 60_000;
 
+/** Trailing throttle for list refreshes triggered by count hints (see the top comment). */
+export const VIEW_LIST_REFRESH_MS = 5_000;
+
+/** Lets the hint handler see an in-flight reorder via `queryClient.isMutating`. */
+export const reorderViewsMutationKey = ['views', 'reorder'] as const;
+
 export function useViewCounts() {
   const query = useGetViewCounts<GetViewCounts200>({ query: { queryKey: viewCountKeys.all, refetchInterval: VIEW_COUNTS_REFETCH_MS } });
   return { ...query, error: query.error ? mapError(query.error) : undefined };
@@ -44,10 +53,21 @@ export function useViewCountEvents(client: RealtimeClient | undefined): void {
   useEffect(() => {
     if (!client) return undefined;
     client.registerStreamKeys('views', () => [viewCountKeys.all, viewKeys.list()]);
-    return client.onEvent('views.counts_changed', (_envelope, queryClient) => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const off = client.onEvent('views.counts_changed', (_envelope, queryClient) => {
       void queryClient.invalidateQueries({ queryKey: viewCountKeys.all });
-      void queryClient.invalidateQueries({ queryKey: viewKeys.list() });
+      if (timer !== undefined) return;
+      timer = setTimeout(() => {
+        timer = undefined;
+        if (queryClient.isMutating({ mutationKey: reorderViewsMutationKey }) > 0) return;
+        void queryClient.invalidateQueries({ queryKey: viewKeys.list() });
+      }, VIEW_LIST_REFRESH_MS);
     });
+    return () => {
+      off();
+      if (timer !== undefined) clearTimeout(timer);
+      timer = undefined;
+    };
   }, [client]);
 }
 
@@ -62,6 +82,7 @@ export function useReorderViews() {
   const queryClient = useQueryClient();
   const mutation = useReorderViewsMutation({
     mutation: {
+      mutationKey: reorderViewsMutationKey,
       onMutate: async ({ data }: { data: ReorderViewsBody }) => {
         await queryClient.cancelQueries({ queryKey: viewKeys.list() });
         const previous = queryClient.getQueryData<CachedViewList>(viewKeys.list());
