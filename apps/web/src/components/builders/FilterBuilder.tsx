@@ -22,6 +22,7 @@ import {
   countConditions,
   describeCondition,
   errorPath,
+  groupNumber,
   isConditionComplete,
   isGroup,
   newCondition,
@@ -29,10 +30,13 @@ import {
   nodeAt,
   operatorsFor,
   pathKey,
+  reconcileKeys,
   removeAt,
+  removeKeyAt,
   replaceAt,
   withOperator,
   type FilterLookups,
+  type KeyNode,
   type NodePath,
 } from './filter-model';
 
@@ -96,6 +100,11 @@ export function FilterBuilder({
   const idBase = useId();
   const rootRef = useRef<HTMLDivElement>(null);
   const focusRequest = useRef<FocusRequest | null>(null);
+  // Client-only row keys, parallel to `value` (see `reconcileKeys`); never sent to the API.
+  const keyCounter = useRef(0);
+  const keyTree = useRef<KeyNode | undefined>(undefined);
+  const keys = reconcileKeys(value, keyTree.current, () => `k${keyCounter.current++}`);
+  keyTree.current = keys;
   const total = countConditions(value);
 
   // Runs after every render: the request is set by a handler and served once the new row exists.
@@ -146,6 +155,7 @@ export function FilterBuilder({
       if (parent === undefined || index === undefined || parent.items.length <= 1) return;
       const removed = parent.items[index];
       const removedCount = removed === undefined ? 1 : countConditions(removed);
+      keyTree.current = removeKeyAt(keys, path);
       onChange(removeAt(value, path));
       const remaining = parent.items.length - 1;
       focusRequest.current = { kind: 'node', key: pathKey([...parentPath, Math.min(index, remaining - 1)]) };
@@ -156,19 +166,21 @@ export function FilterBuilder({
 
   return (
     <Box ref={rootRef} role="group" aria-label={label}>
-      <GroupNode group={value} path={[]} depth={1} label="All conditions" ctx={context} />
+      <GroupNode group={value} keys={keys} path={[]} depth={1} label="All conditions" ctx={context} />
     </Box>
   );
 }
 
 function GroupNode({
   group,
+  keys,
   path,
   depth,
   label,
   ctx,
 }: {
   group: ConditionGroup;
+  keys: KeyNode;
   path: NodePath;
   depth: number;
   label: string;
@@ -232,7 +244,7 @@ function GroupNode({
           const itemPath = [...path, index];
           const onlyItem = group.items.length === 1;
           return (
-            <Box component="li" key={index} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box component="li" key={keys.children[index]?.key ?? index} sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
               {index > 0 && (
                 <Typography aria-hidden="true" variant="overline" color="text.secondary" sx={{ pl: 1 }}>
                   {group.op === 'and' ? 'And' : 'Or'}
@@ -241,10 +253,17 @@ function GroupNode({
               {isGroup(item) ? (
                 <Box sx={{ display: 'flex', gap: 2, alignItems: 'flex-start' }}>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
-                    <GroupNode group={item} path={itemPath} depth={depth + 1} label={`Group ${index + 1}`} ctx={ctx} />
+                    <GroupNode
+                      group={item}
+                      keys={keys.children[index] ?? { key: String(index), children: [] }}
+                      path={itemPath}
+                      depth={depth + 1}
+                      label={`Group ${groupNumber(itemPath)}`}
+                      ctx={ctx}
+                    />
                   </Box>
                   <IconButton
-                    aria-label={`Remove group ${index + 1}`}
+                    aria-label={`Remove group ${groupNumber(itemPath)}`}
                     disabled={ctx.disabled || onlyItem}
                     onClick={() => ctx.onRemove(itemPath)}
                     size="small"
@@ -368,6 +387,7 @@ function ConditionRow({
       </TextField>
       <Box sx={{ flex: '2 1 240px', minWidth: 200 }}>
         <ConditionValueInput
+          key={condition.field}
           condition={condition}
           lookups={ctx.lookups}
           disabled={ctx.disabled}

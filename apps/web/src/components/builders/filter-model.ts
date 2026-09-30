@@ -296,6 +296,37 @@ export function removeAt(root: ConditionGroup, path: NodePath): ConditionGroup {
   return { ...root, items: root.items.map((item, index) => (index === head && isGroup(item) ? removeAt(item, rest) : item)) };
 }
 
+// -------------------------------------------------------------------------------------------
+// Stable React keys. The tree sent to the API carries no ids, so the builder keeps a parallel
+// tree of client-only keys: a row keeps its key when a sibling above it is removed, so per-row
+// UI state (an open picker, typed search text) never lands on the wrong row.
+// -------------------------------------------------------------------------------------------
+
+export interface KeyNode {
+  key: string;
+  children: KeyNode[];
+}
+
+/** Aligns `previous` with the shape of `node`: existing nodes keep their key, new ones get `nextKey()`. */
+export function reconcileKeys(node: ConditionExpression, previous: KeyNode | undefined, nextKey: () => string): KeyNode {
+  const key = previous?.key ?? nextKey();
+  const children = isGroup(node) ? node.items.map((item, index) => reconcileKeys(item, previous?.children[index], nextKey)) : [];
+  return { key, children };
+}
+
+/** Drops the key of the node at `path`, mirroring `removeAt` on the tree. */
+export function removeKeyAt(root: KeyNode, path: NodePath): KeyNode {
+  const [head, ...rest] = path;
+  if (head === undefined) return root;
+  if (rest.length === 0) return { ...root, children: root.children.filter((_, index) => index !== head) };
+  return { ...root, children: root.children.map((child, index) => (index === head ? removeKeyAt(child, rest) : child)) };
+}
+
+/** The dotted position label of a nested group: `groupNumber([1])` is "2", `groupNumber([1, 0])` is "2.1". */
+export function groupNumber(path: NodePath): string {
+  return path.map((index) => index + 1).join('.');
+}
+
 export function pathKey(path: NodePath): string {
   return ['r', ...path].join('-');
 }
