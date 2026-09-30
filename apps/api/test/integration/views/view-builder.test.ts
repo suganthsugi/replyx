@@ -52,6 +52,11 @@ class Inspect extends TenantRepository {
     return this.selectFrom(tx, 'audit_logs').select(['action', 'details']).where('resource_id', '=', resourceId).orderBy('id').execute();
   }
 
+  async viewIds(tx: TenantTransaction, ids: string[]): Promise<string[]> {
+    const rows = await this.selectFrom(tx, 'views').select('views.id').where('views.id', 'in', ids).execute();
+    return rows.map((row) => row.id);
+  }
+
   events(tx: TenantTransaction, type: string) {
     return this.selectFrom(tx, 'outbox_events').select(['payload', 'streams']).where('type', '=', type).orderBy('id').execute();
   }
@@ -539,5 +544,54 @@ describe('outbox hint and audit trail', () => {
     const personal = await makeView(agent);
     expect((await asUser(agent).put(`/views/${personal.id}`, viewInput({ name: 'Still mine' }))).status).toBe(200);
     expect(await inspect(a, (tx, repo) => repo.audit(tx, personal.id))).toEqual([]);
+  });
+});
+
+describe('DELETE /users/{id} for a user who created views', () => {
+  it('409 USER_HAS_HISTORY when the user created a shared view; the views survive', async () => {
+    const t = await createTenant();
+    const tAdmin = await createUser(t, { roles: ['admin'] });
+    const creator = await sharerIn(t);
+    const shared = await makeView(creator, { visibility: 'all_staff' });
+    const personal = await makeView(creator);
+
+    const response = await asUser(tAdmin).delete(`/users/${creator.id}`);
+    expect(response.status).toBe(409);
+    expect(failure(response).code).toBe('USER_HAS_HISTORY');
+    expect((response.body as { error: { message: string } }).error.message).toMatch(/views/i);
+    expect(await inspect(t, (tx, repo) => repo.viewIds(tx, [shared.id, personal.id]))).toEqual(expect.arrayContaining([shared.id, personal.id]));
+    expect((await asUser(tAdmin).get(`/users/${creator.id}`)).status).toBe(200);
+
+    // Deleting the shared view lifts the block; the remaining personal view goes with the user.
+    expect((await asUser(tAdmin).delete(`/views/${shared.id}`)).status).toBe(204);
+    expect((await asUser(tAdmin).delete(`/users/${creator.id}`)).status).toBe(204);
+    expect(await inspect(t, (tx, repo) => repo.viewIds(tx, [shared.id, personal.id]))).toEqual([]);
+  });
+
+  it('deletes a user who only has personal views, and those views are gone', async () => {
+    const t = await createTenant();
+    const tAdmin = await createUser(t, { roles: ['admin'] });
+    const owner = await createUser(t, { roles: ['agent'] });
+    const first = await makeView(owner);
+    const second = await makeView(owner);
+
+    expect((await asUser(tAdmin).delete(`/users/${owner.id}`)).status).toBe(204);
+    expect(await inspect(t, (tx, repo) => repo.viewIds(tx, [first.id, second.id]))).toEqual([]);
+  });
+
+  it('is tenant-scoped: another tenant cannot delete the creator (404) and its shared view is untouched', async () => {
+    const t = await createTenant();
+    const creator = await sharerIn(t);
+    const shared = await makeView(creator, { visibility: 'all_staff' });
+
+    const response = await asUser(adminB).delete(`/users/${creator.id}`);
+    expect(response.status).toBe(404);
+    expect(await inspect(t, (tx, repo) => repo.viewIds(tx, [shared.id]))).toEqual([shared.id]);
+
+    // A user of tenant B with a view of their own is not blocked by tenant A's shared views.
+    const other = await createUser(b, { roles: ['agent'] });
+    const own = await makeView(other);
+    expect((await asUser(adminB).delete(`/users/${other.id}`)).status).toBe(204);
+    expect(await inspect(b, (tx, repo) => repo.viewIds(tx, [own.id]))).toEqual([]);
   });
 });
