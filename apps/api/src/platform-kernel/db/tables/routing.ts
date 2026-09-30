@@ -1,4 +1,4 @@
-import type { Generated, GeneratedTimestamp } from './column-types.js';
+import type { ColumnType, Generated, GeneratedTimestamp } from './column-types.js';
 import type { TicketPriority } from './tickets.js';
 
 /** Migration 0013_routing_rules (data-model.md "routing_rules"). */
@@ -23,8 +23,9 @@ export interface RoutingRulesTable {
   name: string;
   position: Generated<number>;
   enabled: Generated<boolean>;
-  conditions: Generated<RoutingConditions>;
-  actions: RoutingActions;
+  /** Read as an object; written as a JSON string (the pg driver does not serialize objects for jsonb). */
+  conditions: ColumnType<RoutingConditions, string | undefined, string>;
+  actions: ColumnType<RoutingActions, string, string>;
   created_at: GeneratedTimestamp;
   updated_at: GeneratedTimestamp;
 }

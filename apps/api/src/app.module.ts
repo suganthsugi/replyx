@@ -24,6 +24,7 @@ import { OutboxModule } from './platform-kernel/outbox/outbox.service.js';
 import { OutboxRelayModule } from './platform-kernel/outbox/relay.js';
 import { RealtimeModule } from './platform-kernel/realtime/gateway.js';
 import { RedisModule } from './platform-kernel/redis/redis.module.js';
+import { RoutingHttpModule } from './routing/routing.module.js';
 import { TagsHttpModule, TagsModule } from './tags/tags.module.js';
 import { RetentionJobsModule } from './tenancy/retention/retention.module.js';
 import { TenancyHttpModule } from './tenancy/tenancy-http.module.js';
@@ -80,6 +81,7 @@ export class AppModule {
       TagsHttpModule,
       CustomersHttpModule,
       ViewsModule,
+      RoutingHttpModule,
       NotificationsHttpModule,
     ];
     // Outbox relay, queue consumers and sweepers (worker only).

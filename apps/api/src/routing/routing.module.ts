@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 
+import { RoutingRulesController } from './routing-rules.controller.js';
+import { RoutingRulesService } from './routing-rules.service.js';
 import { RuleBasedRouter } from './rule-based-router.js';
 import { RoutingEvaluator } from './rule-evaluator.service.js';
 
@@ -14,3 +16,11 @@ import { RoutingEvaluator } from './rule-evaluator.service.js';
   exports: [RoutingEvaluator, RuleBasedRouter],
 })
 export class RoutingModule {}
+
+/** HTTP side of routing rules (api process only). */
+@Module({
+  imports: [RoutingModule],
+  controllers: [RoutingRulesController],
+  providers: [RoutingRulesService],
+})
+export class RoutingHttpModule {}

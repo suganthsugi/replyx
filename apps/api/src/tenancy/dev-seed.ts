@@ -27,7 +27,8 @@ import type { Kysely } from 'kysely';
  * - operator `OPERATOR_BOOTSTRAP_EMAIL` / `OPERATOR_BOOTSTRAP_PASSWORD`
  * - tenants `acme` and `globex` through provisioning, each with `admin@`, `manager@`, `agent@`
  *   (password `password-123456`) and `customer@{slug}.test`, groups Support and Billing, and a
- *   custom role "Support Agent" (the Agent permissions plus view + edit on Support) held by agent@
+ *   custom role "Support Agent" (the Agent permissions plus view + edit on Support) held by agent@,
+ *   and the routing rule "Refunds to Billing" (first message containing "refund" goes to Billing)
  * - globex: one open ticket in Support owned by agent@, with a customer message, a reply and an
  *   internal note (used for isolation checks)
  * - acme: a resolved conversation for customer@acme.test (question and answer)
@@ -90,6 +91,16 @@ class SeedRepository extends TenantRepository {
       .returning(['id', 'name'])
       .execute();
     const support = groups.find((group) => group.name === 'Support')?.id as string;
+    const billing = groups.find((group) => group.name === 'Billing')?.id as string;
+
+    // US11 demo rule: a first message mentioning a refund goes to Billing.
+    await this.insertInto(tx, 'routing_rules', {
+      name: 'Refunds to Billing',
+      position: 0,
+      enabled: true,
+      conditions: JSON.stringify({ messageContainsAny: ['refund'] }),
+      actions: JSON.stringify({ groupId: billing }),
+    }).execute();
 
     const supportAgent = await this.insertInto(tx, 'roles', {
       name: 'Support Agent',

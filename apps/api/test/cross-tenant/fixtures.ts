@@ -97,6 +97,22 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       return Promise.resolve({ params: {}, ids: [tenant.id] });
     },
   },
+  routing_rule: {
+    async create(tenant) {
+      const group = await createGroup(tenant);
+      const id = await insertRoutingRule(tenant, group.id);
+      return { params: { id }, ids: [id, group.id] };
+    },
+    bodies: {
+      // RoutingRuleInput must validate before the tenant-scoped lookup 404s.
+      'RoutingRulesController.update': () => ({
+        name: 'Renamed by another tenant',
+        enabled: false,
+        conditions: { messageContainsAny: ['refund'] },
+        actions: { groupId: uuidv7() },
+      }),
+    },
+  },
   'customer:me': {
     async create(tenant) {
       const customer = await createUser(tenant, { roles: ['customer'] });
@@ -302,6 +318,28 @@ class AttachmentFixtureRepository extends TenantRepository {
       size_bytes: 10,
       storage_key: 'unused',
       scan_status: 'clean',
+    })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    return row.id;
+  }
+}
+
+/** A tenant's routing rule, inserted directly (position 0, targeting `groupId`). */
+async function insertRoutingRule(tenant: TestTenant, groupId: string): Promise<string> {
+  const unitOfWork = await service(UnitOfWork);
+  const ctx = TenantContext.create({ tenantId: tenant.id, actor: { kind: 'system' }, requestId: 'cross-tenant-fixture' });
+  return unitOfWork.withTenant(ctx, (tx) => new RoutingRuleFixtureRepository(ctx).insert(tx, groupId));
+}
+
+class RoutingRuleFixtureRepository extends TenantRepository {
+  async insert(tx: TenantTransaction, groupId: string): Promise<string> {
+    const row = await this.insertInto(tx, 'routing_rules', {
+      name: 'Tenant A rule',
+      enabled: true,
+      position: 0,
+      conditions: JSON.stringify({ messageContainsAny: ['refund'] }),
+      actions: JSON.stringify({ groupId }),
     })
       .returning('id')
       .executeTakeFirstOrThrow();

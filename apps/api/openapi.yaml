@@ -2952,6 +2952,189 @@ paths:
           $ref: "#/components/responses/ValidationFailed"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+  /routing-rules:
+    get:
+      operationId: listRoutingRules
+      tags:
+        - operations
+      summary: Routing rules in evaluation order (routing_rule.view)
+      description: Rules run top to bottom when a customer's first message starts a ticket; the first enabled rule that
+        matches and whose group is active wins.
+      responses:
+        "200":
+          description: Rules, by position
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/RoutingRule"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    post:
+      operationId: createRoutingRule
+      tags:
+        - operations
+      summary: Create a routing rule, last in order (routing_rule.create)
+      description: At least one condition list must have an entry. The group must be active (when the rule is enabled) and
+        the tags must exist, else 400 invalid_value on actions.groupId, conditions.customerTagIds.N or actions.tagIds.N.
+        A workspace can have 100 rules (409 ROUTING_RULE_LIMIT).
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoutingRuleInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoutingRule"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /routing-rules/order:
+    put:
+      operationId: reorderRoutingRules
+      tags:
+        - operations
+      summary: Set the evaluation order (routing_rule.edit)
+      description: "`ids` must list every rule of the workspace exactly once; a position is the index. A list that is
+        stale (a rule missing or unknown) is 400 invalid on ids."
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - ids
+              properties:
+                ids:
+                  type: array
+                  maxItems: 100
+                  items:
+                    $ref: "#/components/schemas/Id"
+      responses:
+        "204":
+          description: Saved
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+  /routing-rules/test:
+    post:
+      operationId: testRoutingRules
+      tags:
+        - operations
+      summary: Dry-run the rules against a sample first message (routing_rule.view)
+      description: Runs the same evaluation as live routing and changes nothing. Give customerId to use a real customer's
+        email and tags, or customerEmail and customerTagIds for a sample; not both (400 invalid on the body). Unknown
+        or another workspace's customerId is 404.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  minLength: 1
+                  maxLength: 10000
+                customerId:
+                  $ref: "#/components/schemas/Id"
+                customerEmail:
+                  type: string
+                  format: email
+                  maxLength: 254
+                customerTagIds:
+                  type: array
+                  maxItems: 20
+                  items:
+                    $ref: "#/components/schemas/Id"
+      responses:
+        "200":
+          description: The rule that would route the ticket, or none
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoutingDryRun"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /routing-rules/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    put:
+      operationId: updateRoutingRule
+      tags:
+        - operations
+      summary: Replace a routing rule (routing_rule.edit)
+      description: Full replace, including the enabled switch; the position does not change. Same checks as create.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoutingRuleInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoutingRule"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteRoutingRule
+      tags:
+        - operations
+      summary: Delete a routing rule (routing_rule.delete)
+      description: Hard delete; the rules after it move up one position.
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   securitySchemes:
     session:
@@ -4715,3 +4898,140 @@ components:
               $ref: "#/components/schemas/NotificationChannelsInput"
             ticket.reminder_reached:
               $ref: "#/components/schemas/NotificationChannelsInput"
+    RoutingConditions:
+      type: object
+      additionalProperties: false
+      description: Every list that is present must match (AND across lists). At least one list has an entry.
+      properties:
+        messageContainsAny:
+          type: array
+          maxItems: 20
+          description: The first message contains at least one phrase (case-insensitive, whole words)
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+        messageContainsAll:
+          type: array
+          maxItems: 20
+          description: The first message contains every phrase (case-insensitive, whole words)
+          items:
+            type: string
+            minLength: 1
+            maxLength: 100
+        customerTagIds:
+          type: array
+          maxItems: 20
+          description: The customer carries at least one of these tags
+          items:
+            $ref: "#/components/schemas/Id"
+        emailDomains:
+          type: array
+          maxItems: 20
+          description: The customer's email domain equals one of these (lower-case, no subdomain matching)
+          items:
+            type: string
+            maxLength: 253
+    RoutingActions:
+      type: object
+      additionalProperties: false
+      required:
+        - groupId
+      properties:
+        groupId:
+          $ref: "#/components/schemas/Id"
+        priority:
+          $ref: "#/components/schemas/Priority"
+        tagIds:
+          type: array
+          maxItems: 20
+          items:
+            $ref: "#/components/schemas/Id"
+    RoutingRuleInput:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - enabled
+        - conditions
+        - actions
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        enabled:
+          type: boolean
+        conditions:
+          $ref: "#/components/schemas/RoutingConditions"
+        actions:
+          $ref: "#/components/schemas/RoutingActions"
+    RoutingRule:
+      type: object
+      required:
+        - id
+        - name
+        - position
+        - enabled
+        - conditions
+        - actions
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+        position:
+          type: integer
+          minimum: 0
+        enabled:
+          type: boolean
+        conditions:
+          $ref: "#/components/schemas/RoutingConditions"
+        actions:
+          $ref: "#/components/schemas/RoutingActions"
+        createdAt:
+          $ref: "#/components/schemas/Timestamp"
+        updatedAt:
+          $ref: "#/components/schemas/Timestamp"
+    RoutingDryRun:
+      type: object
+      required:
+        - matchedRuleId
+        - matchedRuleName
+        - actions
+        - skipped
+      properties:
+        matchedRuleId:
+          oneOf:
+            - $ref: "#/components/schemas/Id"
+            - type: "null"
+        matchedRuleName:
+          type:
+            - string
+            - "null"
+        actions:
+          description: What would be applied to the ticket; tag ids that no longer exist are left out. Null when no rule matched.
+          oneOf:
+            - $ref: "#/components/schemas/RoutingActions"
+            - type: "null"
+        skipped:
+          type: array
+          description: Rules whose conditions matched but whose group is inactive or deleted, in evaluation order
+          items:
+            type: object
+            required:
+              - ruleId
+              - ruleName
+              - reason
+            properties:
+              ruleId:
+                $ref: "#/components/schemas/Id"
+              ruleName:
+                type: string
+              reason:
+                type: string
+                enum:
+                  - group_inactive
+                  - group_missing
