@@ -386,7 +386,13 @@ Start commit: b4afe6b
 
 ### Phase 11 status (T191–T199) 2026-09-30
 - All tasks ticked. Reviewer PASS (both rounds). Coverage green: api 91.44% / web 80.56% lines. Docs build passes (15 pages); redocly valid.
-- Not yet done: the full e2e run on the Phase 11 code. The dev stack still runs pre-0012 code and needs the user to run the `.env`/init.sql/restart steps (P11-3), then `seed:dev` and the e2e suite. The MVP checkpoint ("run the quickstart validation scenarios before deploying") waits on that.
+- Dev stack updated for 0012: the `.env` retention lines, postgres recreated, `init.sql` re-run (by the orchestrator, with user approval). The user ran `migrate` (0012 applied) and restarted api and worker after the classifier refused that step. Then `seed:dev` and a web restart.
+- E2E on the Phase 11 code: 15/15 (5.4 min) on the fourth run. The earlier failures were:
+  - run 1: `docker compose run playwright` recreated api mid-run, because acba5f5 changed api's compose config; the first specs hit a compiling API;
+  - run 2: a timing-dependent `toHaveURL(/\/desk$/)` missed the redirect to `/desk/inbox/<view>`; fixed in all four places (b7eea47);
+  - run 3: a 429 on invitation accept after back-to-back runs used up the per-IP sign-in budget.
+- Quickstart validation scenarios: covered by suites that passed today (cross-tenant and RLS in the full API suite, concurrency, and the realtime and main-flow e2e). Not re-walked by hand: attachments with `--profile scan` and the support-access flow (their integration tests pass).
+- 🎯 MVP (all P1 stories, Phases 3–11) complete. Next is Phase 12 (deploy to the VM, T200–T206).
 - Open follow-ups:
   - TicketFocus history names for former owners;
   - other TicketFocus selectors don't catch mutation errors;
