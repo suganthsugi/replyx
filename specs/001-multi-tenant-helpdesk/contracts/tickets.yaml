@@ -355,7 +355,12 @@ paths:
                 properties:
                   items: { type: array, items: { $ref: '#/components/schemas/View' } }
     post:
-      summary: Create a view (personal needs view.create; shared needs view.share)
+      operationId: createView
+      summary: Create a view (view.create; a shared visibility also needs view.share)
+      description: >-
+        Visibility roles needs at least one sharedRoleIds entry and groups at least one sharedGroupIds entry; the other list is
+        ignored. Every shared role or group must belong to the tenant, else 400 (details such as sharedRoleIds.0 invalid_value).
+        A create involving sharing is audited (view.created) and emits a views.counts_changed hint.
       requestBody:
         required: true
         content:
@@ -364,6 +369,8 @@ paths:
       responses:
         '201': { description: Created, content: { application/json: { schema: { $ref: '#/components/schemas/View' } } } }
         '400': { $ref: 'common.yaml#/components/responses/ValidationFailed' }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: 'common.yaml#/components/responses/PermissionDenied' }
   /views/counts:
     get:
       summary: Current counts for the caller's views (refetched on views.counts_changed)
@@ -397,6 +404,34 @@ paths:
                       hidden: { type: boolean }
       responses:
         '204': { description: Saved }
+  /views/preview-count:
+    post:
+      operationId: previewViewCount
+      summary: Live count of an unsaved condition tree for the caller (view.view)
+      description: Used by the view builder; applies the viewer's access filter. Nothing is saved.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [conditions]
+              additionalProperties: false
+              properties:
+                conditions: { $ref: 'common.yaml#/components/schemas/ConditionGroup' }
+      responses:
+        '200':
+          description: Count of matching tickets
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [count]
+                properties:
+                  count: { type: integer, minimum: 0 }
+        '400': { $ref: 'common.yaml#/components/responses/ValidationFailed' }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: 'common.yaml#/components/responses/PermissionDenied' }
   /views/{id}:
     parameters: [ { $ref: 'common.yaml#/components/parameters/IdPath' } ]
     get:
@@ -405,7 +440,13 @@ paths:
         '200': { description: View, content: { application/json: { schema: { $ref: '#/components/schemas/View' } } } }
         '404': { $ref: 'common.yaml#/components/responses/NotFound' }
     put:
-      summary: Replace a view
+      operationId: updateView
+      summary: Replace a view definition (view.view, then per view; sharing changes need view.share)
+      description: >-
+        A default view needs view.edit and its sharing cannot change. A personal view is its owner's to edit. A shared view
+        needs view.edit. Changing a view's sharing, or making a personal view shared, needs view.share; making a shared view
+        personal needs view.create. Sharing rules are those of createView. An unknown or invisible view is 404 VIEW_NOT_FOUND.
+        A write involving sharing is audited (view.updated) and emits a views.counts_changed hint.
       requestBody:
         required: true
         content:
@@ -413,6 +454,10 @@ paths:
             schema: { $ref: '#/components/schemas/ViewInput' }
       responses:
         '200': { description: Updated, content: { application/json: { schema: { $ref: '#/components/schemas/View' } } } }
+        '400': { $ref: 'common.yaml#/components/responses/ValidationFailed' }
+        '401': { $ref: 'common.yaml#/components/responses/Unauthenticated' }
+        '403': { $ref: 'common.yaml#/components/responses/PermissionDenied' }
+        '404': { $ref: 'common.yaml#/components/responses/NotFound' }
     delete:
       summary: Delete a view (default views can be hidden, not deleted)
       responses:
@@ -696,20 +741,24 @@ components:
         name: { type: string, minLength: 1, maxLength: 80 }
         description: { type: string, maxLength: 300 }
         visibility: { type: string, enum: [personal, all_staff, roles, groups] }
-        sharedRoleIds: { type: array, items: { type: string, format: uuid } }
-        sharedGroupIds: { type: array, items: { type: string, format: uuid } }
+        sharedRoleIds: { type: array, maxItems: 100, items: { type: string, format: uuid } }
+        sharedGroupIds: { type: array, maxItems: 100, items: { type: string, format: uuid } }
         conditions: { $ref: 'common.yaml#/components/schemas/ConditionGroup' }
         sort:
           type: array
           maxItems: 3
+          uniqueItems: true
+          description: Each field at most once
           items:
             type: object
             required: [field, direction]
+            additionalProperties: false
             properties:
               field: { type: string, enum: [updated_at, created_at, priority, last_customer_message_at, sla_due_at, number] }
               direction: { type: string, enum: [asc, desc] }
         columns:
           type: array
+          uniqueItems: true
           items: { type: string, enum: [number, title, customer, state, priority, group, owner, tags, waiting_on, sla, updated_at, created_at, last_customer_message_at] }
     View:
       allOf:
