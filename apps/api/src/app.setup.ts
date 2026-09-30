@@ -17,7 +17,9 @@ export const UNPREFIXED_ROUTES = ['health/live', 'health/ready'];
 export function configureApiApp(app: NestExpressApplication): NestExpressApplication {
   app.useLogger(app.get(Logger));
   app.disable('x-powered-by');
-  // Host-based tenant resolution needs the original Host; Caddy is the only proxy in front.
+  // Host-based tenant resolution needs the original Host, which every proxy passes through
+  // unchanged. In production two proxies sit in front, both on private addresses: the host nginx
+  // (TLS, sets X-Forwarded-For) and the Caddy container; `req.ip` is the address nginx saw.
   app.set('trust proxy', 'loopback, linklocal, uniquelocal');
   app.setGlobalPrefix(API_PREFIX, { exclude: UNPREFIXED_ROUTES });
   // Socket.IO on the same HTTP server at `/rt`, with the Redis adapter for cross-process fan-out.
