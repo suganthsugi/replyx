@@ -52,3 +52,27 @@ export function BellIcon(props: SvgIconProps) {
     </SvgIcon>
   );
 }
+
+export function AddIcon(props: SvgIconProps) {
+  return (
+    <SvgIcon {...props} aria-hidden="true">
+      <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+    </SvgIcon>
+  );
+}
+
+export function ArrowUpIcon(props: SvgIconProps) {
+  return (
+    <SvgIcon {...props} aria-hidden="true">
+      <path d="m4 12 1.41 1.41L11 7.83V20h2V7.83l5.58 5.59L20 12l-8-8-8 8z" />
+    </SvgIcon>
+  );
+}
+
+export function ArrowDownIcon(props: SvgIconProps) {
+  return (
+    <SvgIcon {...props} aria-hidden="true">
+      <path d="m20 12-1.41-1.41L13 16.17V4h-2v12.17l-5.58-5.59L4 12l8 8 8-8z" />
+    </SvgIcon>
+  );
+}
