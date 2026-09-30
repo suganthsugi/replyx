@@ -7,6 +7,7 @@ import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-o
 import { notFound, validationFailed } from '../platform-kernel/http/app-error.js';
 import { uuidv7 } from '../platform-kernel/ids.js';
 import { OutboxService } from '../platform-kernel/outbox/outbox.service.js';
+import { TagsService } from '../tags/tags.service.js';
 import { TenantSettingsRepository, type ConversationSettings } from '../tenancy/tenant-settings.js';
 import { transition, type TransitionResult } from '../tickets/state-machine.js';
 import { groupStream, summaryOf, ticketStream } from '../tickets/ticket-events.js';
@@ -84,6 +85,7 @@ export class CustomerMessageRouter {
     private readonly clock: Clock,
     private readonly numbers: TicketNumberService,
     private readonly history: TicketHistoryService,
+    private readonly tags: TagsService,
     @Inject(TICKET_ROUTER) private readonly router: TicketRouter,
   ) {}
 
@@ -190,16 +192,32 @@ export class CustomerMessageRouter {
     });
 
     const decision = await this.router.route(tx, ticket, { body }, customer);
-    const groupId = decision?.groupId;
-    if (groupId !== undefined && (await new RoutingRepository(ctx).isActiveGroup(tx, groupId))) {
-      const patch: TicketPatch = { group_id: groupId, ...(decision?.priority === undefined ? {} : { priority: decision.priority }) };
-      const changes: FieldChange[] = [
-        { field: 'group_id', old: null, new: groupId },
-        ...(decision?.priority === undefined ? [] : [{ field: 'priority', old: ticket.priority, new: decision.priority }]),
-      ];
-      ticket = await tickets.update(tx, ticket.id, patch);
-      await this.history.record(tx, ticket.id, changes, { actorKind: 'routing' });
+    if (decision === null) return ticket;
+
+    const repo = new RoutingRepository(ctx);
+    const changes: FieldChange[] = [];
+    const patch: TicketPatch = {};
+    const groupId = decision.groupId;
+    if (groupId !== undefined && (await repo.isActiveGroup(tx, groupId))) {
+      patch.group_id = groupId;
+      changes.push({ field: 'group_id', old: null, new: groupId });
+      if (decision.priority !== undefined) {
+        patch.priority = decision.priority;
+        changes.push({ field: 'priority', old: ticket.priority, new: decision.priority });
+      }
     }
+
+    // Only tags that still exist; the new ticket has none, so the history change is [] -> ids.
+    const tagIds = await repo.existingTagIds(tx, [...new Set(decision.tagIds ?? [])]);
+    if (tagIds.length > 0) {
+      await this.tags.setTicketTags(tx, ticket.id, tagIds);
+      changes.push({ field: 'tags', old: [], new: tagIds });
+    }
+
+    if (Object.keys(patch).length > 0) ticket = await tickets.update(tx, ticket.id, patch);
+    // No event of its own: `ticket.created` is announced by `applyMessage` right after, from the
+    // routed ticket and its tags.
+    await this.history.record(tx, ticket.id, changes, { actorKind: 'routing' });
     return ticket;
   }
 
@@ -232,9 +250,10 @@ export class CustomerMessageRouter {
     const ticket = await new TicketsRepository(ctx).update(tx, before.id, patch);
     if (target.created) {
       // Announced once it has its first message, so list rows are complete.
+      const tagRefs = (await this.tags.tagsByTicketIds(tx, [ticket.id])).get(ticket.id) ?? [];
       await this.outbox.append(tx, {
         type: 'ticket.created',
-        payload: { ticket: await summaryOf(ctx, tx, ticket) },
+        payload: { ticket: await summaryOf(ctx, tx, ticket, tagRefs) },
         streams: [groupStream(ticket.group_id)],
       });
       return ticket;
@@ -316,5 +335,13 @@ class RoutingRepository extends TenantRepository {
   async isActiveGroup(tx: TenantTransaction, groupId: string): Promise<boolean> {
     const row = await this.selectFrom(tx, 'groups').select('groups.status').where('groups.id', '=', groupId).executeTakeFirst();
     return row?.status === 'active';
+  }
+
+  /** The given ids that are tags of this tenant, in input order. */
+  async existingTagIds(tx: TenantTransaction, tagIds: readonly string[]): Promise<string[]> {
+    if (tagIds.length === 0) return [];
+    const rows = await this.selectFrom(tx, 'tags').select('tags.id').where('tags.id', 'in', tagIds as string[]).execute();
+    const found = new Set(rows.map((row) => row.id));
+    return tagIds.filter((id) => found.has(id));
   }
 }
