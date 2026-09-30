@@ -1,0 +1,73 @@
+# infra/caddy/Caddyfile -- the internal web server of the production stack (T201, adapted).
+#
+# TLS is NOT terminated here. The host nginx owns 80/443 and the wildcard certificate for
+# *.replyx.example.com (infra/nginx/replyx.conf), then proxies plain HTTP to this
+# container, which compose publishes only on 127.0.0.1:8081. Caddy serves the SPA, forwards
+# /api/* and /rt/* to the api, and adds the security headers.
+#
+# Tenant resolution: the api resolves the tenant from the Host header, and reverse_proxy passes
+# the incoming Host through unchanged (do not add `header_up Host`). The web app decides between
+# the console, workspace and customer areas from the same host, so nothing here is per tenant.
+{
+	# No certificates are managed here and nothing listens on 443.
+	auto_https off
+	# No admin endpoint inside the container.
+	admin off
+
+	servers {
+		# The only client of this server is the host nginx (reaching the container through the
+		# Docker bridge), which sets X-Forwarded-For/-Proto itself. Trust private addresses so
+		# Caddy keeps those headers and appends to them instead of replacing them; the api's
+		# `trust proxy` setting (app.setup.ts) then reads the real client address from them.
+		trusted_proxies static private_ranges
+	}
+}
+
+:80 {
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		# Strict CSP for a Vite build with no external assets: scripts only from this origin,
+		# MUI/emotion injects <style> tags at runtime (style-src 'unsafe-inline'), inline
+		# previews use data:/blob: images, and the Socket.IO client connects to /rt on the same
+		# host over wss (spelled out because older browsers do not map 'self' to wss).
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; media-src 'self' blob:; connect-src 'self' wss://{host}; worker-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+		-Server
+	}
+
+	# Liveness/readiness for the deploy script and docker healthchecks, reachable only from the
+	# host itself: requests that came through the host nginx always carry X-Forwarded-For
+	# (and nginx answers 404 for /health/ before it gets here).
+	@health {
+		path /health/live /health/ready
+		not header X-Forwarded-For *
+	}
+	handle @health {
+		reverse_proxy api:3000
+	}
+
+	handle /api/* {
+		reverse_proxy api:3000
+	}
+
+	# Socket.IO: long polling and WebSocket upgrades are both proxied by reverse_proxy.
+	handle /rt/* {
+		reverse_proxy api:3000
+	}
+
+	# Everything else is the SPA: real files from /srv, otherwise index.html.
+	handle {
+		root * /srv
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@shell not path /assets/*
+		header @shell Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+}

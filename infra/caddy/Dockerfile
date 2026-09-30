@@ -16,8 +16,9 @@
 # Build context is the repo root, e.g.:
 #   docker build -f infra/caddy/Dockerfile -t replyx-web .
 #
-# The Caddyfile (site config, copied into this image below `/etc/caddy/`) is added
-# in T201; until then this image serves static files with Caddy's default config.
+# The Caddyfile (infra/caddy/Caddyfile, T201) is copied into the image at `/etc/caddy/`. In
+# production this Caddy is an internal HTTP-only server behind the host nginx, which
+# terminates TLS (infra/nginx/replyx.conf); it does not manage certificates.
 
 FROM node:24-slim AS web-build
 ENV PNPM_HOME=/pnpm
@@ -29,4 +30,5 @@ RUN pnpm install --frozen-lockfile --filter web...
 RUN pnpm --filter web build
 
 FROM caddy:2
+COPY infra/caddy/Caddyfile /etc/caddy/Caddyfile
 COPY --from=web-build /app/apps/web/dist /srv
