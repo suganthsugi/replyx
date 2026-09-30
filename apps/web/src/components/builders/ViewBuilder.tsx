@@ -106,7 +106,17 @@ function ViewBuilderBody({
   const [saving, setSaving] = useState(false);
   const [discardOpen, setDiscardOpen] = useState(false);
   const bodyRef = useRef<HTMLDivElement>(null);
+  const nameRef = useRef<HTMLInputElement>(null);
   const focusInvalid = useRef(false);
+
+  // Focus the name field on open. `autoFocus` is not enough: it fires once at mount, but MUI's
+  // focus trap (an ancestor, so its effect runs after this one) restores focus to the opener and
+  // then moves it to the dialog panel whenever effects are replayed (React StrictMode in dev), and
+  // only leaves focus alone when it is already inside the panel. Focusing from an effect runs
+  // again on every replay, ahead of the trap. On close the trap returns focus to the opener.
+  useEffect(() => {
+    nameRef.current?.focus();
+  }, []);
 
   const patch = (next: Partial<ViewFormState>) => setState((current) => ({ ...current, ...next }));
   const dirty = JSON.stringify(toViewInput(state)) !== JSON.stringify(toViewInput(initial));
@@ -273,7 +283,7 @@ function ViewBuilderBody({
           id={nameId}
           label="Name"
           required
-          autoFocus
+          inputRef={nameRef}
           fullWidth
           size="small"
           value={state.name}
