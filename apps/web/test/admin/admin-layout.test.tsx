@@ -36,6 +36,7 @@ function renderAdmin(route: string, permissions: string[]) {
         <Route path="users" element={<p>Users page</p>} />
         <Route path="roles" element={<p>Roles page</p>} />
         <Route path="groups" element={<p>Groups page</p>} />
+        <Route path="routing" element={<p>Routing page</p>} />
         <Route path="support-access" element={<p>Support access page</p>} />
       </Route>
       <Route path="/desk/sign-in" element={<p>Sign-in page</p>} />
@@ -56,6 +57,14 @@ describe('AdminLayout', () => {
     expect(screen.getByText('Roles page')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Roles' })).toHaveAttribute('aria-current', 'page');
     await expectNoAxeViolations(container);
+  });
+
+  it('lists Routing rules only with routing_rule.view', async () => {
+    const { unmount } = renderAdmin('/desk/admin/routing', ['group.view', 'routing_rule.view']);
+    expect(await railLinks()).toEqual(['Groups', 'Routing rules']);
+    unmount();
+    renderAdmin('/desk/admin/groups', ['group.view', 'routing_rule.create']);
+    expect(await railLinks()).toEqual(['Groups']);
   });
 
   it('hides sections without permission', async () => {
