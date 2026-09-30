@@ -501,10 +501,10 @@ its members see the right tickets and never tickets outside their access (spec U
 - [X] T207 [US10] Implement `POST /views`, `PUT /views/{id}` and `POST /views/preview-count` (returns the count for an unsaved condition tree for the viewer) in `apps/api/src/views/views.controller.ts`: personal needs `view.create`, shared (`all_staff`, `roles`, `groups`) needs `view.share`; default views editable by `view.edit`; validation via `view-compiler.ts`
 - [X] T208 [US10] Add `/views` POST, `/views/{id}` PUT and `/views/preview-count` to `apps/api/openapi.yaml` and to `specs/001-multi-tenant-helpdesk/contracts/tickets.yaml`
 - [X] T209 [P] [US10] Integration tests `apps/api/test/integration/views/view-builder.test.ts`: create/share/edit with success / 403 / 404; shared view excludes tickets outside each viewer's access; personal views invisible to others
-- [ ] T210 [P] [US10] Create `apps/web/src/components/builders/FilterBuilder.tsx` (nested AND/OR blocks, field/operator/value rows, keyboard accessible) and `apps/web/src/components/builders/ViewBuilder.tsx` (drawer: name, sharing, conditions, sort, columns, live preview count)
-- [ ] T211 [US10] Create `apps/web/src/data/view-builder.ts` and open the builder from the view rail
-- [ ] T212 [P] [US10] E2E `apps/web/e2e/view-builder.spec.ts`: build and share a three-condition view in under a minute (SC-015)
-- [ ] T213 [P] [US10] Guide `apps/docs/src/content/docs/guides/custom-views.md`
+- [X] T210 [P] [US10] Create `apps/web/src/components/builders/FilterBuilder.tsx` (nested AND/OR blocks, field/operator/value rows, keyboard accessible) and `apps/web/src/components/builders/ViewBuilder.tsx` (drawer: name, sharing, conditions, sort, columns, live preview count)
+- [X] T211 [US10] Create `apps/web/src/data/view-builder.ts` and open the builder from the view rail
+- [X] T212 [P] [US10] E2E `apps/web/e2e/view-builder.spec.ts`: build and share a three-condition view in under a minute (SC-015)
+- [X] T213 [P] [US10] Guide `apps/docs/src/content/docs/guides/custom-views.md`
 
 ---
 

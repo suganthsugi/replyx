@@ -444,6 +444,14 @@ Start commit: b4afe6b
 - Docker Desktop was up but the replyx stack was down (exited 4 h ago); started with `docker compose up -d` (no migration needed, 0012 already applied).
 - Jira: the Atlassian connector still needs sign-in; skipped (as in earlier phases).
 - User's uncommitted edits (.claude/agents/*, ui-components SKILL.md, CLAUDE.md, .claude/agent-memory/, docs/design-system/, apps/web/test-results-run*/) are never staged.
+- Progress: T209 820b383 (36 tests, verified complete as found; test-automator made no edits); ticks 8cd81cd. T213 ad181d9 (docs build passes, 17 pages). T211 data 8964d46, T210 components 26699e2, T211 rail wiring 01ea30a (committed in this order so each commit typechecks; lint/typecheck/desk+data tests green before commit). T210/T211 [X] and T213 [X] ticked in tasks.md, tick commit pending.
+- P13-1 No customer search/list endpoint exists in openapi, so the Customer condition is hidden in the builder (`FilterLookups.onCustomerSearch` unset); a saved view that already uses it still renders it. Follow-up if product wants it: add a customer search endpoint + hook.
+- P13-2 The rail's Edit button is `aria-label="Edit view"` + `aria-describedby` on the view name, so existing ViewRail tests that match `{name: /My open tickets/}` keep one match.
+- Component tests (no task text; added for the coverage gate, as in earlier phases): 1e03486, 53 tests in test/builders plus 11 data and 4 rail tests.
+- T212 e2e (`view-builder.spec.ts`, project `desktop-view-builder` after `desktop-triage`, two sign-ins) passed twice alone with `--no-deps`; it found two defects:
+  - P13-4 the creator of a role- or group-shared view could not see it unless they held that role/group (`canSee` only checked the owner for `personal`): GET /views omitted it and the UI showed "View not found" right after saving. Decision (orchestrator, flagged for the user): the owner always sees their own view; FR-077 still limits the tickets. Fixed under T207's scope by backend-agent.
+  - P13-5 the Name field's `autoFocus` lost to the drawer Paper in Chromium; fixed in ViewBuilder by frontend-agent, and the spec asserts it.
+- P13-3 The `views` stream key now also refreshes `viewKeys.list()` (view-counts.ts) so other viewers' rails show a created/renamed shared view.
 
 ### Resume notes (Phase 4) 2026-09-25
 - User scope: finish Phase 3 and Phase 4, then stop. Phase 3 is done; Phase 4 (T074–T090) is next, starting at T074.
