@@ -201,4 +201,48 @@ describe('FilterBuilder', () => {
     expect(screen.getByRole('button', { name: 'Add group' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Any (OR)' })).toBeDisabled();
   });
+
+  it('keeps the value input of each row mounted when an earlier row is removed (stable keys)', async () => {
+    renderWithProviders(
+      <Host
+        initial={{
+          op: 'and',
+          items: [
+            { field: 'state', operator: 'is', value: ['open'] },
+            { field: 'tags', operator: 'contains', value: [] },
+            { field: 'priority', operator: 'is', value: ['high'] },
+          ],
+        }}
+      />,
+    );
+    const second = screen.getByRole('group', { name: 'Condition 2' });
+    const input = within(second).getByRole('combobox', { name: 'Value' });
+    await userEvent.type(input, 'bil');
+    expect(input).toHaveValue('bil');
+
+    // Removing row 1 must not remount row 2 (index keys would).
+    await userEvent.click(screen.getByRole('button', { name: /^Remove condition 1:/ }));
+
+    const moved = screen.getByRole('group', { name: 'Condition 1' });
+    expect(within(moved).getByRole('combobox', { name: 'Value' })).toBe(input);
+    expect(screen.getByRole('group', { name: 'Condition 2' })).toHaveTextContent('High');
+    expect(screen.queryByRole('group', { name: 'Condition 3' })).not.toBeInTheDocument();
+  });
+
+  it('labels nested groups hierarchically', () => {
+    const nested: ConditionGroup = {
+      op: 'and',
+      items: [
+        { field: 'state', operator: 'is', value: ['open'] },
+        { op: 'or', items: [{ op: 'and', items: [{ field: 'state', operator: 'is', value: ['open'] }] }, { field: 'priority', operator: 'is', value: ['high'] }] },
+      ],
+    };
+    renderWithProviders(<Host initial={nested} />);
+    const top = screen.getByRole('group', { name: 'Group 2' });
+    expect(within(top).getByText('Group 2: match')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove group 2' })).toBeInTheDocument();
+    const inner = within(top).getByRole('group', { name: 'Group 2.1' });
+    expect(within(inner).getByText('Group 2.1: match')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Remove group 2.1' })).toBeInTheDocument();
+  });
 });

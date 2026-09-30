@@ -1,10 +1,10 @@
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query';
 import { renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { RealtimeClient, type Envelope, type RealtimeSocket } from '../../src/data/socket';
-import { useDeleteView, useReorderViews, useViewCountEvents, viewCountKeys } from '../../src/data/view-counts';
+import { reorderViewsMutationKey, useDeleteView, useReorderViews, useViewCountEvents, VIEW_LIST_REFRESH_MS, viewCountKeys } from '../../src/data/view-counts';
 import { viewKeys } from '../../src/data/views';
 import { API } from '../msw/handlers';
 import { server } from '../setup';
@@ -12,9 +12,9 @@ import { server } from '../setup';
 import type { View } from '../../src/api/generated/model';
 
 /**
- * `views.counts_changed` must only refetch `/views/counts`, never invalidate the view list
- * (data/views.ts no longer registers the `views` stream at all): a rename dropping a real list
- * request in flight is exactly the regression this guards against.
+ * `views.counts_changed` contract: every hint refetches `/views/counts` at once; the view list is
+ * refreshed by a one-shot trailing timer (VIEW_LIST_REFRESH_MS) armed by the first hint of a burst,
+ * skipped while a reorder mutation is pending. Asserted through observed queries (real fetches).
  */
 
 class FakeSocket implements RealtimeSocket {
@@ -34,9 +34,10 @@ class FakeSocket implements RealtimeSocket {
   }
 }
 
+let nextSeq = 1;
 const envelope = (data: unknown): Envelope => ({
-  id: 'evt-1',
-  seq: 1,
+  id: `evt-${nextSeq}`,
+  seq: nextSeq++,
   stream: 'views',
   type: 'views.counts_changed',
   occurredAt: '2026-09-27T10:00:00.000Z',
@@ -65,21 +66,107 @@ function makeView(overrides: Partial<View> = {}): View {
 }
 
 describe('useViewCountEvents', () => {
-  it('refetches view counts, and only view counts, on views.counts_changed', async () => {
+  afterEach(() => vi.useRealTimers());
+
+  function setup() {
+    vi.useFakeTimers();
     const socket = new FakeSocket();
     const queryClient = new QueryClient();
     const client = new RealtimeClient({ namespace: '/', userId: 'u1', queryClient, createSocket: () => socket });
+    const fetches = { counts: 0, list: 0 };
+    const observe = (queryKey: readonly unknown[], name: 'counts' | 'list') =>
+      new QueryObserver(queryClient, {
+        queryKey,
+        staleTime: Infinity,
+        queryFn: () => {
+          fetches[name] += 1;
+          return Promise.resolve({ items: [] });
+        },
+      }).subscribe(() => {});
+    const unsubscribes = [observe(viewCountKeys.all, 'counts'), observe(viewKeys.list(), 'list')];
+    const hook = renderHook(() => useViewCountEvents(client));
+    const hint = () => socket.fire('event', envelope({ viewIds: ['v1'] }));
+    const settle = () => vi.advanceTimersByTimeAsync(0);
+    return { socket, queryClient, client, fetches, hook, hint, settle, unsubscribes };
+  }
 
-    queryClient.setQueryData(viewKeys.list(), { items: [makeView()] });
-    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
+  it('refetches counts at once and the list only after the trailing window', async () => {
+    const { fetches, hint, settle, hook, unsubscribes } = setup();
+    await settle();
+    expect(fetches).toEqual({ counts: 1, list: 1 });
 
+    hint();
+    await settle();
+    expect(fetches).toEqual({ counts: 2, list: 1 });
+
+    await vi.advanceTimersByTimeAsync(VIEW_LIST_REFRESH_MS - 1);
+    expect(fetches.list).toBe(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(fetches).toEqual({ counts: 2, list: 2 });
+
+    // One-shot: nothing further without a new hint.
+    await vi.advanceTimersByTimeAsync(VIEW_LIST_REFRESH_MS * 3);
+    expect(fetches).toEqual({ counts: 2, list: 2 });
+    hook.unmount();
+    unsubscribes.forEach((off) => off());
+  });
+
+  it('coalesces a burst: each hint refetches counts, one list refresh follows the first hint', async () => {
+    const { fetches, hint, settle } = setup();
+    await settle();
+
+    hint();
+    await vi.advanceTimersByTimeAsync(2_000);
+    hint();
+    await vi.advanceTimersByTimeAsync(2_000);
+    hint();
+    await settle();
+    expect(fetches).toEqual({ counts: 4, list: 1 });
+
+    // 5 s after the FIRST hint (not the last).
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(fetches).toEqual({ counts: 4, list: 2 });
+
+    // A hint after the timer fired starts a new window.
+    hint();
+    await settle();
+    expect(fetches).toEqual({ counts: 5, list: 2 });
+    await vi.advanceTimersByTimeAsync(VIEW_LIST_REFRESH_MS);
+    expect(fetches).toEqual({ counts: 5, list: 3 });
+  });
+
+  it('skips the list refresh, without rescheduling, while a reorder is pending', async () => {
+    const { fetches, hint, settle, queryClient } = setup();
+    await settle();
+
+    const reorder = queryClient.getMutationCache().build(queryClient, { mutationKey: reorderViewsMutationKey, mutationFn: () => new Promise<void>(() => {}) });
+    void reorder.execute(undefined).catch(() => {});
+    expect(queryClient.isMutating({ mutationKey: reorderViewsMutationKey })).toBe(1);
+
+    hint();
+    await vi.advanceTimersByTimeAsync(VIEW_LIST_REFRESH_MS * 3);
+    expect(fetches).toEqual({ counts: 2, list: 1 });
+  });
+
+  it('clears the pending timer on unmount', async () => {
+    const { fetches, hint, settle, hook } = setup();
+    await settle();
+    hint();
+    await settle();
+    hook.unmount();
+    await vi.advanceTimersByTimeAsync(VIEW_LIST_REFRESH_MS * 2);
+    expect(fetches).toEqual({ counts: 2, list: 1 });
+  });
+
+  it('registers the views stream with counts and list keys for an immediate resync refetch', () => {
+    vi.useFakeTimers();
+    const queryClient = new QueryClient();
+    const client = new RealtimeClient({ namespace: '/', userId: 'u1', queryClient, createSocket: () => new FakeSocket() });
+    const register = vi.spyOn(client, 'registerStreamKeys');
     renderHook(() => useViewCountEvents(client));
-    socket.fire('event', envelope({ viewIds: ['v1'] }));
-
-    await waitFor(() => expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: viewCountKeys.all }));
-    expect(invalidateSpy).not.toHaveBeenCalledWith({ queryKey: viewKeys.all });
-    // The view list itself is untouched.
-    expect(queryClient.getQueryData(viewKeys.list())).toEqual({ items: [makeView()] });
+    expect(register).toHaveBeenCalledWith('views', expect.any(Function));
+    const keysFor = register.mock.calls[0]![1];
+    expect(keysFor('views')).toEqual([viewCountKeys.all, viewKeys.list()]);
   });
 });
 
