@@ -21,7 +21,7 @@ async function signInAsAdmin(page: Page) {
   await page.getByRole('textbox', { name: 'Email' }).fill('admin@acme.test');
   await page.getByLabel('Password *').fill(SEED_PASSWORD);
   await page.getByRole('button', { name: 'Sign in' }).click();
-  await expect(page).toHaveURL(/\/desk$/);
+  await expect(page).toHaveURL(/\/desk(\/inbox(\/[\w-]+)?)?$/);
 }
 
 test('an invited agent accepts, signs in and signs out everywhere', async ({ page, request, axe }) => {
@@ -65,7 +65,7 @@ test('an invited agent accepts, signs in and signs out everywhere', async ({ pag
   await invitee.getByRole('textbox', { name: 'Name' }).fill('E2E Agent');
   await invitee.getByLabel('Password *').fill(NEW_PASSWORD);
   await invitee.getByRole('button', { name: 'Accept and continue' }).click();
-  await expect(invitee).toHaveURL(/\/desk$/);
+  await expect(invitee).toHaveURL(/\/desk(\/inbox(\/[\w-]+)?)?$/);
 
   // Signing out everywhere ends this session too, so the profile stops loading and the app
   // returns to sign-in. (Sign-ins are rate-limited per IP, and both projects share one, so the

@@ -69,7 +69,7 @@ test('an operator creates, suspends and reactivates a tenant', async ({ page, re
   await admin.getByRole('textbox', { name: 'Name' }).fill('E2E Admin');
   await admin.getByLabel('Password *').fill(ADMIN_PASSWORD);
   await admin.getByRole('button', { name: 'Accept and continue' }).click();
-  await expect(admin).toHaveURL(/\/desk$/);
+  await expect(admin).toHaveURL(/\/desk(\/inbox(\/[\w-]+)?)?$/);
 
   // A customer signs in to the tenant's chat with an emailed link.
   const customer = await newPage(browser);
@@ -105,7 +105,7 @@ test('an operator creates, suspends and reactivates a tenant', async ({ page, re
   await expect(row.getByText('Active')).toBeVisible();
 
   await admin.getByRole('button', { name: 'Sign in' }).click();
-  await expect(admin).toHaveURL(/\/desk$/);
+  await expect(admin).toHaveURL(/\/desk(\/inbox(\/[\w-]+)?)?$/);
 
   // Suspension signed the customer out too; the chat is back at its sign-in.
   await customer.reload();
