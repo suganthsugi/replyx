@@ -145,6 +145,17 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       const view = await createView(tenant, { name: 'Tenant A view' });
       return { params: { id: view.id }, ids: [view.id] };
     },
+    bodies: {
+      // ViewInput must validate before the tenant-scoped lookup 404s (POST /views and
+      // POST /views/preview-count have no path id, so the generated suite skips them).
+      'ViewsController.update': () => ({
+        name: 'Renamed by another tenant',
+        visibility: 'personal',
+        conditions: { op: 'and', items: [{ field: 'state', operator: 'is_not', value: 'closed' }] },
+        sort: [{ field: 'updated_at', direction: 'desc' }],
+        columns: ['number', 'title', 'state', 'updated_at'],
+      }),
+    },
   },
   // Keyed by route: getCustomer/updateCustomer need `user.view`/`user.edit` (the resource is the
   // registry key `user`, shared with UsersController), but the fixture needs a real customer (a

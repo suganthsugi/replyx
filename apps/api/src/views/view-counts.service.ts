@@ -10,6 +10,7 @@ import { ViewCompiler } from './view-compiler.js';
 import { viewerIdOf, visibleViews } from './view-visibility.js';
 import { TicketCountRepository, type ViewRow } from './views.repository.js';
 
+import type { ConditionExpression } from './condition-schema.js';
 import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
 
 /**
@@ -76,6 +77,16 @@ export class ViewCountsService {
     }
     await this.write(key, accessVersion, fresh, cached === undefined);
     return { ...counts, ...fresh };
+  }
+
+  /**
+   * A live, uncached count of `tree` for `ctx`'s viewer (viewer's access filter AND the tree): the
+   * builder's preview of an unsaved tree, and the count in a create/update response, which must
+   * not come from the cache.
+   */
+  async countConditions(ctx: TenantContext, tx: TenantTransaction, tree: ConditionExpression): Promise<number> {
+    const filter = await this.viewCompiler.filterFor(ctx, tree, this.clock.now());
+    return new TicketCountRepository(ctx).count(tx, filter);
   }
 
   /** Drops the viewers' cached counts; the next read recomputes them. */
