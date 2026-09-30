@@ -403,6 +403,18 @@ Start commit: b4afe6b
   - the auto-close race mix isn't asserted.
 - Jira: still skipped (the connector needs sign-in).
 
+### Phase 12 decisions (2026-09-30)
+- User scope: "deploy to the machine". VM access is in the local (uncommitted) note at the end of spec.md; deploy to `~/replyx`.
+- VM survey (read-only):
+  - Ubuntu 24.04 with Docker and Compose.
+  - SHARED host: host nginx and certbot already serve other sites on 80/443.
+  - 
+- P12-1 User decisions:
+  - base domain `replyx.example.com` (tenants `<slug>.replyx.example.com`, console `console.replyx.example.com`);
+  - TLS on host nginx with one wildcard cert (certbot DNS-01) proxying to an internal HTTP-only Caddy on 127.0.0.1:8081. This replaces Caddy on 80/443 with on-demand TLS, so T202 (`/internal/tls-allowed`) isn't needed;
+  - images built on the VM from a git clone (no GHCR);
+  - backups deferred: a nightly local pg_dump only; T203 and T206 stay open until an off-VM S3 target exists.
+
 ### Resume notes (Phase 4) 2026-09-25
 - User scope: finish Phase 3 and Phase 4, then stop. Phase 3 is done; Phase 4 (T074–T090) is next, starting at T074.
 - Checks: `docker compose run --rm -T tools bash -c 'set -o pipefail; pnpm turbo run lint typecheck test --continue'`; coverage `./scripts/check-coverage.sh`; e2e `docker compose --profile e2e run --rm -T playwright bash -c 'cd /repo && pnpm --filter web exec playwright test e2e/'` after `pnpm --filter api seed:dev`.
