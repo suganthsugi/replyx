@@ -77,6 +77,17 @@ export class ViewsRepository extends TenantRepository {
     return rows.map(toRow);
   }
 
+  /** Whether the user created a view others can see (`views.owner_id` cascades on user delete). */
+  async ownsSharedView(tx: TenantTransaction, userId: string): Promise<boolean> {
+    const row = await this.selectFrom(tx, 'views')
+      .select('views.id')
+      .where('views.owner_id', '=', userId)
+      .where('views.visibility', '<>', 'personal')
+      .limit(1)
+      .executeTakeFirst();
+    return row !== undefined;
+  }
+
   async byId(tx: TenantTransaction, id: string): Promise<ViewRow | undefined> {
     const row = await this.selectFrom(tx, 'views').select(VIEW_COLUMNS).where('views.id', '=', id).executeTakeFirst();
     return row === undefined ? undefined : toRow(row);

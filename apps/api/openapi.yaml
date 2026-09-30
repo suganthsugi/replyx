@@ -874,7 +874,7 @@ paths:
         "204":
           description: Deleted
         "409":
-          description: USER_HAS_HISTORY — deactivate or erase instead
+          description: USER_HAS_HISTORY — the user has messages, ticket history or views shared with other staff; deactivate or erase instead
           content:
             application/json:
               schema:

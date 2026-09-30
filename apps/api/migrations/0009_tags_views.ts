@@ -8,7 +8,8 @@ import { sql, type Kysely } from 'kysely';
  *   matching the `roles`/`groups` name-uniqueness pattern (0004_authorization).
  * - `ticket_tags` and `customer_tags` are pure join tables (no `updated_at`), same shape as
  *   `user_roles` (0004_authorization): composite PK, cascade on either side.
- * - `views.owner_id` is set only for `visibility = 'personal'`; `shared_role_ids` /
+ * - `views.owner_id` is required for `visibility = 'personal'` and also records the creator of a
+ *   shared view (null for system views); `shared_role_ids` /
  *   `shared_group_ids` are plain uuid arrays (Postgres has no array foreign keys) used only when
  *   `visibility` is `roles` / `groups`. `conditions` (an object, the expression tree) and `sort`
  *   (an array of `{field, direction}`) are validated for shape only here; the condition schema

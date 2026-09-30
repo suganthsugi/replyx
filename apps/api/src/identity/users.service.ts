@@ -28,7 +28,7 @@ import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
  * - Role changes, deactivation, reactivation and deletion bump the tenant's access version.
  * - Deactivation ends every session and emits `user.deactivated` (tickets unassign on it).
  * - Deletion is refused with 409 `USER_HAS_HISTORY` when any registered history check finds
- *   something (tickets modules register checks as they arrive).
+ *   something (tickets: messages and ticket history; views: views shared with other staff).
  * - Erasure is asynchronous: the user is deactivated now and `user.erasure_requested` drives the
  *   erasure job.
  */
@@ -57,11 +57,19 @@ export interface UserFilters {
 
 /** Answers whether a user authored anything that must be kept (messages, ticket history). */
 export interface UserHistoryCheck {
+  /** 409 message when this check blocks a delete; the default names messages and history. */
+  readonly message?: string;
   hasHistory(tx: TenantTransaction, userId: string): Promise<boolean>;
 }
 
 /** Multi-provider token: modules with user-authored records provide a `UserHistoryCheck`. */
 export const USER_HISTORY_CHECKS = Symbol('USER_HISTORY_CHECKS');
+
+/**
+ * A second token of the same shape for modules whose records are shared with other staff (views):
+ * Nest keeps one provider per token, so tickets keeps `USER_HISTORY_CHECKS` and others use this.
+ */
+export const USER_OWNERSHIP_CHECKS = Symbol('USER_OWNERSHIP_CHECKS');
 
 const Cursor = z.object({ id: z.uuid() }).strict();
 
@@ -75,6 +83,7 @@ export class UsersService {
     private readonly outbox: OutboxService,
     private readonly clock: Clock,
     @Optional() @Inject(USER_HISTORY_CHECKS) private readonly historyChecks: UserHistoryCheck[] = [],
+    @Optional() @Inject(USER_OWNERSHIP_CHECKS) private readonly ownershipChecks: UserHistoryCheck[] = [],
   ) {}
 
   list(ctx: TenantContext, filters: UserFilters): Promise<Page<UserDto>> {
@@ -194,9 +203,12 @@ export class UsersService {
     await this.unitOfWork.withTenant(ctx, async (tx) => {
       const repo = new UsersRepository(ctx);
       await this.require(tx, repo, userId);
-      for (const check of this.historyChecks) {
+      for (const check of [...this.historyChecks, ...this.ownershipChecks]) {
         if (await check.hasHistory(tx, userId)) {
-          throw conflict('USER_HAS_HISTORY', 'This user has messages or history. Deactivate or erase them instead');
+          throw conflict(
+            'USER_HAS_HISTORY',
+            check.message ?? 'This user has messages or history. Deactivate or erase them instead',
+          );
         }
       }
       await this.sessions.revokeAllForUser(tx, userId, 'deleted');
