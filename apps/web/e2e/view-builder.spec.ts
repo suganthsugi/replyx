@@ -140,13 +140,8 @@ test('an admin builds and shares a three-condition view in under a minute, and t
 
     // --- The agent sees the view, with only the tickets in their groups. ------------------------
     const agentView = agentPage.getByRole('navigation', { name: 'Views' }).getByRole('button', { name: new RegExp(`^${viewName}`) });
-    // Arrives live; a reload is the fallback if the hint is missed.
-    try {
-      await expect(agentView).toBeVisible({ timeout: 15_000 });
-    } catch {
-      await agentPage.reload();
-      await expect(agentView).toBeVisible({ timeout: 20_000 });
-    }
+    // Arrives live over the `views` stream, with no reload: the list refresh trails the hint by up to ~5 s.
+    await expect(agentView).toBeVisible({ timeout: 15_000 });
     await agentView.click();
     await expect(agentView).toHaveAttribute('aria-current', 'page');
     await expect(agentPage.getByRole('option', { name: new RegExp(supportTitle) })).toBeVisible({ timeout: 20_000 });
@@ -161,6 +156,18 @@ test('an admin builds and shares a three-condition view in under a minute, and t
     expect(titles).toContain(supportTitle);
     expect(titles).not.toContain(billingTitle);
   } finally {
+    // Leave no views behind: delete whatever this run created, as the admin.
+    try {
+      const list = await adminApi.get('/api/v1/views');
+      if (list.ok()) {
+        const { items } = (await list.json()) as { items: { id: string; name: string }[] };
+        for (const view of items.filter((item) => item.name === viewName)) {
+          await adminApi.delete(`/api/v1/views/${view.id}`, { headers: { 'X-CSRF-Token': csrf } });
+        }
+      }
+    } catch {
+      // Cleanup must not mask the test's own failure.
+    }
     await Promise.all([adminApi.dispose(), agentApi.dispose()]);
     await Promise.all([adminContext.close(), agentContext.close()]);
   }
