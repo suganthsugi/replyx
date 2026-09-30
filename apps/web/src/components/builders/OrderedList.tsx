@@ -25,7 +25,8 @@ export interface OrderedListProps<T> {
   /** The row content (defaults to the label); may include extra controls. */
   renderItem?: (item: T, index: number) => ReactNode;
   onMove: (from: number, to: number) => void;
-  onRemove: (index: number) => void;
+  /** Omit to hide the Remove button (the caller removes items some other way). */
+  onRemove?: (index: number) => void;
   /** Called after the last item is removed so the caller can move focus to its Add control. */
   onEmptied?: () => void;
   disabled?: boolean;
@@ -81,7 +82,7 @@ export function OrderedList<T>({
     if (item === undefined) return;
     const neighbour = items[index + 1] ?? items[index - 1];
     focusRequest.current = neighbour === undefined ? null : { key: getKey(neighbour), action: 'remove' };
-    onRemove(index);
+    onRemove?.(index);
     announce(`${getLabel(item)} removed. ${items.length - 1} ${noun}${items.length - 1 === 1 ? '' : 's'} left.`);
     if (neighbour === undefined) onEmptied?.();
   };
@@ -120,9 +121,11 @@ export function OrderedList<T>({
             >
               <ArrowDownIcon fontSize="small" />
             </IconButton>
-            <IconButton size="small" data-action="remove" aria-label={`Remove ${name}`} disabled={disabled} onClick={() => remove(index)}>
-              <CloseIcon fontSize="small" />
-            </IconButton>
+            {onRemove !== undefined && (
+              <IconButton size="small" data-action="remove" aria-label={`Remove ${name}`} disabled={disabled} onClick={() => remove(index)}>
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            )}
           </Box>
         );
       })}

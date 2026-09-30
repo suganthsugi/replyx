@@ -26,6 +26,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   { path: 'users', label: 'Users', permission: 'user.view' },
   { path: 'roles', label: 'Roles', permission: 'role.view' },
   { path: 'groups', label: 'Groups', permission: 'group.view' },
+  { path: 'routing', label: 'Routing rules', permission: 'routing_rule.view' },
   { path: 'support-access', label: 'Support access', permission: 'support_access.view' },
   { path: 'settings', label: 'Organization', permission: 'tenant_settings.view' },
   { path: 'audit', label: 'Audit log', permission: 'audit_log.view' },
