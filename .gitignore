@@ -40,6 +40,9 @@ yarn-error.log*
 # env files: ignore everything except the committed example
 .env*
 !.env.example
+!.env.prod.example
+# production secrets on the VM (created by infra/scripts/init-env.sh)
+infra/.env.prod
 
 # typescript
 *.tsbuildinfo

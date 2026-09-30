@@ -1,0 +1,276 @@
+# Production stack for the owner's shared VM (T200, adapted). Images are built on the VM.
+#
+#   bash infra/scripts/init-env.sh        # once: creates infra/.env.prod with random secrets
+#   bash infra/scripts/deploy.sh [ref]    # build, migrate, up, wait for readiness
+#
+# Everything is invoked with `-f infra/compose.prod.yml --env-file infra/.env.prod`; relative paths
+# below are relative to this file (infra/).
+#
+# Shape of the deployment:
+#   host nginx (80/443, wildcard TLS) -> 127.0.0.1:8081 -> caddy -> api:3000 | static SPA
+# Only caddy is published, and only on 127.0.0.1. Postgres, Valkey and ClamAV are reachable
+# from inside the `replyx` compose network only. The project name `replyx` prefixes the network
+# and the volumes (replyx_pgdata, ...), so nothing collides with the other stacks on the VM.
+#
+# Each service receives only the variables it needs (no shared env_file), so for example the
+# owner credential exists only in the one-off `migrate` container and the retention credential
+# only in the worker. Database URLs are assembled here from the *_PASSWORD variables, which are
+# the same values infra/postgres/init.sql uses to create the roles.
+
+name: replyx
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-app-common: &app-common
+  restart: unless-stopped
+  logging: *logging
+  security_opt:
+    - no-new-privileges:true
+  init: true
+
+services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    logging: *logging
+    # Not published. The host also runs its own PostgreSQL on 5432; this one is internal.
+    mem_limit: 1g
+    shm_size: 256m
+    command:
+      - postgres
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=768MB
+      - -c
+      - max_connections=100
+    environment:
+      POSTGRES_DB: replyx
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/.env.prod}
+      # Read by infra/postgres/init.sql (psql \getenv) on the first start of an empty volume.
+      REPLYX_OWNER_PASSWORD: ${REPLYX_OWNER_PASSWORD:?set REPLYX_OWNER_PASSWORD in infra/.env.prod}
+      REPLYX_APP_PASSWORD: ${REPLYX_APP_PASSWORD:?set REPLYX_APP_PASSWORD in infra/.env.prod}
+      REPLYX_PLATFORM_PASSWORD: ${REPLYX_PLATFORM_PASSWORD:?set REPLYX_PLATFORM_PASSWORD in infra/.env.prod}
+      REPLYX_RETENTION_PASSWORD: ${REPLYX_RETENTION_PASSWORD:?set REPLYX_RETENTION_PASSWORD in infra/.env.prod}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      # TCP on purpose: the entrypoint's temporary init server listens on the socket only, so
+      # this stays unhealthy until init.sql has run and the real server is up.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U postgres -d replyx"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  valkey:
+    image: valkey/valkey:8
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 256m
+    # BullMQ needs noeviction; the append-only file keeps queued jobs across restarts.
+    command: ["valkey-server", "--appendonly", "yes", "--maxmemory", "192mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - valkey-data:/data
+    healthcheck:
+      test: ["CMD", "valkey-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Off by default (about 1.5 GB of RAM for the signature database). With NODE_ENV=production the
+  # worker refuses to start without CLAMAV_HOST unless SCAN_DISABLED=true, so deploy.sh switches
+  # this profile on whenever CLAMAV_HOST is set in infra/.env.prod.
+  clamav:
+    image: clamav/clamav:stable
+    profiles: [scan]
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 2g
+    volumes:
+      - clamav-db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 300s
+
+  # One-off: applies pending migrations as replyx_owner, then exits. api and worker wait for it.
+  migrate:
+    image: replyx-api:${IMAGE_TAG:-local}
+    pull_policy: never
+    restart: "no"
+    logging: *logging
+    mem_limit: 512m
+    command: ["node", "dist/platform-kernel/db/migrator.js"]
+    environment:
+      NODE_ENV: production
+      DATABASE_URL_OWNER: postgres://replyx_owner:${REPLYX_OWNER_PASSWORD:?set REPLYX_OWNER_PASSWORD in infra/.env.prod}@postgres:5432/replyx
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    <<: *app-common
+    # apps/api/Dockerfile `runtime` stage. worker and migrate run this same image.
+    build:
+      context: ..
+      dockerfile: apps/api/Dockerfile
+      target: runtime
+    image: replyx-api:${IMAGE_TAG:-local}
+    mem_limit: 768m
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=576
+      PORT: "3000"
+      BASE_DOMAIN: ${BASE_DOMAIN:?set BASE_DOMAIN in infra/.env.prod}
+      CONSOLE_HOST: ${CONSOLE_HOST:?set CONSOLE_HOST in infra/.env.prod}
+      PUBLIC_URL_SCHEME: https
+      PUBLIC_URL_PORT: ""
+      DATABASE_URL_APP: postgres://replyx_app:${REPLYX_APP_PASSWORD:?set REPLYX_APP_PASSWORD in infra/.env.prod}@postgres:5432/replyx
+      DATABASE_URL_PLATFORM: postgres://replyx_platform:${REPLYX_PLATFORM_PASSWORD:?set REPLYX_PLATFORM_PASSWORD in infra/.env.prod}@postgres:5432/replyx
+      # Only the worker deletes audit rows (replyx_retention); the api never builds that pool.
+      DATABASE_URL_RETENTION: ""
+      REDIS_URL: redis://valkey:6379
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in infra/.env.prod}
+      FILE_SIGNING_KEY: ${FILE_SIGNING_KEY:?set FILE_SIGNING_KEY in infra/.env.prod}
+      WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY:?set WEBHOOK_ENCRYPTION_KEY in infra/.env.prod}
+      FILE_STORAGE: ${FILE_STORAGE:-local}
+      FILES_DIR: /data/files
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      METRICS_PORT: "9464"
+      OPERATOR_BOOTSTRAP_EMAIL: ${OPERATOR_BOOTSTRAP_EMAIL:-}
+      OPERATOR_BOOTSTRAP_PASSWORD: ${OPERATOR_BOOTSTRAP_PASSWORD:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+    volumes:
+      - replyx-files:/data/files
+    depends_on: &app-depends
+      migrate:
+        condition: service_completed_successfully
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health/ready').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 40s
+
+  worker:
+    <<: *app-common
+    image: replyx-api:${IMAGE_TAG:-local}
+    pull_policy: never
+    command: ["node", "dist/main.worker.js"]
+    mem_limit: 512m
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: --max-old-space-size=384
+      BASE_DOMAIN: ${BASE_DOMAIN:?set BASE_DOMAIN in infra/.env.prod}
+      CONSOLE_HOST: ${CONSOLE_HOST:?set CONSOLE_HOST in infra/.env.prod}
+      PUBLIC_URL_SCHEME: https
+      PUBLIC_URL_PORT: ""
+      DATABASE_URL_APP: postgres://replyx_app:${REPLYX_APP_PASSWORD:?set REPLYX_APP_PASSWORD in infra/.env.prod}@postgres:5432/replyx
+      DATABASE_URL_PLATFORM: postgres://replyx_platform:${REPLYX_PLATFORM_PASSWORD:?set REPLYX_PLATFORM_PASSWORD in infra/.env.prod}@postgres:5432/replyx
+      DATABASE_URL_RETENTION: postgres://replyx_retention:${REPLYX_RETENTION_PASSWORD:?set REPLYX_RETENTION_PASSWORD in infra/.env.prod}@postgres:5432/replyx
+      REDIS_URL: redis://valkey:6379
+      SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in infra/.env.prod}
+      FILE_SIGNING_KEY: ${FILE_SIGNING_KEY:?set FILE_SIGNING_KEY in infra/.env.prod}
+      WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY:?set WEBHOOK_ENCRYPTION_KEY in infra/.env.prod}
+      FILE_STORAGE: ${FILE_STORAGE:-local}
+      FILES_DIR: /data/files
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-}
+      S3_ACCESS_KEY_ID: ${S3_ACCESS_KEY_ID:-}
+      S3_SECRET_ACCESS_KEY: ${S3_SECRET_ACCESS_KEY:-}
+      S3_ENDPOINT: ${S3_ENDPOINT:-}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      METRICS_PORT: "9464"
+      CLAMAV_HOST: ${CLAMAV_HOST:-}
+      SCAN_DISABLED: ${SCAN_DISABLED:-false}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+    volumes:
+      - replyx-files:/data/files
+    depends_on:
+      <<: *app-depends
+      clamav:
+        condition: service_healthy
+        required: false
+
+  # Internal HTTP-only web server (SPA + reverse proxy to the api); TLS is the host nginx's job.
+  caddy:
+    build:
+      context: ..
+      dockerfile: infra/caddy/Dockerfile
+    image: replyx-web:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    logging: *logging
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    ports:
+      # Loopback only: the host nginx proxies here, nothing else may reach it.
+      - "127.0.0.1:${CADDY_PORT:-8081}:80"
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:80/"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+  # Nightly pg_dump (custom format) into the replyx-backups volume, newest BACKUP_KEEP kept.
+  # Off-VM copies are deferred (T203). See infra/scripts/pg-backup.sh for how to restore.
+  backup:
+    image: postgres:17
+    restart: unless-stopped
+    logging: *logging
+    mem_limit: 256m
+    command: ["bash", "/usr/local/bin/pg-backup.sh", "loop"]
+    environment:
+      PGHOST: postgres
+      PGDATABASE: replyx
+      # Superuser on purpose: tenant tables use FORCE ROW LEVEL SECURITY, so only a role that
+      # bypasses RLS dumps their rows.
+      PGUSER: postgres
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/.env.prod}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+      BACKUP_HOUR_UTC: ${BACKUP_HOUR_UTC:-3}
+    volumes:
+      - replyx-backups:/backups
+      - ./scripts/pg-backup.sh:/usr/local/bin/pg-backup.sh:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  valkey-data:
+  replyx-files:
+  replyx-backups:
+  clamav-db:
