@@ -37,10 +37,19 @@ export interface MalwareScanner {
 
 export const MALWARE_SCANNER = Symbol('MALWARE_SCANNER');
 
-/** ClamAV when `CLAMAV_HOST` is set; otherwise the pass-through scanner, which refuses production. */
+/**
+ * ClamAV when `CLAMAV_HOST` is set; otherwise the pass-through scanner, which refuses production
+ * unless scanning is switched off on purpose with `SCAN_DISABLED=true` (a small host without the
+ * RAM for ClamAV). That choice is logged as a warning at every start.
+ */
 export function scannerFromEnv(env: NodeJS.ProcessEnv = process.env): MalwareScanner {
   const host = env.CLAMAV_HOST;
-  return host === undefined || host === '' ? new PassthroughScanner(env.NODE_ENV) : new ClamAvScanner(host);
+  if (host !== undefined && host !== '') return new ClamAvScanner(host);
+  const disabled = env.SCAN_DISABLED === 'true';
+  if (disabled && env.NODE_ENV === 'production') {
+    new Logger('AttachmentScan').warn('SCAN_DISABLED=true: attachments are marked clean without a malware scan');
+  }
+  return new PassthroughScanner(env.NODE_ENV, disabled);
 }
 
 type Handled = Extract<DomainEventType, 'attachment.uploaded'>;
