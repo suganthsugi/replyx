@@ -25,8 +25,8 @@ export default defineConfig({
   // after the other specs in their own desktop/mobile projects and wait out whatever is left of the
   // limit.
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/] },
-    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/] },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/, /view-builder/] },
+    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/, /view-builder/] },
     // Tenant lifecycle signs in four times a run (operator, admin twice, customer) and is slow: on its own,
     // after the sign-in specs, so together they stay inside the 10 sign-ins a minute.
     { name: 'desktop-lifecycle', use: { ...devices['Desktop Chrome'] }, testMatch: /tenant-lifecycle/, dependencies: ['desktop', 'mobile'] },
@@ -39,8 +39,10 @@ export default defineConfig({
     { name: 'desktop-realtime', use: { ...devices['Desktop Chrome'] }, testMatch: /realtime/, dependencies: ['desktop-agent', 'mobile-agent'] },
     // Two more staff browsers (manager, agent): after realtime, so the suite's sign-in budget has recovered.
     { name: 'desktop-triage', use: { ...devices['Desktop Chrome'] }, testMatch: /triage/, dependencies: ['desktop-realtime'] },
+    // Admin and agent side by side, building and sharing a view: desktop only, after triage's sign-ins.
+    { name: 'desktop-view-builder', use: { ...devices['Desktop Chrome'] }, testMatch: /view-builder/, dependencies: ['desktop-triage'] },
     // The whole conversation flow (customer, manager, agent, admin), and it moves the shared dev clock so
     // sessions expire: last, so nothing else runs while time is shifted.
-    { name: 'desktop-main-flow', use: { ...devices['Desktop Chrome'] }, testMatch: /main-flow/, dependencies: ['desktop-triage'] },
+    { name: 'desktop-main-flow', use: { ...devices['Desktop Chrome'] }, testMatch: /main-flow/, dependencies: ['desktop-view-builder'] },
   ],
 });
