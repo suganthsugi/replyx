@@ -438,6 +438,13 @@ Start commit: b4afe6b
   - the other sites on the host still answer.
 - Not done: T202 (not needed with the wildcard cert: P12-1); T203 and T206 (backups deferred by the user); T205 in progress. The operator bootstrap password lives in the VM's infra/.env.prod.
 
+### Resume notes (Phase 13, US10 custom view builder) 2026-09-30
+- User scope: finish Phase 13 (T207-T213), reviewer PASS, then stop. T207 (9130583) and T208 (377774c, 5d96c5a) were committed by earlier runs; their [X] ticks were still uncommitted and go into the first tick commit.
+- Two earlier orchestrator runs were killed. Uncommitted T209/T210/T211 work is inspected by the specialist agents before anything builds on it.
+- Docker Desktop was up but the replyx stack was down (exited 4 h ago); started with `docker compose up -d` (no migration needed, 0012 already applied).
+- Jira: the Atlassian connector still needs sign-in; skipped (as in earlier phases).
+- User's uncommitted edits (.claude/agents/*, ui-components SKILL.md, CLAUDE.md, .claude/agent-memory/, docs/design-system/, apps/web/test-results-run*/) are never staged.
+
 ### Resume notes (Phase 4) 2026-09-25
 - User scope: finish Phase 3 and Phase 4, then stop. Phase 3 is done; Phase 4 (T074–T090) is next, starting at T074.
 - Checks: `docker compose run --rm -T tools bash -c 'set -o pipefail; pnpm turbo run lint typecheck test --continue'`; coverage `./scripts/check-coverage.sh`; e2e `docker compose --profile e2e run --rm -T playwright bash -c 'cd /repo && pnpm --filter web exec playwright test e2e/'` after `pnpm --filter api seed:dev`.
