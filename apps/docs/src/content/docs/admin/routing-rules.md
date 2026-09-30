@@ -16,8 +16,11 @@ roles include the `routing_rule.view` permission.
 Rules run **once**, when a **new** ticket is created from a customer's first
 message. They don't run when:
 
-- a customer message reopens a closed ticket or is added to an open one,
+- a customer reply reopens a closed ticket or is added to an open one,
 - a staff member starts a ticket themselves.
+
+A follow-up ticket created after a closed one is a **new** ticket, so it is
+routed like any other.
 
 Rules are checked from top to bottom. The **first enabled rule that matches
 and whose group is active wins**; later rules are not looked at.
@@ -41,7 +44,13 @@ domains).
 
 - Phrases match **whole words** and ignore capitalization. "refund" matches
   "I want a refund." but not "refunded".
+- "Whole word" means the phrase isn't attached to a letter, digit, or
+  underscore on either side. Languages written without spaces between words
+  (for example Chinese or Japanese) therefore only match when the phrase
+  stands alone between spaces or punctuation. A phrase that starts or ends
+  with punctuation, such as "C++", matches as written.
 - Spaces inside a phrase are flexible.
+- Each phrase can be up to **100** characters.
 - Domains match **exactly**: `example.com` does not match
   `mail.example.com`. A leading `@` is ignored.
 - Each list holds up to **20** entries.
