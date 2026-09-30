@@ -404,6 +404,75 @@ describe('sharing and per-viewer ticket access', () => {
     expect(body<ViewBody>(await asUser(tAdmin).get(`/views/${shared.id}`)).count).toBe(2);
   });
 
+  it('the owner of a roles- or groups-shared view they do not match sees, opens and edits it, still limited to their own group access', async () => {
+    const t = await createTenant();
+    const g1 = await createGroup(t);
+    const g2 = await createGroup(t);
+    const ownerRole = await createRole(t, { permissions: [...STAFF, 'view.share', 'view.edit'], groups: [{ group: g1.id, flags: { view: true } }] });
+    const sharedRole = await createRole(t, { permissions: STAFF, groups: [{ group: g2.id, flags: { view: true } }] });
+    const owner = await createUser(t, { roles: [{ id: ownerRole.id }] });
+    const member = await createUser(t, { roles: [{ id: sharedRole.id }] });
+    const outsider = await createUser(t, { roles: [{ id: ownerRole.id }] });
+    const customer = await createUser(t, { roles: ['customer'] });
+    const t1 = await createTicket(t, { customer, group: g1.id, state: 'open' });
+    const t2 = await createTicket(t, { customer, group: g2.id, state: 'open' });
+
+    const rolesView = await makeView(owner, { visibility: 'roles', sharedRoleIds: [sharedRole.id] });
+    const groupsView = await makeView(owner, { visibility: 'groups', sharedGroupIds: [g2.id] });
+
+    const ids = async (user: TestUser, viewId: string) => {
+      const response = await asUser(user).get(`/tickets?viewId=${viewId}&limit=100`);
+      expect(response.status).toBe(200);
+      return body<{ items: { id: string }[] }>(response).items.map((item) => item.id).sort();
+    };
+
+    for (const view of [rolesView, groupsView]) {
+      expect(names(await asUser(owner).get('/views'))).toContain(view.name);
+      expect((await asUser(owner).get(`/views/${view.id}`)).status).toBe(200);
+      // FR-077: seeing the view does not widen the owner's ticket access (group 1 only)
+      expect(await ids(owner, view.id)).toEqual([t1.id]);
+      expect(body<ViewBody>(await asUser(owner).get(`/views/${view.id}`)).count).toBe(1);
+      // the members it is shared with see it, with their own access
+      expect(names(await asUser(member).get('/views'))).toContain(view.name);
+      expect(await ids(member, view.id)).toEqual([t2.id]);
+      // a colleague who is not the owner and does not match still gets 404
+      expect(names(await asUser(outsider).get('/views'))).not.toContain(view.name);
+      expect((await asUser(outsider).get(`/views/${view.id}`)).status).toBe(404);
+      expect((await asUser(outsider).get(`/tickets?viewId=${view.id}`)).status).toBe(404);
+      expect((await asUser(outsider).put(`/views/${view.id}`, viewInput({ visibility: 'all_staff' }))).status).toBe(404);
+    }
+
+    // the owner can edit it and keeps ownership when sharing changes
+    const edited = await asUser(owner).put(`/views/${rolesView.id}`, viewInput({ name: 'Owner edit', visibility: 'roles', sharedRoleIds: [sharedRole.id] }));
+    expect(edited.status).toBe(200);
+    expect(names(await asUser(owner).get('/views'))).toContain('Owner edit');
+    expect((await asUser(outsider).get(`/views/${rolesView.id}`)).status).toBe(404);
+  });
+
+  it('an editor who is not the owner does not take a shared view, and the owner keeps seeing it', async () => {
+    const t = await createTenant();
+    const g1 = await createGroup(t);
+    const role = await createRole(t, { permissions: STAFF, groups: [{ group: g1.id, flags: { view: true } }] });
+    const owner = await createUser(t, { roles: [{ id: (await createRole(t, { permissions: [...STAFF, 'view.share', 'view.edit'] })).id }] });
+    const editor = await createUser(t, { roles: ['manager', { id: role.id }] });
+    const view = await makeView(owner, { visibility: 'roles', sharedRoleIds: [role.id] });
+    expect((await asUser(editor).put(`/views/${view.id}`, viewInput({ name: 'By editor', visibility: 'roles', sharedRoleIds: [role.id] }))).status).toBe(200);
+    expect(names(await asUser(owner).get('/views'))).toContain('By editor');
+  });
+
+  it('the counts hint reaches the owner of a shared view they do not match', async () => {
+    const t = await createTenant();
+    const shared = await createRole(t, { permissions: STAFF });
+    const owner = await sharerIn(t);
+    const member = await createUser(t, { roles: [{ id: shared.id }] });
+    const editor = await createUser(t, { roles: ['manager', { id: shared.id }] });
+    const view = await makeView(owner, { visibility: 'roles', sharedRoleIds: [shared.id] });
+
+    expect((await asUser(editor).put(`/views/${view.id}`, viewInput({ name: 'Renamed', visibility: 'roles', sharedRoleIds: [shared.id] }))).status).toBe(200);
+    const events = await inspect(t, (tx, repo) => repo.events(tx, 'views.counts_changed'));
+    expect(events.at(-1)!.streams).toEqual(expect.arrayContaining([`views:${owner.id}`, `views:${member.id}`, `views:${editor.id}`]));
+  });
+
   it('a personal view never appears for another user (list, get, tickets)', async () => {
     const view = await makeView(agent, { name: `Private ${uuidv7()}` });
     expect(names(await asUser(agent).get('/views'))).toContain(view.name);
@@ -428,7 +497,6 @@ describe('outbox hint and audit trail', () => {
     const t = await createTenant();
     const g1 = await createGroup(t);
     const r1 = await createRole(t, { permissions: STAFF, groups: [{ group: g1.id, flags: { view: true } }] });
-    // A creator who shares with roles it does not hold cannot see (or edit) the view afterwards.
     const tSharer = await sharerIn(t, [r1.id]);
     const member = await createUser(t, { roles: [{ id: r1.id }] });
     const outsider = await createUser(t, { roles: ['agent'] });
