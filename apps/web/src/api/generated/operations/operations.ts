@@ -23,21 +23,28 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ConflictResponse,
   CreateSupportAccessGrantBody,
   ErrorResponse,
   ListAuditLogs200,
   ListAuditLogsParams,
   ListNotifications200,
   ListNotificationsParams,
+  ListRoutingRules200,
   MarkNotificationsRead200,
   MarkNotificationsReadBody,
   NotFoundResponse,
   NotificationPreferences,
   NotificationPreferencesInput,
   PermissionDeniedResponse,
+  ReorderRoutingRulesBody,
+  RoutingDryRun,
+  RoutingRule,
+  RoutingRuleInput,
   SupportAccessGrant,
   TenantSettings,
   TenantSettingsUpdate,
+  TestRoutingRulesBody,
   UnauthenticatedResponse,
   ValidationFailedResponse,
 } from '.././model';
@@ -1124,6 +1131,590 @@ export const useUpdateNotificationPreferences = <
   TContext
 > => {
   const mutationOptions = getUpdateNotificationPreferencesMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Rules run top to bottom when a customer's first message starts a ticket; the first enabled rule that matches and whose group is active wins.
+ * @summary Routing rules in evaluation order (routing_rule.view)
+ */
+export const getListRoutingRulesUrl = () => {
+  return `/routing-rules`;
+};
+
+export const listRoutingRules = async (options?: RequestInit): Promise<ListRoutingRules200> => {
+  return http<ListRoutingRules200>(getListRoutingRulesUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListRoutingRulesQueryKey = () => {
+  return [`/routing-rules`] as const;
+};
+
+export const getListRoutingRulesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listRoutingRules>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoutingRules>>, TError, TData>>;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListRoutingRulesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listRoutingRules>>> = ({ signal }) =>
+    listRoutingRules({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listRoutingRules>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListRoutingRulesQueryResult = NonNullable<Awaited<ReturnType<typeof listRoutingRules>>>;
+export type ListRoutingRulesQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useListRoutingRules<
+  TData = Awaited<ReturnType<typeof listRoutingRules>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoutingRules>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRoutingRules>>,
+          TError,
+          Awaited<ReturnType<typeof listRoutingRules>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListRoutingRules<
+  TData = Awaited<ReturnType<typeof listRoutingRules>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoutingRules>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listRoutingRules>>,
+          TError,
+          Awaited<ReturnType<typeof listRoutingRules>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListRoutingRules<
+  TData = Awaited<ReturnType<typeof listRoutingRules>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoutingRules>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Routing rules in evaluation order (routing_rule.view)
+ */
+
+export function useListRoutingRules<
+  TData = Awaited<ReturnType<typeof listRoutingRules>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listRoutingRules>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListRoutingRulesQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * At least one condition list must have an entry. The group must be active (when the rule is enabled) and the tags must exist, else 400 invalid_value on actions.groupId, conditions.customerTagIds.N or actions.tagIds.N. A workspace can have 100 rules (409 ROUTING_RULE_LIMIT).
+ * @summary Create a routing rule, last in order (routing_rule.create)
+ */
+export const getCreateRoutingRuleUrl = () => {
+  return `/routing-rules`;
+};
+
+export const createRoutingRule = async (
+  routingRuleInput: RoutingRuleInput,
+  options?: RequestInit,
+): Promise<RoutingRule> => {
+  return http<RoutingRule>(getCreateRoutingRuleUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(routingRuleInput),
+  });
+};
+
+export const getCreateRoutingRuleMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | ConflictResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRoutingRule>>,
+    TError,
+    { data: RoutingRuleInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createRoutingRule>>,
+  TError,
+  { data: RoutingRuleInput },
+  TContext
+> => {
+  const mutationKey = ['createRoutingRule'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createRoutingRule>>,
+    { data: RoutingRuleInput }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createRoutingRule(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateRoutingRuleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createRoutingRule>>
+>;
+export type CreateRoutingRuleMutationBody = RoutingRuleInput;
+export type CreateRoutingRuleMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse;
+
+/**
+ * @summary Create a routing rule, last in order (routing_rule.create)
+ */
+export const useCreateRoutingRule = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | ConflictResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createRoutingRule>>,
+      TError,
+      { data: RoutingRuleInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createRoutingRule>>,
+  TError,
+  { data: RoutingRuleInput },
+  TContext
+> => {
+  const mutationOptions = getCreateRoutingRuleMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * `ids` must list every rule of the workspace exactly once; a position is the index. A list that is stale (a rule missing or unknown) is 400 invalid on ids.
+ * @summary Set the evaluation order (routing_rule.edit)
+ */
+export const getReorderRoutingRulesUrl = () => {
+  return `/routing-rules/order`;
+};
+
+export const reorderRoutingRules = async (
+  reorderRoutingRulesBody: ReorderRoutingRulesBody,
+  options?: RequestInit,
+): Promise<void> => {
+  return http<void>(getReorderRoutingRulesUrl(), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(reorderRoutingRulesBody),
+  });
+};
+
+export const getReorderRoutingRulesMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reorderRoutingRules>>,
+    TError,
+    { data: ReorderRoutingRulesBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reorderRoutingRules>>,
+  TError,
+  { data: ReorderRoutingRulesBody },
+  TContext
+> => {
+  const mutationKey = ['reorderRoutingRules'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reorderRoutingRules>>,
+    { data: ReorderRoutingRulesBody }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return reorderRoutingRules(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReorderRoutingRulesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reorderRoutingRules>>
+>;
+export type ReorderRoutingRulesMutationBody = ReorderRoutingRulesBody;
+export type ReorderRoutingRulesMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+
+/**
+ * @summary Set the evaluation order (routing_rule.edit)
+ */
+export const useReorderRoutingRules = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof reorderRoutingRules>>,
+      TError,
+      { data: ReorderRoutingRulesBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof reorderRoutingRules>>,
+  TError,
+  { data: ReorderRoutingRulesBody },
+  TContext
+> => {
+  const mutationOptions = getReorderRoutingRulesMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Runs the same evaluation as live routing and changes nothing. Give customerId to use a real customer's email and tags, or customerEmail and customerTagIds for a sample; not both (400 invalid on the body). Unknown or another workspace's customerId is 404.
+ * @summary Dry-run the rules against a sample first message (routing_rule.view)
+ */
+export const getTestRoutingRulesUrl = () => {
+  return `/routing-rules/test`;
+};
+
+export const testRoutingRules = async (
+  testRoutingRulesBody: TestRoutingRulesBody,
+  options?: RequestInit,
+): Promise<RoutingDryRun> => {
+  return http<RoutingDryRun>(getTestRoutingRulesUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(testRoutingRulesBody),
+  });
+};
+
+export const getTestRoutingRulesMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof testRoutingRules>>,
+    TError,
+    { data: TestRoutingRulesBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof testRoutingRules>>,
+  TError,
+  { data: TestRoutingRulesBody },
+  TContext
+> => {
+  const mutationKey = ['testRoutingRules'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof testRoutingRules>>,
+    { data: TestRoutingRulesBody }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return testRoutingRules(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type TestRoutingRulesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof testRoutingRules>>
+>;
+export type TestRoutingRulesMutationBody = TestRoutingRulesBody;
+export type TestRoutingRulesMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Dry-run the rules against a sample first message (routing_rule.view)
+ */
+export const useTestRoutingRules = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof testRoutingRules>>,
+      TError,
+      { data: TestRoutingRulesBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof testRoutingRules>>,
+  TError,
+  { data: TestRoutingRulesBody },
+  TContext
+> => {
+  const mutationOptions = getTestRoutingRulesMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Full replace, including the enabled switch; the position does not change. Same checks as create.
+ * @summary Replace a routing rule (routing_rule.edit)
+ */
+export const getUpdateRoutingRuleUrl = (id: string) => {
+  return `/routing-rules/${id}`;
+};
+
+export const updateRoutingRule = async (
+  id: string,
+  routingRuleInput: RoutingRuleInput,
+  options?: RequestInit,
+): Promise<RoutingRule> => {
+  return http<RoutingRule>(getUpdateRoutingRuleUrl(id), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(routingRuleInput),
+  });
+};
+
+export const getUpdateRoutingRuleMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRoutingRule>>,
+    TError,
+    { id: string; data: RoutingRuleInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateRoutingRule>>,
+  TError,
+  { id: string; data: RoutingRuleInput },
+  TContext
+> => {
+  const mutationKey = ['updateRoutingRule'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateRoutingRule>>,
+    { id: string; data: RoutingRuleInput }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateRoutingRule(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateRoutingRuleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateRoutingRule>>
+>;
+export type UpdateRoutingRuleMutationBody = RoutingRuleInput;
+export type UpdateRoutingRuleMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Replace a routing rule (routing_rule.edit)
+ */
+export const useUpdateRoutingRule = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateRoutingRule>>,
+      TError,
+      { id: string; data: RoutingRuleInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateRoutingRule>>,
+  TError,
+  { id: string; data: RoutingRuleInput },
+  TContext
+> => {
+  const mutationOptions = getUpdateRoutingRuleMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Hard delete; the rules after it move up one position.
+ * @summary Delete a routing rule (routing_rule.delete)
+ */
+export const getDeleteRoutingRuleUrl = (id: string) => {
+  return `/routing-rules/${id}`;
+};
+
+export const deleteRoutingRule = async (id: string, options?: RequestInit): Promise<void> => {
+  return http<void>(getDeleteRoutingRuleUrl(id), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteRoutingRuleMutationOptions = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteRoutingRule>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteRoutingRule>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ['deleteRoutingRule'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteRoutingRule>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteRoutingRule(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteRoutingRuleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteRoutingRule>>
+>;
+
+export type DeleteRoutingRuleMutationError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Delete a routing rule (routing_rule.delete)
+ */
+export const useDeleteRoutingRule = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteRoutingRule>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteRoutingRule>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationOptions = getDeleteRoutingRuleMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
