@@ -11,12 +11,6 @@ import { ViewsRepository } from './views.repository.js';
 import { ViewsService } from './views.service.js';
 
 /**
- * `ViewCompiler` is also provided directly in `tickets/tickets.module.ts` (`TicketsHttpModule`),
- * which needs it for `GET /tickets?viewId=`, and in the worker's `ViewsJobsModule`
- * (counts-notifier.ts); it holds no per-request state (just `PolicyService`), so the extra
- * instances are harmless.
- */
-/**
  * A user who created a view shared with other staff cannot be hard-deleted: `views_owner_fk` is
  * ON DELETE CASCADE, so the delete would silently remove the view for everyone it is shared with.
  * Personal views still go with their owner.
@@ -39,6 +33,12 @@ export class ViewOwnerHistory implements UserHistoryCheck {
 })
 export class ViewsOwnershipModule {}
 
+/**
+ * `ViewCompiler` is also provided directly in `tickets/tickets.module.ts` (`TicketsHttpModule`),
+ * which needs it for `GET /tickets?viewId=`, and in the worker's `ViewsJobsModule`
+ * (counts-notifier.ts); it holds no per-request state (just `PolicyService`), so the extra
+ * instances are harmless.
+ */
 @Module({
   controllers: [ViewsController],
   providers: [ViewsService, ViewCompiler, ViewCountsService, DefaultViewsContributor],

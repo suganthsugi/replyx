@@ -28,7 +28,7 @@ export interface CustomerTagsTable {
 
 export type ViewVisibility = 'personal' | 'all_staff' | 'roles' | 'groups';
 
-/** `owner_id` is set only when `visibility = 'personal'`. */
+/** `owner_id` is always the creating user for user-created views (personal or shared); null for default views. */
 export interface ViewsTable {
   id: Generated<string>;
   tenant_id: string;
