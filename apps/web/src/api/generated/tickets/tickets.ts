@@ -46,6 +46,8 @@ import type {
   NotFoundResponse,
   PermissionDeniedResponse,
   PostTicketMessageBody,
+  PreviewViewCount200,
+  PreviewViewCountBody,
   ReorderViewsBody,
   TagRef,
   Ticket,
@@ -59,6 +61,7 @@ import type {
   UploadAttachmentBody,
   ValidationFailedResponse,
   View,
+  ViewInput,
 } from '.././model';
 
 import { http } from '../../../data/http';
@@ -2644,6 +2647,94 @@ export function useListViews<
 }
 
 /**
+ * Visibility roles needs at least one sharedRoleIds entry and groups at least one sharedGroupIds entry; the list that
+does not match the visibility is ignored. Every shared role or group must belong to the tenant, else 400 with
+details such as sharedRoleIds.0 invalid_value. A create involving sharing is audited (view.created) and emits a
+views.counts_changed hint to the viewers who can see the view.
+ * @summary Create a view (view.create; a shared visibility also needs view.share)
+ */
+export const getCreateViewUrl = () => {
+  return `/views`;
+};
+
+export const createView = async (viewInput: ViewInput, options?: RequestInit): Promise<View> => {
+  return http<View>(getCreateViewUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(viewInput),
+  });
+};
+
+export const getCreateViewMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createView>>,
+    TError,
+    { data: ViewInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createView>>,
+  TError,
+  { data: ViewInput },
+  TContext
+> => {
+  const mutationKey = ['createView'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createView>>,
+    { data: ViewInput }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createView(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateViewMutationResult = NonNullable<Awaited<ReturnType<typeof createView>>>;
+export type CreateViewMutationBody = ViewInput;
+export type CreateViewMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+
+/**
+ * @summary Create a view (view.create; a shared visibility also needs view.share)
+ */
+export const useCreateView = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createView>>,
+      TError,
+      { data: ViewInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createView>>,
+  TError,
+  { data: ViewInput },
+  TContext
+> => {
+  const mutationOptions = getCreateViewMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * Refetched when a views.counts_changed hint arrives on the views stream. Each count applies the viewer's access filter (FR-077) and is cached per viewer for 30 s (research D13).
  * @summary Current ticket counts for the caller's views, by view id (view.view)
  */
@@ -2854,6 +2945,96 @@ export const useReorderViews = <
   return useMutation(mutationOptions, queryClient);
 };
 /**
+ * Used by the view builder. The count applies the viewer's access filter (FR-077), so it reveals no more than the counts the caller already reads. Nothing is saved.
+ * @summary Live count of an unsaved condition tree for the caller (view.view)
+ */
+export const getPreviewViewCountUrl = () => {
+  return `/views/preview-count`;
+};
+
+export const previewViewCount = async (
+  previewViewCountBody: PreviewViewCountBody,
+  options?: RequestInit,
+): Promise<PreviewViewCount200> => {
+  return http<PreviewViewCount200>(getPreviewViewCountUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(previewViewCountBody),
+  });
+};
+
+export const getPreviewViewCountMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof previewViewCount>>,
+    TError,
+    { data: PreviewViewCountBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof previewViewCount>>,
+  TError,
+  { data: PreviewViewCountBody },
+  TContext
+> => {
+  const mutationKey = ['previewViewCount'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof previewViewCount>>,
+    { data: PreviewViewCountBody }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return previewViewCount(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PreviewViewCountMutationResult = NonNullable<
+  Awaited<ReturnType<typeof previewViewCount>>
+>;
+export type PreviewViewCountMutationBody = PreviewViewCountBody;
+export type PreviewViewCountMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+
+/**
+ * @summary Live count of an unsaved condition tree for the caller (view.view)
+ */
+export const usePreviewViewCount = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof previewViewCount>>,
+      TError,
+      { data: PreviewViewCountBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof previewViewCount>>,
+  TError,
+  { data: PreviewViewCountBody },
+  TContext
+> => {
+  const mutationOptions = getPreviewViewCountMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
  * @summary Get a view definition, with its live ticket count (view.view)
  */
 export const getGetViewUrl = (id: string) => {
@@ -2974,6 +3155,107 @@ export function useGetView<
   return query;
 }
 
+/**
+ * The route needs view.view; the service then decides per view. A default view needs view.edit and its sharing cannot
+change. A personal view is its owner's to edit. A shared view needs view.edit. Changing a view's sharing, or making a
+personal view shared, needs view.share; making a shared view personal needs view.create. Sharing rules are those of
+createView. An unknown or invisible view is 404 VIEW_NOT_FOUND. A write involving sharing is audited (view.updated)
+and emits a views.counts_changed hint to the viewers who can see the view before or after the change.
+ * @summary Replace a view definition (view.view, then per view; sharing changes need view.share)
+ */
+export const getUpdateViewUrl = (id: string) => {
+  return `/views/${id}`;
+};
+
+export const updateView = async (
+  id: string,
+  viewInput: ViewInput,
+  options?: RequestInit,
+): Promise<View> => {
+  return http<View>(getUpdateViewUrl(id), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(viewInput),
+  });
+};
+
+export const getUpdateViewMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateView>>,
+    TError,
+    { id: string; data: ViewInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateView>>,
+  TError,
+  { id: string; data: ViewInput },
+  TContext
+> => {
+  const mutationKey = ['updateView'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateView>>,
+    { id: string; data: ViewInput }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateView(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateViewMutationResult = NonNullable<Awaited<ReturnType<typeof updateView>>>;
+export type UpdateViewMutationBody = ViewInput;
+export type UpdateViewMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Replace a view definition (view.view, then per view; sharing changes need view.share)
+ */
+export const useUpdateView = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateView>>,
+      TError,
+      { id: string; data: ViewInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateView>>,
+  TError,
+  { id: string; data: ViewInput },
+  TContext
+> => {
+  const mutationOptions = getUpdateViewMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
 /**
  * A personal view is its owner's to delete; a shared view needs view.delete.
  * @summary Delete a view (default views can be hidden, not deleted)
