@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
@@ -146,6 +146,26 @@ describe('useViewCountEvents', () => {
     hint();
     await vi.advanceTimersByTimeAsync(VIEW_LIST_REFRESH_MS * 3);
     expect(fetches).toEqual({ counts: 2, list: 1 });
+  });
+
+  it('skips the list refresh while the real useReorderViews mutation is in flight', async () => {
+    const { fetches, hint, settle, queryClient } = setup();
+    await settle();
+
+    server.use(http.put(`${API}/views/order`, () => new Promise<Response>(() => {})));
+    const wrapper = ({ children }: { children: React.ReactNode }) => <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
+    const reorder = renderHook(() => useReorderViews(), { wrapper });
+    act(() => {
+      void reorder.result.current.mutateAsync({ items: [{ id: 'v1', position: 1, hidden: false }] }).catch(() => {});
+    });
+    await settle();
+    // Fails if useReorderViews drops its mutationKey.
+    expect(queryClient.isMutating({ mutationKey: reorderViewsMutationKey })).toBe(1);
+
+    hint();
+    await vi.advanceTimersByTimeAsync(VIEW_LIST_REFRESH_MS * 3);
+    expect(fetches).toEqual({ counts: 2, list: 1 });
+    reorder.unmount();
   });
 
   it('clears the pending timer on unmount', async () => {
