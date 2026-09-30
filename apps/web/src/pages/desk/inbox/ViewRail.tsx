@@ -4,9 +4,11 @@ import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 
+import { ViewBuilder } from '../../../components/builders/ViewBuilder';
 import { EmptyState } from '../../../components/foundations/EmptyState';
 import { useAnnounce } from '../../../components/foundations/LiveRegion';
 import { Skeleton } from '../../../components/foundations/Skeleton';
+import { useMe } from '../../../data/auth';
 import { mapError } from '../../../data/errors';
 import { useReorderViews, useViewCounts } from '../../../data/view-counts';
 import { useViews } from '../../../data/views';
@@ -31,6 +33,9 @@ export function ViewRail({ activeViewId, onSelectView }: ViewRailProps) {
   const views = useViews();
   const counts = useViewCounts();
   const [arranging, setArranging] = useState(false);
+  const [builder, setBuilder] = useState<{ view?: View } | null>(null);
+  const permissions = useMe().data?.permissions ?? [];
+  const canCreate = permissions.includes('view.create');
 
   if (views.isPending) {
     return (
@@ -57,9 +62,16 @@ export function ViewRail({ activeViewId, onSelectView }: ViewRailProps) {
         <Typography component="h2" variant="h3">
           Views
         </Typography>
-        <Button size="small" onClick={() => setArranging((value) => !value)} aria-pressed={arranging}>
-          {arranging ? 'Done' : 'Arrange views'}
-        </Button>
+        <Box sx={{ display: 'flex', gap: 0.5 }}>
+          {canCreate && (
+            <Button size="small" onClick={() => setBuilder({})}>
+              New view
+            </Button>
+          )}
+          <Button size="small" onClick={() => setArranging((value) => !value)} aria-pressed={arranging}>
+            {arranging ? 'Done' : 'Arrange views'}
+          </Button>
+        </Box>
       </Box>
 
       {arranging ? (
@@ -72,14 +84,15 @@ export function ViewRail({ activeViewId, onSelectView }: ViewRailProps) {
             const active = view.id === activeViewId;
             const count = counts.data?.[view.id] ?? view.count;
             return (
-              <Box component="li" key={view.id}>
+              <Box component="li" key={view.id} sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
                 <Box
                   component="button"
                   type="button"
                   onClick={() => onSelectView(view.id)}
                   aria-current={active ? 'page' : undefined}
                   sx={{
-                    width: '100%',
+                    flex: 1,
+                    minWidth: 0,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'space-between',
@@ -99,13 +112,26 @@ export function ViewRail({ activeViewId, onSelectView }: ViewRailProps) {
                     '&:focus-visible': { outline: 2, outlineColor: 'primary.main', outlineOffset: 2 },
                   }}
                 >
-                  <span>{view.name}</span>
+                  <span id={`view-rail-name-${view.id}`}>{view.name}</span>
                   {count > 0 && <Chip size="small" label={count} sx={{ height: 18, fontSize: '0.6875rem', fontWeight: 600 }} />}
                 </Box>
+                {view.editable && (
+                  <Button size="small" aria-label="Edit view" aria-describedby={`view-rail-name-${view.id}`} onClick={() => setBuilder({ view })}>
+                    Edit
+                  </Button>
+                )}
               </Box>
             );
           })}
         </Box>
+      )}
+      {builder !== null && (
+        <ViewBuilder
+          open
+          view={builder.view}
+          onClose={() => setBuilder(null)}
+          onSaved={(saved) => onSelectView(saved.id)}
+        />
       )}
     </Box>
   );
