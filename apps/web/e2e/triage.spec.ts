@@ -145,7 +145,7 @@ test('a manager triages an ungrouped ticket to Support in three actions, and the
 
     // --- Scenario 2: keyboard-only (G -> arrows -> Enter to pick -> Enter to assign). --------
     const marker2 = `triage-kbd-${Date.now().toString(36)}`;
-    const question2 = `Triage check ${marker2}: a refund request`;
+    const question2 = `Triage check ${marker2}: an invoice question`;
     const customer2 = await signInCustomer(request, uniqueEmail('e2e-triage-kbd'), 'Triage Keyboard Customer');
     await customer2.send(question2);
     const ticket2 = await findUngroupedTicket(managerApi, marker2);

@@ -25,8 +25,8 @@ export default defineConfig({
   // after the other specs in their own desktop/mobile projects and wait out whatever is left of the
   // limit.
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/, /view-builder/] },
-    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/, /view-builder/] },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/, /view-builder/, /routing-rules/] },
+    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/, /view-builder/, /routing-rules/] },
     // Tenant lifecycle signs in four times a run (operator, admin twice, customer) and is slow: on its own,
     // after the sign-in specs, so together they stay inside the 10 sign-ins a minute.
     { name: 'desktop-lifecycle', use: { ...devices['Desktop Chrome'] }, testMatch: /tenant-lifecycle/, dependencies: ['desktop', 'mobile'] },
@@ -44,5 +44,8 @@ export default defineConfig({
     // The whole conversation flow (customer, manager, agent, admin), and it moves the shared dev clock so
     // sessions expire: last, so nothing else runs while time is shifted.
     { name: 'desktop-main-flow', use: { ...devices['Desktop Chrome'] }, testMatch: /main-flow/, dependencies: ['desktop-view-builder'] },
+    // Routing rules: an admin writes a rule, a customer's first message is routed by it. Last, after main-flow has put the
+    // shared clock back.
+    { name: 'desktop-routing', use: { ...devices['Desktop Chrome'] }, testMatch: /routing-rules/, dependencies: ['desktop-main-flow'] },
   ],
 });
