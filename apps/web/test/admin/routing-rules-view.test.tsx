@@ -130,12 +130,16 @@ describe('RoutingRulesView list', () => {
     await waitFor(() => expect(live(container)).toHaveTextContent('Refunds to Billing disabled.'));
   });
 
-  it('toasts when the toggle fails, explaining an inactive group', async () => {
-    const { onToggle } = setup();
+  it('toasts when enabling a rule with an inactive group is refused, and leaves the switch off', async () => {
+    const disabledStale = makeRoutingRule({ id: 'rule-9', name: 'Old rule', position: 0, enabled: false, actions: { groupId: 'group-old' } });
+    const { onToggle } = setup({ rules: [disabledStale] });
     onToggle.mockRejectedValueOnce(new HttpError(400, { code: 'VALIDATION_FAILED', message: 'Invalid', details: [{ path: 'actions.groupId', issue: 'invalid_value' }] }));
-    await userEvent.click(screen.getByRole('switch', { name: 'Enable Stale rule' }));
-    // the rule is enabled, so this turns it off; still the failure path is what matters
-    expect((await screen.findAllByText(/Its group is not active/, undefined, FIND)).length).toBeGreaterThan(0);
+    const toggle = screen.getByRole('switch', { name: 'Enable Old rule' });
+    await userEvent.click(toggle);
+    expect(onToggle).toHaveBeenCalledWith(disabledStale, true);
+    const message = 'Old rule was not enabled. Its group is not active: edit the rule to choose an active group.';
+    expect((await screen.findAllByText(message, undefined, FIND)).length).toBeGreaterThan(0);
+    expect(toggle).not.toBeChecked();
   });
 
   it('toasts a generic failure for a toggle', async () => {
