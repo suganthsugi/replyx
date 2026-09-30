@@ -451,6 +451,11 @@ Start commit: b4afe6b
 - T212 e2e (`view-builder.spec.ts`, project `desktop-view-builder` after `desktop-triage`, two sign-ins) passed twice alone with `--no-deps`; it found two defects:
   - P13-4 the creator of a role- or group-shared view could not see it unless they held that role/group (`canSee` only checked the owner for `personal`): GET /views omitted it and the UI showed "View not found" right after saving. Decision (orchestrator, flagged for the user): the owner always sees their own view; FR-077 still limits the tickets. Fixed under T207's scope by backend-agent.
   - P13-5 the Name field's `autoFocus` lost to the drawer Paper in Chromium; fixed in ViewBuilder by frontend-agent, and the spec asserts it.
+- Checkpoint before review: `turbo run lint typecheck test` 8/8 green (api 71 files / 873 tests, web 56 files / 386 tests); `scripts/check-coverage.sh` exits 0.
+- Phase 13 review round 1: PASS (conditional), no critical. Majors:
+  - M1 f6ae1ca stores owner_id on shared views, but `views_owner_fk` is ON DELETE CASCADE, so hard-deleting a staff user silently deleted the shared views they created. Fix: a user-history check blocks the delete (409) while the user owns a non-personal view; personal views still cascade.
+  - M2 the `views` stream hint invalidates `viewKeys.list()`, which can overwrite an optimistic reorder and recomputes GET /views on every ticket hint; the old view-counts test passed by accident. Fix: skip while a reorder is pending, throttle/target the list refresh, rewrite the test.
+  - Minors/warnings: FilterBuilder index keys + repeating nested group labels (fixed); guide gaps (fixed); e2e never proves the live `views` path (reload fallback) and leaves a view per run (fixed); shared to personal by a `view.edit` editor transfers ownership (follow-up); `preview-count` has no route-specific rate limit (follow-up); old migration comment stale.
 - P13-3 The `views` stream key now also refreshes `viewKeys.list()` (view-counts.ts) so other viewers' rails show a created/renamed shared view.
 
 ### Resume notes (Phase 4) 2026-09-25
@@ -458,6 +463,27 @@ Start commit: b4afe6b
 - Checks: `docker compose run --rm -T tools bash -c 'set -o pipefail; pnpm turbo run lint typecheck test --continue'`; coverage `./scripts/check-coverage.sh`; e2e `docker compose --profile e2e run --rm -T playwright bash -c 'cd /repo && pnpm --filter web exec playwright test e2e/'` after `pnpm --filter api seed:dev`.
 - `docker compose restart api worker` after backend changes, `restart web` after frontend changes. Write files as UTF-8.
 - Merge script for openapi (T081 needs it): scratchpad `merge-openapi.js`, run `docker compose run --rm -T -e PLAN='<json>' tools node - < merge-openapi.js`; not in the repo — recreate if the scratchpad is gone.
+
+### Phase 13 complete (US10 custom view builder, T207-T213) 2026-09-30
+- Commits (story range d7b19d8..HEAD):
+  - T207 9130583; fixes f6ae1ca (creator always sees and keeps their view), 693d7cd (user delete blocked while the user owns a shared view), 55bdc1b (comments)
+  - T208 377774c, 5d96c5a
+  - T209 820b383; tests 1a6e113, 01a40de
+  - T210 26699e2; fixes 8926caf (Name focus under StrictMode), 2413480 (stable filter rows, unique nested group names); tests 1e03486
+  - T211 8964d46 (hooks), 01ea30a (rail wiring); fix 734798a (throttled list refresh, reorder guard); tests ada2f80, 0a7728f
+  - T212 9b8384b, 9254a70
+  - T213 ad181d9, fc555fe
+  - run-log/ticks 8cd81cd, 6b9a080
+- Final checks: `turbo run lint typecheck test` 8/8 (web 56 files / 393 tests; api 71 files / 876 tests, one run had the known catch-up SC-002 "once for a burst" flake, green in the coverage run); coverage api 92.01% / web 82.06% lines (gate 80/70), `check-coverage.sh` exit 0; docs build passes (17 pages); redocly not re-run (description-only openapi change; `generate-api-client.sh` produced no diff); e2e 16/16 on the last full run. Four earlier full runs failed for environmental reasons (cold Vite right after `restart web`, 429 "Too many requests" on the invitation accept from back-to-back runs, one 220 s timeout in agent-conversation that passes alone in 24 s and passed in the next full run).
+- Reviewer: round 1 PASS (conditional): M1 (user delete cascading shared views) and M2 (view list refetch racing a reorder) fixed; round 2 PASS with two small warnings, both fixed (mutationKey asserted through the real hook; stale comments).
+- Not read by the reviewer: openapi.yaml/client diff, most of the web test bodies, API test file past line 130, ConditionValueInput beyond line ~140.
+- Decisions and follow-ups for the user:
+  - P13-4 (creator always sees their own view) was decided by the orchestrator, not the user; it changes `owner_id` semantics (recorded for every user-created view) and blocks hard-deleting a user who owns a shared view (409 USER_HAS_HISTORY: deactivate, or delete the views first). Views created before f6ae1ca keep `owner_id` NULL (no backfill; the creator is in `audit_logs` `view.created`). Phase 13 was not deployed to the VM, so only dev data is affected.
+  - A `view.edit` + `view.create` editor who turns a shared view personal becomes its owner; the original creator then loses it (documented in the guide, logged).
+  - `POST /views/preview-count` has no route-specific rate limit (web debounces 400 ms and aborts superseded requests).
+  - The Customer condition is hidden in the builder until a customer search endpoint exists.
+  - Jira not updated (connector needs sign-in).
+  - The e2e keeps the dev DB clean by deleting the view it creates, but leaves its two tickets.
 
 ## Skills created
 - Catalog section added to CLAUDE.md (8 skills `planned`) — skill-writer — b773097
