@@ -12,7 +12,8 @@ building one, sharing it, and changing it later. For the views every team starts
 This example builds a view of urgent tickets nobody owns that have waited more than a day for a
 reply.
 
-1. On the view rail, choose **New view**. The builder opens in a side panel.
+1. On the view rail, choose **New view**. This needs the **view.create** permission. The builder
+   opens in a side panel.
 2. Under **Details**, enter a **Name** (up to **80 characters**). The **Description** is optional
    (up to **300 characters**) and is shown to the people the view is shared with.
 3. Under **Conditions**, a new view starts with one condition, **State is not Closed**. Change it,
@@ -55,6 +56,9 @@ Under **Sharing**, choose who can use the view:
 For roles and groups, you must pick at least one. Sharing requires the **view.share** permission.
 Without it, the only choice is **Only me** and the panel tells you so.
 
+You always see a view you created, even when you share it only with roles or groups you don't
+belong to. You still see only the tickets in groups you can access.
+
 ### What sharing does and does not reveal
 
 Sharing shares the view, meaning its name, description, conditions, sort order and columns. It
@@ -80,6 +84,9 @@ Who can edit:
 - A personal view: only its owner.
 - A shared view: people with the **view.edit** permission. Changing who it is shared with also needs
   **view.share**. Changes reach everyone the view is shared with.
+
+If someone with **view.edit** changes a shared view to **Only me**, which also needs
+**view.create**, they become its owner and the person who created it no longer sees it.
 
 Personal views are not visible to anyone else.
 
