@@ -19,11 +19,9 @@ import type { GetViewCounts200, ReorderViewsBody, View } from '../api/generated/
  *
  * `useViewCountEvents` is the one place that registers the `views` stream
  * (`client.registerStreamKeys('views', ...)`): a `views.counts_changed` hint (already debounced
- * 500 ms server-side) only refetches `/views/counts`. The view list itself
- * (`viewKeys`, `views.ts`) changes through this session's own mutations below, another session's
- * edit surfacing via `access.changed` (`access.ts`), or a manual refresh — never through the
- * `views` stream, so mount this alongside `useTicketListEvents` instead of the old
- * list-invalidating handler.
+ * 500 ms server-side) refetches `/views/counts` and the view list (`viewKeys.list()`), because
+ * creating, editing or sharing a view (`view-builder.ts`) emits the same hint to every viewer
+ * who can see it, and their rail must show the new or renamed view.
  */
 
 export const viewCountKeys = {
@@ -45,9 +43,10 @@ export function useViewCounts() {
 export function useViewCountEvents(client: RealtimeClient | undefined): void {
   useEffect(() => {
     if (!client) return undefined;
-    client.registerStreamKeys('views', () => [viewCountKeys.all]);
+    client.registerStreamKeys('views', () => [viewCountKeys.all, viewKeys.list()]);
     return client.onEvent('views.counts_changed', (_envelope, queryClient) => {
       void queryClient.invalidateQueries({ queryKey: viewCountKeys.all });
+      void queryClient.invalidateQueries({ queryKey: viewKeys.list() });
     });
   }, [client]);
 }
