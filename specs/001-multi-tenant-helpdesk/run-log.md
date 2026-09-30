@@ -485,6 +485,50 @@ Start commit: b4afe6b
   - Jira not updated (connector needs sign-in).
   - The e2e keeps the dev DB clean by deleting the view it creates, but leaves its two tickets.
 
+### Phase 14 progress (US11 routing rules, T214-T220) 2026-09-30
+- User scope: Phase 14 only, then stop. Docker stack was up. Jira skipped (connector needs sign-in). T202/T203/T206 untouched.
+- P14-1 The migration is `0013_routing_rules.ts`, not `0011_...` as tasks.md T214 says: 0011 and 0012 already exist. (The orchestrator may not edit the task text; the task line is left as written.)
+- P14-2 (conservative) A rule matches when every condition kind it specifies matches; a rule with no conditions never matches; email domains match exactly (no subdomains); phrases match on whole words, case-insensitive.
+- P14-3 The existing conversation router applied only `groupId` and `priority` from a routing decision; the router step now also attaches `tagIds` (scenario 1 needs the tag).
+- T214 88a2150 (table, RLS, Kysely types; rls tests 4/4, tsc and eslint clean). Dev DB migrated to 0013 by the orchestrator (`pnpm --filter api migrate` in tools) and api/worker restarted.
+- T215 5852a3d (RuleBasedRouter replaces NoRoutingRouter; pure `evaluateRules` + `RoutingEvaluator` reused by the dry run; conversation router now applies tagIds; existing messaging/tickets/tags/realtime tests 136/136).
+- P14-4 Routing history rows use actor kind `routing`, fields `group_id`, `priority`, `tags` (old [] and new a tag-id array; the desk history panel labels the field "Tags" but prints raw ids). The matched rule's name is NOT stored: `ticket_history` has no detail column. Follow-up if wanted: a detail column plus tag names in the history panel.
+
+- T216 f667c4d (6 routes, dry run, audit `routing_rule.created/.updated/.deleted/.reordered`, openapi, seed rule "Refunds to Billing", `routing_rule` cross-tenant fixture included so the cross-tenant suite stays green, 59/59). Generated client committed separately after it.
+- P14-5 Conservative decisions by backend-agent: validation failures are 400 VALIDATION_FAILED (the API has no 422); reorder `{ids}` must be exactly the tenant's rules, else 400; unknown/cross-tenant id on PUT/DELETE is 404 ROUTING_RULE_NOT_FOUND; an ENABLED rule needs an active group, a disabled rule only an existing one (so admins can switch off a rule whose group was deactivated); max 100 rules per tenant (409 ROUTING_RULE_LIMIT); a rule needs at least one condition; DELETE is a hard delete that compacts positions; positions start at 0.
+- P14-6 The dry-run request gained the additive fields `customerEmail` and `customerTagIds` (no customer search endpoint exists); mixing them with `customerId` is 400. The dry run is read-only and not audited.
+- P14-7 The seed rule is created only when a tenant is first created, so the existing dev tenants acme/globex do not have it until the dev DB is reset. triage.spec.ts uses the word "refund" in a customer message and expects Needs Triage; it needs different wording if the DB is ever reseeded (handled in the e2e task).
+
+### Phase 14 complete (US11 routing rules, T214-T220) 2026-10-01
+- Commits (story range 6bf3c20..HEAD):
+  - T214 88a2150
+  - T215 5852a3d
+  - T216 f667c4d; generated client d0374ad
+  - T219 b62d282
+  - T217 3794a2d; review additions 4e70ccf (routed `ticket.created` payload, staff-started / reopened / follow-up / deleted-tag cases)
+  - T218 1035498; component tests 9804071; e2e dacd32d; toast assertion 9f890b7
+  - T220 1e45ae0; review additions 74b1cdb
+  - ticks and run-log: tick commit follows this entry
+- Final checks:
+  - `turbo run lint typecheck test` 8/8 green (api 73 files / 929 tests at that point, plus 5 tests added after review; web 61 files / 460 tests in the coverage run).
+  - `scripts/check-coverage.sh` exit 0 (statement coverage api 92.3%, web 82.5%; line gates 80/70).
+  - docs build passes (18 pages).
+  - e2e 17/17 (incl. new `desktop-routing`), on the third full run. Runs 1 and 2 failed only in `sign-in.spec.ts` "invited agent accepts" (60 s timeout, sign-in form shown): run 1 right after `restart web` (cold Vite), run 2 a minute later with earlier runs eating the sign-in budget; both passed after a gap.
+  - The api container must be restarted after backend edits (the automator's first e2e run got 404 from a stale api).
+- Reviewer: PASS, no critical. Majors (missing tests for the routed `ticket.created` payload, and for staff-started / reopened / follow-up / deleted-tag behaviour) fixed in 4e70ccf; the weak toggle test tightened (9f890b7); guide gaps fixed (74b1cdb). No re-review round: the fixes are tests and docs only.
+- Not read by the reviewer: web test bodies after line ~200 of the view test, page / RuleBuilder / rule-model tests, test fixtures, generated client beyond a spot check, ConditionValueInput OptionPicker, design-system HTML mockups.
+- Decisions and follow-ups for the user:
+  - Migration is 0013 (tasks.md T214 still says 0011; the text is unchanged).
+  - P14-2/P14-5 semantics: AND across condition kinds, at least one condition per rule, exact email domains, whole-word case-insensitive phrases (letters/digits/underscore boundary, so CJK phrases only match when standing alone), enabled rule needs an active group, max 100 rules, 400 (not 422) for validation.
+  - Rule name is not stored in ticket history (no detail column), and the desk history panel prints tag ids, not names, for routing tag changes. Follow-up if wanted: a detail column plus tag names in the panel (FR-061 does not require it).
+  - `POST /routing-rules/test` with `customerId` lets a holder of `routing_rule.view` (without `customer.view`) learn that customer's email domain/tag matches. Low risk (Admin holds both); left as is. Follow-up: require `customer.view` for `customerId`.
+  - Dry-run request gained the additive `customerEmail` / `customerTagIds` fields (no customer search endpoint).
+  - The seeded "Refunds to Billing" rule exists only for newly created tenants; dev acme/globex do not have it until reset. triage.spec wording was changed so a reseed does not break it.
+  - `NoRoutingRouter` is now unused (kept as the documented default; can be deleted).
+  - Minor: concurrent optimistic reorders can have one rollback clobber the other (onSettled refetch heals it); a duplicate phrase typed in the chip input stays in the box.
+  - Phase 14 is not deployed to the VM (migration 0013 and the routing code are local only).
+  - Jira not updated (connector needs sign-in).
+
 ## Skills created
 - Catalog section added to CLAUDE.md (8 skills `planned`) — skill-writer — b773097
 

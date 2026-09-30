@@ -515,13 +515,13 @@ its members see the right tickets and never tickets outside their access (spec U
 **Independent test**: two overlapping rules; messages matching one, both and neither go to the
 right group or to Needs Triage (spec US11).
 
-- [ ] T214 [US11] Migration `apps/api/migrations/0011_routing_rules.ts`: `routing_rules` (`name`, `position`, `enabled`, `conditions jsonb` with `messageContainsAny`, `messageContainsAll`, `customerTagIds`, `emailDomains`; `actions jsonb` with required `groupId`, optional `priority`, `tagIds`); RLS
-- [ ] T215 [US11] Implement `apps/api/src/routing/rule-based-router.ts` (implements `TicketRouter`; evaluates enabled rules by `position`, case-insensitive whole-word phrase matching, skips rules whose group is inactive, first match wins; writes history with actor kind `routing`) and register it in place of `NoRoutingRouter`
-- [ ] T216 [US11] Implement `apps/api/src/routing/routing-rules.controller.ts`: `GET/POST /routing-rules`, `PUT /routing-rules/order`, `PUT/DELETE /routing-rules/{id}`, `POST /routing-rules/test` (dry run); `routing_rule.*` permissions; audited; merge into `apps/api/openapi.yaml`; add the "refund → Billing" rule to `apps/api/src/tenancy/dev-seed.ts`
-- [ ] T217 [P] [US11] Unit tests `apps/api/test/unit/routing/rule-based-router.test.ts` and integration tests `apps/api/test/integration/routing/routing-rules.test.ts` (ordering, inactive group skipped, no match → Needs Triage, endpoints success / 403 / 404, `routing_rule` fixture in `apps/api/test/cross-tenant/fixtures.ts`)
-- [ ] T218 [P] [US11] Create `apps/web/src/components/builders/RuleBuilder.tsx` and `apps/web/src/pages/admin/routing/RoutingRulesPage.tsx` (ordered list with move up/down, enable toggle, test panel)
-- [ ] T219 [US11] Create `apps/web/src/data/routing-rules.ts`
-- [ ] T220 [P] [US11] Admin guide `apps/docs/src/content/docs/admin/routing-rules.md`
+- [X] T214 [US11] Migration `apps/api/migrations/0011_routing_rules.ts`: `routing_rules` (`name`, `position`, `enabled`, `conditions jsonb` with `messageContainsAny`, `messageContainsAll`, `customerTagIds`, `emailDomains`; `actions jsonb` with required `groupId`, optional `priority`, `tagIds`); RLS
+- [X] T215 [US11] Implement `apps/api/src/routing/rule-based-router.ts` (implements `TicketRouter`; evaluates enabled rules by `position`, case-insensitive whole-word phrase matching, skips rules whose group is inactive, first match wins; writes history with actor kind `routing`) and register it in place of `NoRoutingRouter`
+- [X] T216 [US11] Implement `apps/api/src/routing/routing-rules.controller.ts`: `GET/POST /routing-rules`, `PUT /routing-rules/order`, `PUT/DELETE /routing-rules/{id}`, `POST /routing-rules/test` (dry run); `routing_rule.*` permissions; audited; merge into `apps/api/openapi.yaml`; add the "refund → Billing" rule to `apps/api/src/tenancy/dev-seed.ts`
+- [X] T217 [P] [US11] Unit tests `apps/api/test/unit/routing/rule-based-router.test.ts` and integration tests `apps/api/test/integration/routing/routing-rules.test.ts` (ordering, inactive group skipped, no match → Needs Triage, endpoints success / 403 / 404, `routing_rule` fixture in `apps/api/test/cross-tenant/fixtures.ts`)
+- [X] T218 [P] [US11] Create `apps/web/src/components/builders/RuleBuilder.tsx` and `apps/web/src/pages/admin/routing/RoutingRulesPage.tsx` (ordered list with move up/down, enable toggle, test panel)
+- [X] T219 [US11] Create `apps/web/src/data/routing-rules.ts`
+- [X] T220 [P] [US11] Admin guide `apps/docs/src/content/docs/admin/routing-rules.md`
 
 ---
 
