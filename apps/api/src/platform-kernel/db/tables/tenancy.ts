@@ -27,6 +27,8 @@ export interface TenantSettingsTable {
   retention_period: Generated<string>;
   audit_retention: Generated<string>;
   notification_defaults: Generated<JsonValue>;
+  /** Migration 0014_sla: the tenant's business-hours calendar (composite FK to business_hours). */
+  business_hours_id: string | null;
   created_at: GeneratedTimestamp;
   updated_at: GeneratedTimestamp;
 }

@@ -9,6 +9,7 @@ import type { IdentityTables } from './tables/identity.js';
 import type { NotificationTables } from './tables/notifications.js';
 import type { OutboxAuditTables } from './tables/outbox-audit.js';
 import type { RoutingTables } from './tables/routing.js';
+import type { SlaTables } from './tables/sla.js';
 import type { TagsViewsTables } from './tables/tags-views.js';
 import type { TenancyTables } from './tables/tenancy.js';
 import type { TicketTables } from './tables/tickets.js';
@@ -24,7 +25,8 @@ export type Database = TenancyTables &
   TicketTables &
   TagsViewsTables &
   NotificationTables &
-  RoutingTables;
+  RoutingTables &
+  SlaTables;
 
 export type DB = Database;
 
