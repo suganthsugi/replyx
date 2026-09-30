@@ -5,7 +5,7 @@ import { TenantRepository } from '../../../src/platform-kernel/db/tenant-reposit
 import { UnitOfWork, type TenantTransaction } from '../../../src/platform-kernel/db/unit-of-work.js';
 import { uuidv7 } from '../../../src/platform-kernel/ids.js';
 import { getTestApp, service } from '../../support/app.js';
-import { createGroup, createTenant, createUser, type TestTenant, type TestUser } from '../../support/factories.js';
+import { createGroup, createTenant, createTicket, createUser, type TestTenant, type TestUser } from '../../support/factories.js';
 import { asUser } from '../../support/http.js';
 
 import type { Test } from 'supertest';
@@ -74,6 +74,10 @@ class Inspect extends TenantRepository {
 
   ruleCount(tx: TenantTransaction) {
     return this.selectFrom(tx, 'routing_rules').select('id').execute();
+  }
+
+  outbox(tx: TenantTransaction, type: string) {
+    return this.selectFrom(tx, 'outbox_events').select(['payload', 'streams']).where('type', '=', type).orderBy('id').execute();
   }
 
   insertRules(tx: TenantTransaction, rows: { name: string; enabled: boolean; position: number; conditions: string; actions: string }[]) {
@@ -553,5 +557,115 @@ describe('routing a real customer message', () => {
 
     const [ticket] = await inspect(a, (tx, repo) => repo.ticketsOf(tx, customer.id));
     expect(ticket).toMatchObject({ group_id: null });
+  });
+});
+
+describe('routing applies only to new customer-started tickets', () => {
+  async function send(customer: TestUser, text: string): Promise<void> {
+    const response = await asUser(customer).post('/customer/messages', { body: text, clientMessageId: uuidv7() });
+    expect(response.status, JSON.stringify(response.body)).toBe(201);
+  }
+
+  async function ruleWithTag(groupId: string): Promise<string> {
+    const tagId = await createTag(admin, 'Routed');
+    await createRule(admin, groupId, { name: 'Refunds', actions: { groupId, priority: 'high', tagIds: [tagId] } });
+    return tagId;
+  }
+
+  const routingRows = async (ticketId: string) => (await inspect(a, (tx, repo) => repo.history(tx, ticketId))).filter((row) => row.actor_kind === 'routing');
+
+  it('puts the routing group and tags into the ticket.created outbox event', async () => {
+    await clearRules();
+    const group = await createGroup(a);
+    const tagId = await ruleWithTag(group.id);
+    const customer = await createUser(a, { roles: ['customer'] });
+
+    await send(customer, 'I want a refund');
+
+    const [ticket] = await inspect(a, (tx, repo) => repo.ticketsOf(tx, customer.id));
+    const ticketId = (ticket as { id: string }).id;
+    const events = (await inspect(a, (tx, repo) => repo.outbox(tx, 'ticket.created'))).filter(
+      (event) => (event.payload as { ticket: { id: string } }).ticket.id === ticketId,
+    );
+    expect(events).toHaveLength(1);
+    const event = events[0] as { payload: { ticket: { group: { id: string } | null; priority: string; tags: { id: string }[] } }; streams: string[] };
+    expect(event.payload.ticket.group?.id).toBe(group.id);
+    expect(event.payload.ticket.priority).toBe('high');
+    expect(event.payload.ticket.tags.map((tag) => tag.id)).toEqual([tagId]);
+    expect(event.streams).toEqual([`tickets:group:${group.id}`]);
+  });
+
+  it('skips routing for a staff-started ticket even when a rule would match', async () => {
+    await clearRules();
+    const ruleGroup = await createGroup(a);
+    const chosen = await createGroup(a);
+    await ruleWithTag(ruleGroup.id);
+    const customer = await createUser(a, { roles: ['customer'] });
+
+    const created = await asUser(admin).post('/tickets', {
+      customerId: customer.id,
+      groupId: chosen.id,
+      title: 'Refund follow-up',
+      message: { body: 'We will process your refund', attachmentIds: [] },
+    });
+    expect(created.status, JSON.stringify(created.body)).toBe(201);
+
+    const [ticket] = await inspect(a, (tx, repo) => repo.ticketsOf(tx, customer.id));
+    const ticketId = (ticket as { id: string }).id;
+    expect(ticket).toMatchObject({ group_id: chosen.id, priority: 'normal' });
+    expect(await routingRows(ticketId)).toEqual([]);
+    expect(await inspect(a, (tx, repo) => repo.ticketTags(tx, ticketId))).toEqual([]);
+  });
+
+  it('skips routing for a ticket reopened by a reply within the grace period', async () => {
+    await clearRules();
+    const ruleGroup = await createGroup(a);
+    await ruleWithTag(ruleGroup.id);
+    const customer = await createUser(a, { roles: ['customer'] });
+    const { clock } = await getTestApp();
+    const resolved = await createTicket(a, { customer, state: 'resolved', now: clock.now(), autoCloseAt: new Date(clock.nowMs() + 3_600_000) });
+
+    await send(customer, 'Actually I want a refund');
+
+    const rows = await inspect(a, (tx, repo) => repo.ticketsOf(tx, customer.id));
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: resolved.id, state: 'open', group_id: null, priority: 'normal' });
+    expect(await routingRows(resolved.id)).toEqual([]);
+    expect(await inspect(a, (tx, repo) => repo.ticketTags(tx, resolved.id))).toEqual([]);
+  });
+
+  it('routes a follow-up ticket created after the previous one closed', async () => {
+    await clearRules();
+    const group = await createGroup(a);
+    const tagId = await ruleWithTag(group.id);
+    const customer = await createUser(a, { roles: ['customer'] });
+    const { clock } = await getTestApp();
+    const closed = await createTicket(a, { customer, state: 'closed', now: clock.now() });
+
+    await send(customer, 'Another refund please');
+
+    const rows = await inspect(a, (tx, repo) => repo.ticketsOf(tx, customer.id));
+    const followUp = rows.find((row) => row.id !== closed.id);
+    expect(followUp).toMatchObject({ group_id: group.id, priority: 'high' });
+    const followUpId = (followUp as { id: string }).id;
+    expect((await inspect(a, (tx, repo) => repo.ticketTags(tx, followUpId))).map((row) => row.tag_id)).toEqual([tagId]);
+    expect((await routingRows(followUpId)).length).toBeGreaterThan(0);
+    expect(await routingRows(closed.id)).toEqual([]);
+  });
+
+  it('does not apply a tag deleted after the rule was saved, but still sets group and priority', async () => {
+    await clearRules();
+    const group = await createGroup(a);
+    const tagId = await ruleWithTag(group.id);
+    expect((await asUser(admin).delete(`/tags/${tagId}`)).status).toBe(204);
+    const customer = await createUser(a, { roles: ['customer'] });
+
+    await send(customer, 'I want a refund');
+
+    const [ticket] = await inspect(a, (tx, repo) => repo.ticketsOf(tx, customer.id));
+    const ticketId = (ticket as { id: string }).id;
+    expect(ticket).toMatchObject({ group_id: group.id, priority: 'high' });
+    expect(await inspect(a, (tx, repo) => repo.ticketTags(tx, ticketId))).toEqual([]);
+    expect((await routingRows(ticketId)).map((row) => row.field).sort()).toEqual(['group_id', 'priority']);
   });
 });
