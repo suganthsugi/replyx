@@ -246,6 +246,15 @@ export function useTicketListEvents(client: RealtimeClient | undefined): void {
         queryClient.setQueryData<Ticket>(ticketKeys.detail(ticket.id), (previous) => (previous === undefined ? previous : { ...previous, ...ticket }));
         void queryClient.invalidateQueries({ queryKey: ticketKeys.history(ticket.id) });
       }),
+      // The SLA payloads carry only `ticketId`; the summary (`sla`) is recomputed server-side, so
+      // refetch the open ticket and the lists that show its badge.
+      ...(['sla.updated', 'sla.warning', 'sla.breached'] as const).map((type) =>
+        client.onEvent(type, (envelope, queryClient) => {
+          const { ticketId } = envelope.data as { ticketId: string };
+          void queryClient.invalidateQueries({ queryKey: ticketKeys.detail(ticketId) });
+          void queryClient.invalidateQueries({ queryKey: [...ticketKeys.all, 'list'] });
+        }),
+      ),
       client.onEvent('ticket.removed_from_view', (envelope, queryClient) => {
         const { ticketId, reason } = envelope.data as { ticketId: string; reason: 'moved' | 'deleted' | 'merged' };
         // A move only leaves the *old* group's room. Someone who can see the new group too got the

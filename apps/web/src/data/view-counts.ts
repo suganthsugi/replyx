@@ -7,6 +7,7 @@ import {
   useReorderViews as useReorderViewsMutation,
 } from '../api/generated/tickets/tickets';
 
+import { dashboardKeys } from './dashboard';
 import { mapError } from './errors';
 import { viewKeys } from './views';
 
@@ -52,7 +53,7 @@ export function useViewCounts() {
 export function useViewCountEvents(client: RealtimeClient | undefined): void {
   useEffect(() => {
     if (!client) return undefined;
-    client.registerStreamKeys('views', () => [viewCountKeys.all, viewKeys.list()]);
+    client.registerStreamKeys('views', () => [viewCountKeys.all, viewKeys.list(), dashboardKeys.all]);
     let timer: ReturnType<typeof setTimeout> | undefined;
     const off = client.onEvent('views.counts_changed', (_envelope, queryClient) => {
       void queryClient.invalidateQueries({ queryKey: viewCountKeys.all });
