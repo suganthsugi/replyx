@@ -2,6 +2,7 @@ import Alert from '@mui/material/Alert';
 import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import Link from '@mui/material/Link';
 import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
@@ -14,6 +15,7 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react';
+import { Link as RouterLink } from 'react-router';
 
 import { EmptyState } from '../../../components/foundations/EmptyState';
 import { useAnnounce } from '../../../components/foundations/LiveRegion';
@@ -30,6 +32,8 @@ import {
   type TenantSettings,
   type TenantSettingsUpdate,
 } from '../../../data/settings';
+import { useBusinessHoursList } from '../../../data/sla';
+import { WORKSPACE_BASE } from '../../../routes/area';
 import {
   AA_NORMAL_TEXT_CONTRAST,
   CONTRAST_SAFETY_MARGIN,
@@ -236,6 +240,12 @@ function SettingsForm({ settings, canEdit }: { settings: TenantSettings; canEdit
   const [welcome, setWelcome] = useState(settings.welcomeMessage ?? '');
   const [outOfHours, setOutOfHours] = useState(settings.outOfHoursMessage ?? '');
   const [timezone, setTimezone] = useState(settings.timezone);
+  // '' = no calendar: the out-of-hours message is never shown.
+  const [businessHoursId, setBusinessHoursId] = useState(settings.businessHoursId ?? '');
+  // Needs sla_policy.view; without it the list fails and the select is disabled, not the page.
+  const calendarsQuery = useBusinessHoursList();
+  const calendars = calendarsQuery.data?.items ?? [];
+  const calendarsReady = calendarsQuery.data !== undefined;
   const [selfRegistration, setSelfRegistration] = useState(settings.selfRegistration);
   const [grace, setGrace] = useState(String(settings.gracePeriodHours));
   const [afterClose, setAfterClose] = useState(settings.afterCloseBehavior);
@@ -305,6 +315,8 @@ function SettingsForm({ settings, canEdit }: { settings: TenantSettings; canEdit
   if (outOfHours.trim() !== (settings.outOfHoursMessage ?? ''))
     patch.outOfHoursMessage = outOfHours.trim() === '' ? null : outOfHours.trim();
   if (timezone !== settings.timezone) patch.timezone = timezone;
+  if (businessHoursId !== (settings.businessHoursId ?? ''))
+    patch.businessHoursId = businessHoursId === '' ? null : businessHoursId;
   if (selfRegistration !== settings.selfRegistration) patch.selfRegistration = selfRegistration;
   if (graceValue !== undefined && graceValue !== settings.gracePeriodHours)
     patch.gracePeriodHours = graceValue;
@@ -555,6 +567,42 @@ function SettingsForm({ settings, canEdit }: { settings: TenantSettings; canEdit
               `Shown when nobody is available. ${outOfHours.length}/${MAX_MESSAGE}`
             }
           />
+          <FormField
+            name="businessHoursId"
+            label="Business hours"
+            select
+            value={businessHoursId}
+            onChange={(event) => setBusinessHoursId(event.target.value)}
+            disabled={readOnly || !calendarsReady}
+            helperText={
+              calendarsQuery.isPending
+                ? 'Loading business hours…'
+                : calendarsQuery.isError
+                  ? "Business hours can't be listed with your permissions, so this can't be changed here."
+                  : 'The out-of-hours message above shows outside these hours. Choose None to never show it.'
+            }
+            slotProps={{ select: { native: true } }}
+          >
+            <option value="">None</option>
+            {/* A calendar the list doesn't have (not loaded, or not visible to you) stays selected rather than vanishing. */}
+            {businessHoursId !== '' && !calendars.some((calendar) => calendar.id === businessHoursId) && (
+              <option value={businessHoursId}>Current calendar</option>
+            )}
+            {calendars.map((calendar) => (
+              <option key={calendar.id} value={calendar.id}>
+                {calendar.name}
+              </option>
+            ))}
+          </FormField>
+          {calendarsReady && calendars.length === 0 && (
+            <Typography variant="body2" color="text.secondary">
+              There are no business-hours calendars yet.{' '}
+              <Link component={RouterLink} to={`${WORKSPACE_BASE}/admin/business-hours`}>
+                Add one under Admin, Business hours
+              </Link>
+              .
+            </Typography>
+          )}
           <FormField
             name="offlineCustomerNotification"
             label="When a customer has left the chat"

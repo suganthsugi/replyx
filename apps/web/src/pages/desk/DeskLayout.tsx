@@ -7,7 +7,7 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import { useCallback, useMemo, useState } from 'react';
-import { Navigate, Outlet, useNavigate, useParams } from 'react-router';
+import { Navigate, NavLink, Outlet, useNavigate, useParams } from 'react-router';
 
 import { CommandBar } from '../../components/shell/CommandBar';
 import { ConnectionBanner } from '../../components/shell/ConnectionBanner';
@@ -35,6 +35,12 @@ import type { Availability } from '../../data/auth';
 
 const SKIP_LINK_TARGET = 'desk-main';
 
+/** Top-level workspace pages in the header; a link with a permission shows only to people who hold it. */
+const WORKSPACE_LINKS: readonly { path: string; label: string; permission?: string }[] = [
+  { path: 'inbox', label: 'Inbox' },
+  { path: 'dashboard', label: 'Dashboard', permission: 'dashboard.view' },
+];
+
 const AVAILABILITY_META: Record<Availability, { label: string; color: 'success' | 'warning' | 'default' }> = {
   online: { label: 'Online', color: 'success' },
   away: { label: 'Away', color: 'warning' },
@@ -45,6 +51,7 @@ export default function DeskLayout() {
   const meQuery = useMe();
   const client = useRealtime();
   const views = useViews();
+  const permissions = useMemo(() => new Set(meQuery.data?.permissions ?? []), [meQuery.data]);
 
   useTicketListEvents(client);
   useViewCountEvents(client);
@@ -130,6 +137,29 @@ export default function DeskLayout() {
           <Typography component="span" variant="h3" sx={{ fontWeight: 700 }}>
             ReplyX
           </Typography>
+          <Box component="nav" aria-label="Workspace" sx={{ display: 'flex', gap: 1 }}>
+            {WORKSPACE_LINKS.filter((link) => link.permission === undefined || permissions.has(link.permission)).map((link) => (
+              <Box
+                key={link.path}
+                component={NavLink}
+                to={`${WORKSPACE_BASE}/${link.path}`}
+                sx={{
+                  px: 3,
+                  py: 1.5,
+                  borderRadius: '9999px',
+                  color: 'text.primary',
+                  textDecoration: 'none',
+                  fontWeight: 600,
+                  '&:hover': { bgcolor: 'action.hover' },
+                  // The soft fill marks the current page; primary text on it would be under 4.5:1.
+                  '&.active': { bgcolor: 'action.selected' },
+                  '&:focus-visible': { outline: 2, outlineColor: 'primary.main', outlineOffset: 2 },
+                }}
+              >
+                {link.label}
+              </Box>
+            ))}
+          </Box>
           <Typography component="span" variant="caption" color="text.secondary" aria-hidden="true">
             Ctrl/⌘ K to jump to a view or ticket
           </Typography>

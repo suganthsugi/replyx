@@ -29,9 +29,12 @@ const SupportAccessPage = lazy(() => import('../pages/admin/support-access/Suppo
 const OrganizationSettingsPage = lazy(() => import('../pages/admin/settings/OrganizationSettingsPage'));
 const RoutingRulesPage = lazy(() => import('../pages/admin/routing/RoutingRulesPage'));
 const AuditLogPage = lazy(() => import('../pages/admin/audit/AuditLogPage'));
+const SlaPoliciesPage = lazy(() => import('../pages/admin/sla/SlaPoliciesPage'));
+const BusinessHoursPage = lazy(() => import('../pages/admin/sla/BusinessHoursPage'));
 // The inbox (US6) is most of the workspace's code; its own chunk keeps admin-only visits light.
 const InboxPage = lazy(() => import('../pages/desk/inbox/InboxPage'));
 const NotificationsPage = lazy(() => import('../pages/desk/notifications/NotificationsPage'));
+const DashboardPage = lazy(() => import('../pages/desk/dashboard/DashboardPage'));
 
 /**
  * The agent/admin workspace (`/desk/*` on a tenant host), loaded lazily. Paths here are relative
@@ -58,6 +61,14 @@ export default function WorkspaceArea() {
               }
             />
             <Route
+              path="dashboard"
+              element={
+                <Suspense fallback={<Skeleton variant="block" label="dashboard" />}>
+                  <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route
               path="inbox/:viewId?/:ticketId?"
               element={
                 <Suspense fallback={<Skeleton variant="block" label="inbox" />}>
@@ -78,6 +89,8 @@ export default function WorkspaceArea() {
               <Route path="roles/:id" element={<RoleEditorPage />} />
               <Route path="groups" element={<GroupsPage />} />
               <Route path="routing" element={<RoutingRulesPage />} />
+              <Route path="sla-policies" element={<SlaPoliciesPage />} />
+              <Route path="business-hours" element={<BusinessHoursPage />} />
               <Route path="support-access" element={<SupportAccessPage />} />
               <Route path="settings" element={<OrganizationSettingsPage />} />
               <Route path="audit" element={<AuditLogPage />} />
