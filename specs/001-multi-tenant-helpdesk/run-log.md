@@ -529,6 +529,20 @@ Start commit: b4afe6b
   - Phase 14 is not deployed to the VM (migration 0013 and the routing code are local only).
   - Jira not updated (connector needs sign-in).
 
+### Phase 15 progress (US12 SLA, business hours, dashboard, T221-T229) 2026-10-01
+- User scope: Phase 15 only, then stop. Docker stack was up (api/worker/web restarted 13 min before start). Jira skipped (connector needs sign-in). T202/T203/T206 untouched.
+- P15-1 The migration is `0014_sla.ts`, not `0012_sla.ts` as T221 says (0012 audit retention and 0013 routing exist). tasks.md text left as written.
+- P15-2 Dashboard satisfaction: null placeholder in the contract and UI until US16.
+- User's uncommitted edits (.claude/agents/*, ui-components SKILL.md, CLAUDE.md, .claude/agent-memory/, docs/design-system/, apps/web/test-results-run*/) are never staged.
+- Done so far: T221 2e2278b, T222 ddea783, T226 calendar unit tests 23a912c, T227 BusinessHoursEditor + model 0851b6f.
+
+### Phase 15 resumed 2026-10-06
+- Docker Desktop was stopped; started it and `docker compose up -d`. Jira connector now signed in: Story RX-1 (US12). RX is team-managed, so a Task can't have a Story parent; each task is a Task linked "Relates" to RX-1.
+- T223 72120c0 (RX-2 Done). test-affected: api 1022/1023 (known catch-up SC-002 "hints only viewers" flake, 3/3 on rerun), web 440/440. The tools container has no Playwright browsers, so test-affected's e2e step fails there; e2e runs through the `playwright` profile.
+- P15-3 72120c0 accidentally also carries the two `DashboardHttpModule` lines of app.module.ts (the committer staged the whole file), so 72120c0 alone does not build. The committer refused to amend without the user's approval; not amended. ebf821c (dashboard module, next commit) makes the tree build again. Squash only if the user approves.
+- T225 part 1 ebf821c: dashboard module + `dashboard` cross-tenant fixture (RX-3). openapi `/dashboard` merge still open, so T225 stays unticked.
+- T224 delegated to backend-agent.
+
 ## Skills created
 - Catalog section added to CLAUDE.md (8 skills `planned`) — skill-writer — b773097
 
