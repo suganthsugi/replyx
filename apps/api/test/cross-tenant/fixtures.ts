@@ -227,6 +227,16 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       return { params: {}, ids: [id] };
     },
   },
+  // `GET /dashboard` is a read with no path parameter: tenant B's 200 body must hold zero counts and
+  // none of tenant A's ids (T226). The fixture gives A a group and an open ticket to be counted.
+  dashboard: {
+    async create(tenant) {
+      const customer = await createUser(tenant, { roles: ['customer'] });
+      const group = await createGroup(tenant);
+      const ticket = await createTicket(tenant, { customer, group: group.id, state: 'open', messages: [{ body: 'Dashboard ticket from tenant A' }] });
+      return { params: {}, ids: [group.id, ticket.id, customer.id] };
+    },
+  },
 };
 
 /** A tenant's notification row, inserted directly (no event needed: event_id has no FK, T167). */
