@@ -13,7 +13,7 @@ import { ViewCompiler } from './view-compiler.js';
 import { ViewCountsService } from './view-counts.service.js';
 import { visibleViews } from './view-visibility.js';
 
-import type { DomainEventType } from '../platform-kernel/outbox/event-types.js';
+import type { DomainEventPayload, DomainEventType } from '../platform-kernel/outbox/event-types.js';
 
 /**
  * `views.counts_changed` hints (research D13, contracts/realtime-events.md, T159).
@@ -113,7 +113,10 @@ export class CountsNotifier implements OnApplicationShutdown {
   }
 }
 
-type Handled = Extract<DomainEventType, 'ticket.created' | 'ticket.updated' | 'ticket.removed_from_view' | 'access.changed'>;
+type Handled = Extract<
+  DomainEventType,
+  'ticket.created' | 'ticket.updated' | 'ticket.removed_from_view' | 'access.changed' | 'sla.warning' | 'sla.breached' | 'sla.updated'
+>;
 
 const GROUP_STREAM_PREFIX = 'tickets:group:';
 
@@ -132,7 +135,16 @@ export function groupsOfStreams(streams: readonly string[]): (string | null)[] {
 export class ViewCountsConsumer extends IdempotentHandler<Handled> {
   readonly consumer = 'view-counts';
   readonly queue = 'notifications' as const;
-  readonly eventTypes: readonly Handled[] = ['ticket.created', 'ticket.updated', 'ticket.removed_from_view', 'access.changed'];
+  readonly eventTypes: readonly Handled[] = [
+    'ticket.created',
+    'ticket.updated',
+    'ticket.removed_from_view',
+    'access.changed',
+    // The Escalated view filters on the SLA status (T223); `sla.updated` only matters when it moved.
+    'sla.warning',
+    'sla.breached',
+    'sla.updated',
+  ];
 
   constructor(
     unitOfWork: UnitOfWork,
@@ -144,6 +156,11 @@ export class ViewCountsConsumer extends IdempotentHandler<Handled> {
   protected async handle(tx: TenantTransaction, event: DomainEvent<Handled>): Promise<void> {
     const ctx = tenantScopeOf(tx);
     if (ctx === undefined) throw new Error('ViewCountsConsumer.handle must run inside withTenant');
+
+    if (event.type === 'sla.updated') {
+      const { status, previousStatus } = event.payload as DomainEventPayload<'sla.updated'>;
+      if (status === previousStatus) return;
+    }
 
     let viewers: string[];
     if (event.type === 'access.changed') {

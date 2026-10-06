@@ -19,6 +19,7 @@ import type { MessageDto } from '../../messaging/message-dto.js';
 import type { NotificationDto } from '../../notifications/notification-dto.js';
 import type { TicketSummaryDto } from '../../tickets/ticket-dto.js';
 import type { JsonValue } from '../db/tables/column-types.js';
+import type { SlaStatus, SlaTarget } from '../db/tables/sla.js';
 import type { TicketState } from '../db/tables/tickets.js';
 
 /** Who caused the event. Matches `TenantContext['actor']`; `name` is filled in for display. */
@@ -98,6 +99,19 @@ export interface DomainEventMap {
    * the counts notifier at most once per 500 ms per viewer, never carries counts itself.
    */
   'views.counts_changed': { viewIds: string[] };
+  /**
+   * A target's warning threshold passed (T223, research D15). Once per ticket and target
+   * (`sla_events` unique key); `dueAt` is the target's due time. Streams: `ticket:{id}` and the
+   * ticket's `tickets:group:*` room. Consumers: notifications, view counts.
+   */
+  'sla.warning': { ticketId: string; target: SlaTarget; dueAt: string };
+  /** A target's due time passed without the target being met; once per ticket and target. */
+  'sla.breached': { ticketId: string; target: SlaTarget; dueAt: string };
+  /**
+   * The SLA consumer changed a ticket's `ticket_sla` row (policy, due times or status), so the
+   * ticket screen and list rows refetch their time remaining. `none` = no policy applies.
+   */
+  'sla.updated': { ticketId: string; status: SlaStatus | 'none'; previousStatus: SlaStatus | 'none' };
   /** A new in-app notification on the recipient's `user` stream (research D20). */
   'notification.created': NotificationDto;
   /** A burst grew an unread entry instead of adding one (FR-082). */

@@ -12,6 +12,7 @@ import { RecipientResolver, type NotificationTarget } from './recipient-resolver
 
 import type { MessageDto } from '../messaging/message-dto.js';
 import type { NotificationEventType } from '../platform-kernel/db/tables/notifications.js';
+import type { SlaTarget } from '../platform-kernel/db/tables/sla.js';
 import type { TicketPriority, TicketState } from '../platform-kernel/db/tables/tickets.js';
 import type { DomainEventPayload, DomainEventType } from '../platform-kernel/outbox/event-types.js';
 
@@ -28,6 +29,7 @@ import type { DomainEventPayload, DomainEventType } from '../platform-kernel/out
  * | `message.created`, public, from the customer | `message.customer_on_my_ticket`, or `message.customer_on_unassigned` once support has replied |
  * | `message.created` from staff with mentions | `mention` (replies and internal notes) |
  * | `ticket.reminder_reached` | `ticket.reminder_reached` |
+ * | `sla.warning`, `sla.breached` | `sla.warning`, `sla.breached` (T223: the owner, else the group's viewers, see `RecipientResolver`) |
  *
  * Until support first replies, an unassigned ticket's customer messages add nothing: the "new
  * ticket" notification already stands for them. Customer messages on the same ticket share the
@@ -42,7 +44,7 @@ import type { DomainEventPayload, DomainEventType } from '../platform-kernel/out
 
 type Handled = Extract<
   DomainEventType,
-  'ticket.created' | 'ticket.updated' | 'ticket.state_changed' | 'ticket.reopened' | 'ticket.assigned' | 'message.created' | 'ticket.reminder_reached'
+  'ticket.created' | 'ticket.updated' | 'ticket.state_changed' | 'ticket.reopened' | 'ticket.assigned' | 'message.created' | 'ticket.reminder_reached' | 'sla.warning' | 'sla.breached'
 >;
 
 export const GROUPING_WINDOW_MS = 2 * 60_000;
@@ -77,6 +79,8 @@ const STATE_LABELS: Readonly<Record<TicketState, string>> = {
   resolved: 'Resolved',
   closed: 'Closed',
 };
+
+const SLA_TARGET_LABELS: Readonly<Record<SlaTarget, string>> = { first_response: 'first response', next_response: 'next response', resolution: 'resolution' };
 
 const PRIORITY_LABELS: Readonly<Record<TicketPriority, string>> = { low: 'Low', normal: 'Normal', high: 'High', urgent: 'Urgent' };
 
@@ -163,6 +167,16 @@ export function planNotifications(event: DomainEvent<Handled>, ticket: TicketFac
 
     case 'ticket.reminder_reached':
       return [on('ticket.reminder_reached', `Reminder reached on ${ref}`, ticket.title)];
+
+    case 'sla.warning': {
+      const { target } = event.payload as DomainEventPayload<'sla.warning'>;
+      return [on('sla.warning', `${ref} is close to breaching its ${SLA_TARGET_LABELS[target]} target`, ticket.title)];
+    }
+
+    case 'sla.breached': {
+      const { target } = event.payload as DomainEventPayload<'sla.breached'>;
+      return [on('sla.breached', `${ref} breached its ${SLA_TARGET_LABELS[target]} target`, ticket.title)];
+    }
   }
 }
 
@@ -177,6 +191,8 @@ function ticketIdOf(event: DomainEvent<Handled>): string {
     case 'ticket.reopened':
     case 'ticket.assigned':
     case 'ticket.reminder_reached':
+    case 'sla.warning':
+    case 'sla.breached':
       return (event.payload as { ticketId: string }).ticketId;
   }
 }
@@ -193,6 +209,8 @@ export class NotificationsConsumer extends IdempotentHandler<Handled> {
     'ticket.assigned',
     'message.created',
     'ticket.reminder_reached',
+    'sla.warning',
+    'sla.breached',
   ];
 
   constructor(

@@ -10,6 +10,7 @@ import { uuidv7 } from '../platform-kernel/ids.js';
 import { JobProcessor } from '../platform-kernel/jobs/job-processor.js';
 import { QueueRegistry } from '../platform-kernel/jobs/queues.js';
 import { OutboxService } from '../platform-kernel/outbox/outbox.service.js';
+import { emitSlaEvents, SlaSweepRepository } from '../sla/sla-sweep.js';
 import { TenantSettingsRepository } from '../tenancy/tenant-settings.js';
 
 import { transition } from './state-machine.js';
@@ -38,6 +39,10 @@ import type { ExpressionBuilder, Kysely } from 'kysely';
  *   ticket row, the same order `CustomerMessageRouter.accept` uses (advisory lock, then row
  *   locks) — reversing it would deadlock the two. The row is re-locked and its due-ness re-checked
  *   under the lock, so a customer message racing an auto-close lands on exactly one ticket.
+ *
+ * - SLA (T223, D15): after the ticket timers, each tenant's `ticket_sla` rows whose warn or due
+ *   time has passed emit `sla.warning` / `sla.breached` once per ticket and target, see
+ *   `sla/sla-sweep.ts`.
  *
  * Batches are discovered per tenant with a plain (lock-free) scan; each candidate id is then
  * re-locked (`FOR UPDATE SKIP LOCKED`) and re-checked in its own transaction, so a slow row or a
@@ -146,6 +151,29 @@ export class TicketSweeperJob extends JobProcessor implements OnApplicationBoots
         await this.sweepTicket(ctx, ticketId, now);
       } catch (error) {
         this.logger.error(`Sweeper failed for ticket ${ticketId}: ${error instanceof Error ? error.message : 'unknown'}`);
+      }
+    }
+    await this.sweepSla(ctx, now);
+  }
+
+  /**
+   * SLA warnings and breaches (research D11 step 5, D15; sla/sla-sweep.ts): candidates are scanned
+   * lock-free, then each ticket is re-locked and emitted in its own transaction, so `sla.warning`
+   * / `sla.breached` are appended once per target even with concurrent sweepers.
+   */
+  private async sweepSla(ctx: TenantContext, now: Date): Promise<void> {
+    let ids: string[];
+    try {
+      ids = await this.unitOfWork.withTenant(ctx, (tx) => new SlaSweepRepository(ctx).candidates(tx, now, BATCH_SIZE));
+    } catch (error) {
+      this.logger.error(`SLA scan failed for tenant ${ctx.tenantId}: ${error instanceof Error ? error.message : 'unknown'}`);
+      return;
+    }
+    for (const ticketId of ids) {
+      try {
+        await this.unitOfWork.withTenant(ctx, (tx) => emitSlaEvents(new SlaSweepRepository(ctx), this.outbox, tx, ticketId, now));
+      } catch (error) {
+        this.logger.error(`SLA sweep failed for ticket ${ticketId}: ${error instanceof Error ? error.message : 'unknown'}`);
       }
     }
   }

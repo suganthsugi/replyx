@@ -7,6 +7,7 @@ import { AuditModule } from './audit/audit.module.js';
 import { AuthorizationModule } from './authorization/authorization.module.js';
 import { RolesHttpModule } from './authorization/roles.controller.js';
 import { CustomersHttpModule } from './customers/customers.module.js';
+import { DashboardHttpModule } from './dashboard/dashboard.module.js';
 import { GroupsHttpModule } from './groups/groups.controller.js';
 import { IdentityJobsModule } from './identity/erasure.job.js';
 import { MessagingHttpModule, MessagingModule } from './messaging/messaging.module.js';
@@ -25,6 +26,7 @@ import { OutboxRelayModule } from './platform-kernel/outbox/relay.js';
 import { RealtimeModule } from './platform-kernel/realtime/gateway.js';
 import { RedisModule } from './platform-kernel/redis/redis.module.js';
 import { RoutingHttpModule } from './routing/routing.module.js';
+import { SlaJobsModule } from './sla/sla.module.js';
 import { TagsHttpModule, TagsModule } from './tags/tags.module.js';
 import { RetentionJobsModule } from './tenancy/retention/retention.module.js';
 import { TenancyHttpModule } from './tenancy/tenancy-http.module.js';
@@ -81,6 +83,7 @@ export class AppModule {
       TagsHttpModule,
       CustomersHttpModule,
       ViewsModule,
+      DashboardHttpModule,
       RoutingHttpModule,
       NotificationsHttpModule,
     ];
@@ -96,6 +99,7 @@ export class AppModule {
       RetentionJobsModule,
       ViewsJobsModule,
       NotificationsJobsModule,
+      SlaJobsModule,
     ];
 
     return {
