@@ -17,6 +17,9 @@ saved, and the button stays disabled until something valid has changed.
 - **Organization name** — required, up to **120 characters**. Customers see it
   in the chat header and in emails.
 - **Time zone** — used for business hours and the times shown in emails.
+- **Business hours** — the calendar that decides when you are open. Create
+  calendars in **Desk → Admin → Business hours** (see
+  [SLA and business hours](/admin/sla-and-business-hours/)).
 
 ## Branding
 
