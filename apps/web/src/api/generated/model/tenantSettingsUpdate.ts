@@ -12,11 +12,12 @@ import type { TenantSettingsUpdateWelcomeMessage } from './tenantSettingsUpdateW
 import type { AfterCloseBehavior } from './afterCloseBehavior';
 import type { OfflineCustomerNotification } from './offlineCustomerNotification';
 import type { TenantSettingsUpdateOutOfHoursMessage } from './tenantSettingsUpdateOutOfHoursMessage';
+import type { TenantSettingsUpdateBusinessHoursId } from './tenantSettingsUpdateBusinessHoursId';
 import type { RetentionPeriod } from './retentionPeriod';
 import type { AuditRetention } from './auditRetention';
 
 /**
- * Only the fields sent are changed; businessHoursId and notificationDefaults are not accepted here yet. Shortening retentionPeriod (from forever, or to fewer years) that would purge closed tickets needs confirmPurgeCount. Shortening auditRetention that would delete audit entries needs confirmAuditPurgeCount.
+ * Only the fields sent are changed; notificationDefaults is not accepted here (it has its own route). Shortening retentionPeriod (from forever, or to fewer years) that would purge closed tickets needs confirmPurgeCount. Shortening auditRetention that would delete audit entries needs confirmAuditPurgeCount.
  */
 export interface TenantSettingsUpdate {
   /**
@@ -41,6 +42,8 @@ export interface TenantSettingsUpdate {
   offlineCustomerNotification?: OfflineCustomerNotification;
   /** @maxLength 500 */
   outOfHoursMessage?: TenantSettingsUpdateOutOfHoursMessage;
+  /** The calendar that decides when it is out of hours (outOfHoursMessage); it must be one of the workspace's business-hours calendars (400 invalid_value otherwise) */
+  businessHoursId?: TenantSettingsUpdateBusinessHoursId;
   retentionPeriod?: RetentionPeriod;
   auditRetention?: AuditRetention;
   /**

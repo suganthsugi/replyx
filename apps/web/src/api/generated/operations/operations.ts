@@ -23,14 +23,19 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  BusinessHours,
+  BusinessHoursInput,
   ConflictResponse,
   CreateSupportAccessGrantBody,
+  Dashboard,
   ErrorResponse,
   ListAuditLogs200,
   ListAuditLogsParams,
+  ListBusinessHours200,
   ListNotifications200,
   ListNotificationsParams,
   ListRoutingRules200,
+  ListSlaPolicies200,
   MarkNotificationsRead200,
   MarkNotificationsReadBody,
   NotFoundResponse,
@@ -41,6 +46,8 @@ import type {
   RoutingDryRun,
   RoutingRule,
   RoutingRuleInput,
+  SlaPolicy,
+  SlaPolicyInput,
   SupportAccessGrant,
   TenantSettings,
   TenantSettingsUpdate,
@@ -169,7 +176,7 @@ export function useGetTenantSettings<
 }
 
 /**
- * Only the fields sent are changed. brandColors.primary must contrast at least 4.5:1 against white (it fills the customer chat bubble/button); a failing value returns 400 VALIDATION_FAILED with details[].path "brandColors.primary", details[].issue "insufficient_contrast" and details[].suggestion set to an AA-compliant shade of the same color (aimed at 4.6:1, slightly above the 4.5:1 threshold). brandColors.accent is not checked; the web theme derives a compliant shade from it. businessHoursId and notificationDefaults are not accepted here yet. Shortening retentionPeriod (from forever, or to fewer years) deletes closed tickets past the new cutoff; when that would purge any, the request needs confirmPurgeCount equal to the current count, otherwise it returns 409 RETENTION_CONFIRMATION_REQUIRED carrying that count and nothing is changed. The same applies to auditRetention (when the new value is shorter and audit entries older than its cutoff exist, confirmAuditPurgeCount must equal their count), otherwise 409 AUDIT_RETENTION_CONFIRMATION_REQUIRED. If both periods shorten in one request, the ticket confirmation is checked first (409 RETENTION_CONFIRMATION_REQUIRED); once confirmed, the audit one follows. Only one 409 is returned per request.
+ * Only the fields sent are changed. brandColors.primary must contrast at least 4.5:1 against white (it fills the customer chat bubble/button); a failing value returns 400 VALIDATION_FAILED with details[].path "brandColors.primary", details[].issue "insufficient_contrast" and details[].suggestion set to an AA-compliant shade of the same color (aimed at 4.6:1, slightly above the 4.5:1 threshold). brandColors.accent is not checked; the web theme derives a compliant shade from it. notificationDefaults is not accepted here (it has its own route). Shortening retentionPeriod (from forever, or to fewer years) deletes closed tickets past the new cutoff; when that would purge any, the request needs confirmPurgeCount equal to the current count, otherwise it returns 409 RETENTION_CONFIRMATION_REQUIRED carrying that count and nothing is changed. The same applies to auditRetention (when the new value is shorter and audit entries older than its cutoff exist, confirmAuditPurgeCount must equal their count), otherwise 409 AUDIT_RETENTION_CONFIRMATION_REQUIRED. If both periods shorten in one request, the ticket confirmation is checked first (409 RETENTION_CONFIRMATION_REQUIRED); once confirmed, the audit one follows. Only one 409 is returned per request.
  * @summary Update tenant settings (tenant_settings.edit, FR-005)
  */
 export const getUpdateTenantSettingsUrl = () => {
@@ -557,6 +564,120 @@ export const useRevokeSupportAccessGrant = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * Computed per request over the tickets the caller may view (the same access filter as ticket lists), so a group the caller cannot see adds nothing to any number. open is new, open, pending_reminder and pending_close; waitingOnSupport is new or open tickets waiting on support; slaBreached is tickets not closed whose SLA status is breached. today counts from local midnight in the workspace timezone. Averages cover the last 7 days, in minutes, and are null when no ticket qualifies. satisfaction stays at a null average and 0 responses until ratings exist.
+ * @summary Live operational numbers over the caller's accessible tickets (dashboard.view, FR-086)
+ */
+export const getGetDashboardUrl = () => {
+  return `/dashboard`;
+};
+
+export const getDashboard = async (options?: RequestInit): Promise<Dashboard> => {
+  return http<Dashboard>(getGetDashboardUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetDashboardQueryKey = () => {
+  return [`/dashboard`] as const;
+};
+
+export const getGetDashboardQueryOptions = <
+  TData = Awaited<ReturnType<typeof getDashboard>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDashboard>>, TError, TData>>;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetDashboardQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getDashboard>>> = ({ signal }) =>
+    getDashboard({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getDashboard>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetDashboardQueryResult = NonNullable<Awaited<ReturnType<typeof getDashboard>>>;
+export type GetDashboardQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useGetDashboard<
+  TData = Awaited<ReturnType<typeof getDashboard>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDashboard>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getDashboard>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetDashboard<
+  TData = Awaited<ReturnType<typeof getDashboard>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDashboard>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getDashboard>>,
+          TError,
+          Awaited<ReturnType<typeof getDashboard>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetDashboard<
+  TData = Awaited<ReturnType<typeof getDashboard>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDashboard>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Live operational numbers over the caller's accessible tickets (dashboard.view, FR-086)
+ */
+
+export function useGetDashboard<
+  TData = Awaited<ReturnType<typeof getDashboard>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDashboard>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetDashboardQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
 /**
  * Unknown query parameters return 400. from and to are inclusive.
  * @summary Append-only audit log, newest first (audit_log.view, FR-092)
@@ -1715,6 +1836,797 @@ export const useDeleteRoutingRule = <
   TContext
 > => {
   const mutationOptions = getDeleteRoutingRuleMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Business-hours calendars (sla_policy.view)
+ */
+export const getListBusinessHoursUrl = () => {
+  return `/business-hours`;
+};
+
+export const listBusinessHours = async (options?: RequestInit): Promise<ListBusinessHours200> => {
+  return http<ListBusinessHours200>(getListBusinessHoursUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListBusinessHoursQueryKey = () => {
+  return [`/business-hours`] as const;
+};
+
+export const getListBusinessHoursQueryOptions = <
+  TData = Awaited<ReturnType<typeof listBusinessHours>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listBusinessHours>>, TError, TData>>;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListBusinessHoursQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listBusinessHours>>> = ({ signal }) =>
+    listBusinessHours({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listBusinessHours>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListBusinessHoursQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listBusinessHours>>
+>;
+export type ListBusinessHoursQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useListBusinessHours<
+  TData = Awaited<ReturnType<typeof listBusinessHours>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listBusinessHours>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBusinessHours>>,
+          TError,
+          Awaited<ReturnType<typeof listBusinessHours>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListBusinessHours<
+  TData = Awaited<ReturnType<typeof listBusinessHours>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listBusinessHours>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listBusinessHours>>,
+          TError,
+          Awaited<ReturnType<typeof listBusinessHours>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListBusinessHours<
+  TData = Awaited<ReturnType<typeof listBusinessHours>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listBusinessHours>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Business-hours calendars (sla_policy.view)
+ */
+
+export function useListBusinessHours<
+  TData = Awaited<ReturnType<typeof listBusinessHours>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listBusinessHours>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListBusinessHoursQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * The timezone must be an IANA zone and at least one weekday needs a range, else 400 invalid_value on timezone or invalid on intervals; a range with the same start and end is invalid on intervals.DAY.N (00:00 to 00:00 means the whole day). A name already used by another calendar (case-insensitive) is 409 BUSINESS_HOURS_NAME_TAKEN.
+ * @summary Create a calendar (sla_policy.create)
+ */
+export const getCreateBusinessHoursUrl = () => {
+  return `/business-hours`;
+};
+
+export const createBusinessHours = async (
+  businessHoursInput: BusinessHoursInput,
+  options?: RequestInit,
+): Promise<BusinessHours> => {
+  return http<BusinessHours>(getCreateBusinessHoursUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(businessHoursInput),
+  });
+};
+
+export const getCreateBusinessHoursMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | ConflictResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createBusinessHours>>,
+    TError,
+    { data: BusinessHoursInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createBusinessHours>>,
+  TError,
+  { data: BusinessHoursInput },
+  TContext
+> => {
+  const mutationKey = ['createBusinessHours'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createBusinessHours>>,
+    { data: BusinessHoursInput }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createBusinessHours(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateBusinessHoursMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createBusinessHours>>
+>;
+export type CreateBusinessHoursMutationBody = BusinessHoursInput;
+export type CreateBusinessHoursMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse;
+
+/**
+ * @summary Create a calendar (sla_policy.create)
+ */
+export const useCreateBusinessHours = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | ConflictResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createBusinessHours>>,
+      TError,
+      { data: BusinessHoursInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createBusinessHours>>,
+  TError,
+  { data: BusinessHoursInput },
+  TContext
+> => {
+  const mutationOptions = getCreateBusinessHoursMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Full replace; same checks as create. SLA due times of open tickets are recomputed.
+ * @summary Replace a calendar (sla_policy.edit)
+ */
+export const getUpdateBusinessHoursUrl = (id: string) => {
+  return `/business-hours/${id}`;
+};
+
+export const updateBusinessHours = async (
+  id: string,
+  businessHoursInput: BusinessHoursInput,
+  options?: RequestInit,
+): Promise<BusinessHours> => {
+  return http<BusinessHours>(getUpdateBusinessHoursUrl(id), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(businessHoursInput),
+  });
+};
+
+export const getUpdateBusinessHoursMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ConflictResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateBusinessHours>>,
+    TError,
+    { id: string; data: BusinessHoursInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateBusinessHours>>,
+  TError,
+  { id: string; data: BusinessHoursInput },
+  TContext
+> => {
+  const mutationKey = ['updateBusinessHours'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateBusinessHours>>,
+    { id: string; data: BusinessHoursInput }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateBusinessHours(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateBusinessHoursMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateBusinessHours>>
+>;
+export type UpdateBusinessHoursMutationBody = BusinessHoursInput;
+export type UpdateBusinessHoursMutationError =
+  | ValidationFailedResponse
+  | UnauthenticatedResponse
+  | PermissionDeniedResponse
+  | NotFoundResponse
+  | ConflictResponse;
+
+/**
+ * @summary Replace a calendar (sla_policy.edit)
+ */
+export const useUpdateBusinessHours = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ConflictResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateBusinessHours>>,
+      TError,
+      { id: string; data: BusinessHoursInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateBusinessHours>>,
+  TError,
+  { id: string; data: BusinessHoursInput },
+  TContext
+> => {
+  const mutationOptions = getUpdateBusinessHoursMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Refused with 409 IN_USE while an SLA policy or the workspace settings (businessHoursId) use it.
+ * @summary Delete a calendar (sla_policy.delete)
+ */
+export const getDeleteBusinessHoursUrl = (id: string) => {
+  return `/business-hours/${id}`;
+};
+
+export const deleteBusinessHours = async (id: string, options?: RequestInit): Promise<void> => {
+  return http<void>(getDeleteBusinessHoursUrl(id), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteBusinessHoursMutationOptions = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteBusinessHours>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteBusinessHours>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ['deleteBusinessHours'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteBusinessHours>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteBusinessHours(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteBusinessHoursMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteBusinessHours>>
+>;
+
+export type DeleteBusinessHoursMutationError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse;
+
+/**
+ * @summary Delete a calendar (sla_policy.delete)
+ */
+export const useDeleteBusinessHours = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteBusinessHours>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteBusinessHours>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationOptions = getDeleteBusinessHoursMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * A ticket gets the first policy, by position then id, whose conditions match its priority and group.
+ * @summary SLA policies in evaluation order (sla_policy.view)
+ */
+export const getListSlaPoliciesUrl = () => {
+  return `/sla-policies`;
+};
+
+export const listSlaPolicies = async (options?: RequestInit): Promise<ListSlaPolicies200> => {
+  return http<ListSlaPolicies200>(getListSlaPoliciesUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListSlaPoliciesQueryKey = () => {
+  return [`/sla-policies`] as const;
+};
+
+export const getListSlaPoliciesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listSlaPolicies>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listSlaPolicies>>, TError, TData>>;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListSlaPoliciesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listSlaPolicies>>> = ({ signal }) =>
+    listSlaPolicies({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listSlaPolicies>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListSlaPoliciesQueryResult = NonNullable<Awaited<ReturnType<typeof listSlaPolicies>>>;
+export type ListSlaPoliciesQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useListSlaPolicies<
+  TData = Awaited<ReturnType<typeof listSlaPolicies>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listSlaPolicies>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSlaPolicies>>,
+          TError,
+          Awaited<ReturnType<typeof listSlaPolicies>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListSlaPolicies<
+  TData = Awaited<ReturnType<typeof listSlaPolicies>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listSlaPolicies>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listSlaPolicies>>,
+          TError,
+          Awaited<ReturnType<typeof listSlaPolicies>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListSlaPolicies<
+  TData = Awaited<ReturnType<typeof listSlaPolicies>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listSlaPolicies>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary SLA policies in evaluation order (sla_policy.view)
+ */
+
+export function useListSlaPolicies<
+  TData = Awaited<ReturnType<typeof listSlaPolicies>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listSlaPolicies>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListSlaPoliciesQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Conditions may use only the priority and group fields with is and is_not (400 invalid_value on conditions.items.N.field or .operator otherwise). Group ids and businessHoursId must belong to the workspace, else 400 invalid_value on conditions.items.N.value or businessHoursId. Without a position the policy goes last. Open tickets' SLA times are recomputed.
+ * @summary Create an SLA policy (sla_policy.create)
+ */
+export const getCreateSlaPolicyUrl = () => {
+  return `/sla-policies`;
+};
+
+export const createSlaPolicy = async (
+  slaPolicyInput: SlaPolicyInput,
+  options?: RequestInit,
+): Promise<SlaPolicy> => {
+  return http<SlaPolicy>(getCreateSlaPolicyUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(slaPolicyInput),
+  });
+};
+
+export const getCreateSlaPolicyMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSlaPolicy>>,
+    TError,
+    { data: SlaPolicyInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSlaPolicy>>,
+  TError,
+  { data: SlaPolicyInput },
+  TContext
+> => {
+  const mutationKey = ['createSlaPolicy'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSlaPolicy>>,
+    { data: SlaPolicyInput }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createSlaPolicy(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSlaPolicyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSlaPolicy>>
+>;
+export type CreateSlaPolicyMutationBody = SlaPolicyInput;
+export type CreateSlaPolicyMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+
+/**
+ * @summary Create an SLA policy (sla_policy.create)
+ */
+export const useCreateSlaPolicy = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createSlaPolicy>>,
+      TError,
+      { data: SlaPolicyInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createSlaPolicy>>,
+  TError,
+  { data: SlaPolicyInput },
+  TContext
+> => {
+  const mutationOptions = getCreateSlaPolicyMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Full replace; same checks as create. The position changes only when sent. Open tickets' SLA times are recomputed.
+ * @summary Replace an SLA policy (sla_policy.edit)
+ */
+export const getUpdateSlaPolicyUrl = (id: string) => {
+  return `/sla-policies/${id}`;
+};
+
+export const updateSlaPolicy = async (
+  id: string,
+  slaPolicyInput: SlaPolicyInput,
+  options?: RequestInit,
+): Promise<SlaPolicy> => {
+  return http<SlaPolicy>(getUpdateSlaPolicyUrl(id), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(slaPolicyInput),
+  });
+};
+
+export const getUpdateSlaPolicyMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSlaPolicy>>,
+    TError,
+    { id: string; data: SlaPolicyInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateSlaPolicy>>,
+  TError,
+  { id: string; data: SlaPolicyInput },
+  TContext
+> => {
+  const mutationKey = ['updateSlaPolicy'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateSlaPolicy>>,
+    { id: string; data: SlaPolicyInput }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateSlaPolicy(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateSlaPolicyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateSlaPolicy>>
+>;
+export type UpdateSlaPolicyMutationBody = SlaPolicyInput;
+export type UpdateSlaPolicyMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Replace an SLA policy (sla_policy.edit)
+ */
+export const useUpdateSlaPolicy = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateSlaPolicy>>,
+      TError,
+      { id: string; data: SlaPolicyInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateSlaPolicy>>,
+  TError,
+  { id: string; data: SlaPolicyInput },
+  TContext
+> => {
+  const mutationOptions = getUpdateSlaPolicyMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Its tickets' SLA rows are removed, then open tickets are recomputed against the remaining policies.
+ * @summary Delete an SLA policy (sla_policy.delete)
+ */
+export const getDeleteSlaPolicyUrl = (id: string) => {
+  return `/sla-policies/${id}`;
+};
+
+export const deleteSlaPolicy = async (id: string, options?: RequestInit): Promise<void> => {
+  return http<void>(getDeleteSlaPolicyUrl(id), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteSlaPolicyMutationOptions = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteSlaPolicy>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteSlaPolicy>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ['deleteSlaPolicy'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteSlaPolicy>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteSlaPolicy(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteSlaPolicyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteSlaPolicy>>
+>;
+
+export type DeleteSlaPolicyMutationError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Delete an SLA policy (sla_policy.delete)
+ */
+export const useDeleteSlaPolicy = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteSlaPolicy>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteSlaPolicy>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationOptions = getDeleteSlaPolicyMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };

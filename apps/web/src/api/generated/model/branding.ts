@@ -9,6 +9,7 @@
 import type { BrandingLogoUrl } from './brandingLogoUrl';
 import type { BrandingColors } from './brandingColors';
 import type { BrandingWelcomeMessage } from './brandingWelcomeMessage';
+import type { BrandingOutOfHoursMessage } from './brandingOutOfHoursMessage';
 
 export interface Branding {
   tenantName: string;
@@ -18,4 +19,6 @@ export interface Branding {
   selfRegistration: boolean;
   /** False when the tenant is suspended */
   available: boolean;
+  /** The workspace's out-of-hours message while now is outside its business hours (settings.businessHoursId); null otherwise, or when none is configured. Chat still accepts messages (FR-054). */
+  outOfHoursMessage?: BrandingOutOfHoursMessage;
 }

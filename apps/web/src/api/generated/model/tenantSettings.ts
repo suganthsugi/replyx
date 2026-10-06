@@ -12,6 +12,7 @@ import type { TenantSettingsWelcomeMessage } from './tenantSettingsWelcomeMessag
 import type { AfterCloseBehavior } from './afterCloseBehavior';
 import type { OfflineCustomerNotification } from './offlineCustomerNotification';
 import type { TenantSettingsOutOfHoursMessage } from './tenantSettingsOutOfHoursMessage';
+import type { TenantSettingsBusinessHoursId } from './tenantSettingsBusinessHoursId';
 import type { RetentionPeriod } from './retentionPeriod';
 import type { AuditRetention } from './auditRetention';
 
@@ -34,6 +35,8 @@ export interface TenantSettings {
   offlineCustomerNotification: OfflineCustomerNotification;
   /** @maxLength 500 */
   outOfHoursMessage: TenantSettingsOutOfHoursMessage;
+  /** The calendar that decides when it is out of hours (outOfHoursMessage); it must be one of the workspace's business-hours calendars (400 invalid_value otherwise) */
+  businessHoursId: TenantSettingsBusinessHoursId;
   retentionPeriod: RetentionPeriod;
   auditRetention: AuditRetention;
 }
