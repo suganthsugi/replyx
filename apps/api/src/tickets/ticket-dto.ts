@@ -1,5 +1,6 @@
 import { decide, type EffectiveAccess } from '../authorization/policy.service.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
+import { NO_SLA, SlaSummaryRepository, type SlaSummaryDto } from '../sla/sla-summary.js';
 
 import type { TicketRow } from './tickets.repository.js';
 import type { PermissionKey } from '../authorization/registry/module-permissions.js';
@@ -28,7 +29,8 @@ export interface TicketSummaryDto {
   owner: PersonRefDto | null;
   customer: PersonRefDto;
   tags: RefDto[];
-  sla: { status: 'none' };
+  /** Staff only: customer responses never carry SLA data. */
+  sla: SlaSummaryDto;
   lastCustomerMessageAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -60,6 +62,8 @@ export interface TicketDto extends TicketSummaryDto {
 export interface TicketRefs {
   groups: ReadonlyMap<string, RefDto>;
   people: ReadonlyMap<string, RefDto>;
+  /** Tickets without a `ticket_sla` row are absent (read as `none`). */
+  sla: ReadonlyMap<string, SlaSummaryDto>;
 }
 
 const iso = (value: Date | null) => value?.toISOString() ?? null;
@@ -81,8 +85,7 @@ export function toTicketSummary(row: TicketRow, refs: TicketRefs, tags: readonly
     owner: row.owner_id === null ? null : person(refs, row.owner_id),
     customer: person(refs, row.customer_id),
     tags: [...tags],
-    // SLA (US12) joins the summary with its module.
-    sla: { status: 'none' },
+    sla: refs.sla.get(row.id) ?? NO_SLA,
     lastCustomerMessageAt: iso(row.last_customer_message_at),
     createdAt: row.created_at.toISOString(),
     updatedAt: row.updated_at.toISOString(),
@@ -133,15 +136,19 @@ export class TicketRefsRepository extends TenantRepository {
   async load(tx: TenantTransaction, rows: readonly TicketRow[]): Promise<TicketRefs> {
     const groupIds = [...new Set(rows.flatMap((row) => (row.group_id === null ? [] : [row.group_id])))];
     const personIds = [...new Set(rows.flatMap((row) => [row.customer_id, ...(row.owner_id === null ? [] : [row.owner_id])]))];
-    const [groups, people] = await Promise.all([
+    const [groups, people, sla] = await Promise.all([
       groupIds.length === 0
         ? Promise.resolve([])
         : this.selectFrom(tx, 'groups').select(['groups.id', 'groups.name']).where('groups.id', 'in', groupIds).execute(),
       personIds.length === 0
         ? Promise.resolve([])
         : this.selectFrom(tx, 'users').select(['users.id', 'users.name']).where('users.id', 'in', personIds).execute(),
+      new SlaSummaryRepository(this.ctx).byTicketIds(
+        tx,
+        rows.map((row) => row.id),
+      ),
     ]);
-    return { groups: new Map(groups.map((row) => [row.id, row])), people: new Map(people.map((row) => [row.id, row])) };
+    return { groups: new Map(groups.map((row) => [row.id, row])), people: new Map(people.map((row) => [row.id, row])), sla };
   }
 
   /**

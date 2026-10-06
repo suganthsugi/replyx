@@ -4,6 +4,7 @@ import { AuditService } from '../audit/audit.service.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
 import { validationFailed } from '../platform-kernel/http/app-error.js';
+import { SlaRepository } from '../sla/sla.repository.js';
 
 import { meetsAAContrast, nearestAACompliantShade, SUGGESTED_TEXT_CONTRAST } from './contrast.js';
 import { isShortening, type AuditRetention, type RetentionPeriod } from './retention/retention-period.js';
@@ -15,8 +16,9 @@ import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
 /**
  * Tenant settings (T183, contracts/operations.yaml `/settings`, FR-005, `tenant_settings.view` /
  * `tenant_settings.edit`). Retention (`retentionPeriod`, `auditRetention`, T193, FR-005a) is part of
- * the DTO; `businessHoursId` and `notificationDefaults` (its own route,
- * `/notification-preferences`) are not yet — they arrive with US12.
+ * the DTO, and so is `businessHoursId` (T224: the calendar behind the customer chat's
+ * out-of-hours message, FR-054; it must be one of this tenant's calendars, else 400 on
+ * `businessHoursId`). `notificationDefaults` has its own route, `/notification-preferences`.
  *
  * Shortening `retentionPeriod` deletes closed tickets on the next daily purge, so it needs
  * `confirmPurgeCount` (a request-only field) equal to the number of tickets that would go; a
@@ -41,6 +43,7 @@ export interface TenantSettingsDto {
   afterCloseBehavior: 'new_follow_up' | 'reopen_previous';
   offlineCustomerNotification: 'email' | 'off';
   outOfHoursMessage: string | null;
+  businessHoursId: string | null;
   retentionPeriod: RetentionPeriod;
   auditRetention: AuditRetention;
 }
@@ -56,6 +59,7 @@ export interface TenantSettingsUpdate {
   afterCloseBehavior?: 'new_follow_up' | 'reopen_previous';
   offlineCustomerNotification?: 'email' | 'off';
   outOfHoursMessage?: string | null;
+  businessHoursId?: string | null;
   retentionPeriod?: RetentionPeriod;
   auditRetention?: AuditRetention;
   /** Not stored: the confirmation for a shortened `retentionPeriod`. */
@@ -74,6 +78,7 @@ interface SettingsRow {
   after_close_behavior: 'new_follow_up' | 'reopen_previous';
   offline_customer_notification: 'email' | 'off';
   out_of_hours_message: string | null;
+  business_hours_id: string | null;
   retention_period: string;
   audit_retention: string;
 }
@@ -117,6 +122,12 @@ export class TenantSettingsService {
       if (input.afterCloseBehavior !== undefined) values.after_close_behavior = input.afterCloseBehavior;
       if (input.offlineCustomerNotification !== undefined) values.offline_customer_notification = input.offlineCustomerNotification;
       if (input.outOfHoursMessage !== undefined) values.out_of_hours_message = input.outOfHoursMessage;
+      if (input.businessHoursId !== undefined) {
+        if (input.businessHoursId !== null && (await new SlaRepository(ctx).businessHours(tx, input.businessHoursId)) === undefined) {
+          throw validationFailed([{ path: 'businessHoursId', issue: 'invalid_value' }]);
+        }
+        values.business_hours_id = input.businessHoursId;
+      }
       if (input.retentionPeriod !== undefined) values.retention_period = input.retentionPeriod;
       if (input.auditRetention !== undefined) values.audit_retention = input.auditRetention;
       if (Object.keys(values).length > 0) await repo.update(tx, values);
@@ -188,6 +199,7 @@ export class TenantSettingsService {
       afterCloseBehavior: row.after_close_behavior,
       offlineCustomerNotification: row.offline_customer_notification,
       outOfHoursMessage: row.out_of_hours_message,
+      businessHoursId: row.business_hours_id,
       // The table's CHECK constraints allow only these values.
       retentionPeriod: row.retention_period as RetentionPeriod,
       auditRetention: row.audit_retention as AuditRetention,
@@ -233,6 +245,7 @@ class SettingsRepository extends TenantRepository {
         'tenant_settings.after_close_behavior',
         'tenant_settings.offline_customer_notification',
         'tenant_settings.out_of_hours_message',
+        'tenant_settings.business_hours_id',
         'tenant_settings.retention_period',
         'tenant_settings.audit_retention',
       ])

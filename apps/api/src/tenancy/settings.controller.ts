@@ -14,9 +14,8 @@ import type { Request } from 'express';
 /**
  * Tenant settings (contracts/operations.yaml `/settings`, T183). `tenant_settings.view` /
  * `tenant_settings.edit` are declared in `authorization/registry/initial-permissions.ts`.
- * `businessHoursId` and `notificationDefaults` are not accepted here yet (see
- * `settings.service.ts`); `.strict()` rejects them as unknown keys rather than silently ignoring
- * them. `retentionPeriod` / `auditRetention` (T193) are accepted; shortening `retentionPeriod`
+ * `businessHoursId` (T224) is accepted; `notificationDefaults` is not (it has its own route), and
+ * `.strict()` rejects it as an unknown key rather than silently ignoring it. `retentionPeriod` / `auditRetention` (T193) are accepted; shortening `retentionPeriod`
  * needs `confirmPurgeCount`, shortening `auditRetention` needs `confirmAuditPurgeCount`.
  */
 
@@ -48,6 +47,7 @@ const PatchBody = z
     afterCloseBehavior: z.enum(['new_follow_up', 'reopen_previous']).optional(),
     offlineCustomerNotification: z.enum(['email', 'off']).optional(),
     outOfHoursMessage: z.string().trim().max(500).nullable().optional(),
+    businessHoursId: z.uuid().nullable().optional(),
     retentionPeriod: z.enum(RETENTION_PERIODS).optional(),
     auditRetention: z.enum(AUDIT_RETENTIONS).optional(),
     confirmPurgeCount: z.int().min(0).optional(),

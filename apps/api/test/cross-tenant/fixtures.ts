@@ -7,6 +7,7 @@ import { getTestApp, service } from '../support/app.js';
 import { createCustomer } from '../support/customer-profiles.js';
 import { createGroup, createRole, createTicket, createUser, type RoleRef, type TestTenant, type TestUser } from '../support/factories.js';
 import { asGuest, asUser } from '../support/http.js';
+import { createBusinessHours, createSlaPolicy } from '../support/sla.js';
 import { connectResult, connectSocket } from '../support/socket.js';
 import { createView } from '../support/view-factory.js';
 
@@ -42,6 +43,8 @@ export interface CrossTenantFixture {
   callerRoles?: RoleRef[];
 }
 
+const HIGH_PRIORITY = { op: 'and', items: [{ field: 'priority', operator: 'is', value: 'high' }] };
+
 export const FIXTURES: Record<string, CrossTenantFixture> = {
   role: {
     async create(tenant) {
@@ -59,6 +62,28 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
     },
     bodies: {
       'GroupsController.update': () => ({ name: 'Renamed by another tenant' }),
+    },
+  },
+  // One entry for both controllers: business-hours and SLA policies share the `sla_policy` permissions (T224).
+  sla_policy: {
+    async create(tenant) {
+      const hours = await createBusinessHours(tenant, { intervals: { mon: [{ from: '09:00', to: '17:00' }] } });
+      const policy = await createSlaPolicy(tenant, { businessHours: hours, conditions: HIGH_PRIORITY, firstResponseMinutes: 60 });
+      return { params: { id: policy.id }, ids: [hours.id, policy.id] };
+    },
+    bodies: {
+      'BusinessHoursController.update': () => ({
+        name: 'Renamed by another tenant',
+        timezone: 'UTC',
+        intervals: { mon: [{ from: '09:00', to: '17:00' }] },
+        holidays: [],
+      }),
+      'SlaPoliciesController.update': (resource) => ({
+        name: 'Renamed by another tenant',
+        conditions: HIGH_PRIORITY,
+        businessHoursId: resource.ids[0],
+        warningPercent: 80,
+      }),
     },
   },
   // Keyed by route: the owner picker needs `ticket.edit` but its resource is a group (T095).

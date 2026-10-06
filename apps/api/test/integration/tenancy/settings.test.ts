@@ -10,6 +10,7 @@ import { contrastRatio, meetsAAContrast, SUGGESTED_TEXT_CONTRAST } from '../../.
 import { getTestApp, service } from '../../support/app.js';
 import { createTenant, createUser, type TestTenant } from '../../support/factories.js';
 import { asUser } from '../../support/http.js';
+import { createBusinessHours } from '../../support/sla.js';
 
 import type { Database } from '../../../src/platform-kernel/db/database.js';
 import type { Kysely } from 'kysely';
@@ -157,12 +158,39 @@ describe('PATCH /settings', () => {
       [{ gracePeriodHours: 721 }, [{ path: 'gracePeriodHours', issue: 'too_large' }]],
       [{ welcomeMessage: 'x'.repeat(501) }, [{ path: 'welcomeMessage', issue: 'too_long' }]],
       [{ timezone: 'Mars/Base' }, [{ path: 'timezone', issue: 'invalid' }]],
-      [{ businessHoursId: 'x' }, [{ path: 'businessHoursId', issue: 'unrecognized_key' }]],
+      [{ notAKey: 'x' }, [{ path: 'notAKey', issue: 'unrecognized_key' }]],
+      [{ businessHoursId: 'x' }, [{ path: 'businessHoursId', issue: 'invalid_format' }]],
     ] as const) {
       const response = await asUser(admin).patch('/settings', body);
       expect(response.status).toBe(400);
       expect(failure(response).error.details).toEqual(expected);
     }
+  });
+
+  it('accepts businessHoursId of the tenant own calendar, clears it with null, and refuses unknown or foreign ids', async () => {
+    const tenant = await createTenant();
+    const other = await createTenant();
+    const admin = await createUser(tenant, { roles: ['admin'] });
+    const own = await createBusinessHours(tenant);
+    const foreign = await createBusinessHours(other);
+
+    expect(((await asUser(admin).get('/settings')).body as { businessHoursId: string | null }).businessHoursId).toBeNull();
+
+    const set = await asUser(admin).patch('/settings', { businessHoursId: own.id });
+    expect(set.status).toBe(200);
+    expect((set.body as { businessHoursId: string | null }).businessHoursId).toBe(own.id);
+    expect(((await asUser(admin).get('/settings')).body as { businessHoursId: string | null }).businessHoursId).toBe(own.id);
+
+    for (const id of [foreign.id, uuidv7()]) {
+      const refused = await asUser(admin).patch('/settings', { businessHoursId: id });
+      expect(refused.status).toBe(400);
+      expect(failure(refused).error.details).toEqual([{ path: 'businessHoursId', issue: 'invalid_value' }]);
+    }
+    expect(((await asUser(admin).get('/settings')).body as { businessHoursId: string | null }).businessHoursId).toBe(own.id);
+
+    const cleared = await asUser(admin).patch('/settings', { businessHoursId: null });
+    expect(cleared.status).toBe(200);
+    expect((cleared.body as { businessHoursId: string | null }).businessHoursId).toBeNull();
   });
 
   it('rejects a low-contrast primary with an AA-compliant suggestion that itself passes', async () => {

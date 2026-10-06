@@ -28,7 +28,7 @@ export const CONDITION_FIELDS = [
   'updated_at',
   'last_customer_message_at',
   'pending_until',
-  // Accepted so views compile, but matches nothing until US12 adds SLA (data-model.md "views").
+  // `ticket_sla.status` (ok, warning, breached) or `none` for a ticket without an SLA row (T224).
   'sla_status',
 ] as const;
 export type ConditionField = (typeof CONDITION_FIELDS)[number];
@@ -87,6 +87,8 @@ export const ConditionExpressionSchema: z.ZodType<ConditionExpression> = z.lazy(
 
 const TICKET_STATES = ['new', 'open', 'pending_reminder', 'pending_close', 'resolved', 'closed'] as const satisfies readonly TicketState[];
 const TICKET_PRIORITIES = ['low', 'normal', 'high', 'urgent'] as const satisfies readonly TicketPriority[];
+/** `none` = the ticket has no `ticket_sla` row (no policy applies). */
+export const SLA_STATUS_VALUES = ['ok', 'warning', 'breached', 'none'] as const;
 const WAITING_ON = ['support', 'customer'] as const satisfies readonly WaitingOn[];
 
 function arrayable<T extends z.ZodType>(item: T) {
@@ -111,7 +113,7 @@ export const FIELD_OPERATORS: Readonly<Record<ConditionField, readonly Condition
   updated_at: ['before', 'after', 'within_last'],
   last_customer_message_at: ['before', 'after', 'within_last'],
   pending_until: ['before', 'after', 'within_last'],
-  sla_status: ['is', 'is_not', 'contains', 'before', 'after', 'within_last'],
+  sla_status: ['is', 'is_not', 'contains'],
 };
 
 /** Value schema for a validated field/operator pair; call only after checking `FIELD_OPERATORS`. */
@@ -136,7 +138,6 @@ export function valueSchemaFor(field: ConditionField, operator: ConditionOperato
     case 'pending_until':
       return operator === 'within_last' ? IsoDurationValue : DateValue;
     case 'sla_status':
-      // Not yet a real field (US12): accept a permissive shape, since it matches nothing anyway.
-      return arrayable(z.string());
+      return arrayable(z.enum(SLA_STATUS_VALUES));
   }
 }

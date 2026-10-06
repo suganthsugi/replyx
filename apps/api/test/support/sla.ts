@@ -93,6 +93,10 @@ class SlaFixtureRepository extends TenantRepository {
     return row.id;
   }
 
+  async insertSla(tx: TenantTransaction, ticketId: string, policyId: string, status: SlaStatus): Promise<void> {
+    await this.insertInto(tx, 'ticket_sla', { ticket_id: ticketId, policy_id: policyId, status }).execute();
+  }
+
   slaRow(tx: TenantTransaction, ticketId: string) {
     return this.selectFrom(tx, 'ticket_sla').selectAll('ticket_sla').where('ticket_sla.ticket_id', '=', ticketId).executeTakeFirst();
   }
@@ -196,4 +200,9 @@ export async function deliverToSla(tenant: { id: string }, type: string): Promis
   const consumer = new SlaConsumer(await service(UnitOfWork), new SlaRecomputeService(await service(OutboxService), await service(Clock)));
   const eventId = await latestEventId(tenant.id, type);
   return consumer.process({ tenantId: tenant.id, eventId }, 'sla-test-job');
+}
+
+/** A bare `ticket_sla` row with the given status (no times), for view and summary tests. */
+export function setTicketSla(tenant: { id: string }, ticketId: string, policy: TestSlaPolicy, status: SlaStatus): Promise<void> {
+  return inSlaTenant(tenant, (tx, repo) => repo.insertSla(tx, ticketId, policy.id, status));
 }

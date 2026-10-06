@@ -126,7 +126,7 @@ export const DEFAULT_VIEWS: readonly DefaultViewDefinition[] = [
   {
     systemKey: 'escalated',
     name: 'Escalated',
-    // Matches nothing until US12 gives tickets an `sla_status` (data-model.md "views").
+    // `sla_status` reads `ticket_sla.status` (SLA, US12).
     conditions: {
       op: 'and',
       items: [

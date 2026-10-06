@@ -120,7 +120,7 @@ describe('condition validation: every field/operator pairing', () => {
     expect(() => validateConditions(group([{ field: 'owner', operator: 'is', value: 'not-a-uuid-or-relative' }]))).toThrow(AppError);
   });
 
-  it('sla_status accepts a permissive string shape even though it is not a real field yet', () => {
+  it('sla_status accepts a list of known statuses', () => {
     const tree = group([{ field: 'sla_status', operator: 'is', value: ['warning', 'breached'] }]);
     expect(validateConditions(tree)).toEqual(tree);
   });
@@ -271,11 +271,53 @@ describe('every field and operator compiles', () => {
     }
   });
 
-  it('sla_status matches nothing for every operator (not a real field until US12)', () => {
-    for (const operator of FIELD_OPERATORS.sla_status) {
-      const compiled = compile({ field: 'sla_status', operator, value: 'warning' });
-      expect(compiled.sql).toBe('false');
-    }
+  describe('sla_status', () => {
+    const exists = (statusParam: string) =>
+      `EXISTS (
+      SELECT 1 FROM ticket_sla
+      WHERE ticket_sla.tenant_id = tickets.tenant_id
+        AND ticket_sla.ticket_id = tickets.id
+        AND ticket_sla.status = ANY(${statusParam}::text[])
+    )`;
+
+    it('is / contains match any of the listed statuses through ticket_sla, scoped by tenant', () => {
+      for (const operator of ['is', 'contains'] as const) {
+        const compiled = compile({ field: 'sla_status', operator, value: ['warning', 'breached'] });
+        expect(compiled.sql.replace(/\s+/g, ' ')).toBe(`(${exists('$1')})`.replace(/\s+/g, ' '));
+        expect(compiled.parameters).toEqual([['warning', 'breached']]);
+      }
+    });
+
+    it('is_not negates the membership', () => {
+      const compiled = compile({ field: 'sla_status', operator: 'is_not', value: 'breached' });
+      expect(compiled.sql.replace(/\s+/g, ' ')).toBe(`NOT ((${exists('$1')}))`.replace(/\s+/g, ' '));
+      expect(compiled.parameters).toEqual([['breached']]);
+    });
+
+    it('none matches a ticket without a ticket_sla row, and combines with real statuses by OR', () => {
+      const none = compile({ field: 'sla_status', operator: 'is', value: 'none' });
+      expect(none.sql.replace(/\s+/g, ' ')).toContain('(NOT EXISTS ( SELECT 1 FROM ticket_sla');
+      expect(none.sql).not.toContain('ANY(');
+      expect(none.parameters).toEqual([]);
+
+      const both = compile({ field: 'sla_status', operator: 'is', value: ['breached', 'none'] });
+      expect(both.sql).toContain(' OR ');
+      expect(both.sql).toContain('NOT EXISTS');
+      expect(both.parameters).toEqual([['breached']]);
+
+      const notNone = compile({ field: 'sla_status', operator: 'is_not', value: 'none' });
+      expect(notNone.sql.replace(/\s+/g, ' ').startsWith('NOT ((NOT EXISTS')).toBe(true);
+    });
+
+    it('rejects operators it does not support and values outside ok|warning|breached|none', () => {
+      for (const operator of ['before', 'after', 'within_last'] as const) {
+        expect(() => validateConditions(group([{ field: 'sla_status', operator, value: 'warning' }]))).toThrow(AppError);
+      }
+      expect(() => validateConditions(group([{ field: 'sla_status', operator: 'is', value: 'late' }]))).toThrow(AppError);
+      for (const value of ['ok', 'warning', 'breached', 'none']) {
+        expect(() => validateConditions(group([{ field: 'sla_status', operator: 'is', value }]))).not.toThrow();
+      }
+    });
   });
 });
 

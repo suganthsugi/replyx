@@ -142,8 +142,7 @@ function compileLeaf(node: Condition, params: CompileParams): Expression<SqlBool
     case 'pending_until':
       return dateFilter('tickets.pending_until', node.operator, node.value, params.now);
     case 'sla_status':
-      // Accepted but matches nothing until US12 gives tickets an `sla_status` (data-model.md "views").
-      return sql<SqlBool>`false`;
+      return slaStatusFilter(node.operator, node.value);
   }
 }
 
@@ -214,6 +213,34 @@ function tagsFilter(operator: ConditionOperator, value: unknown): Expression<Sql
       AND ticket_tags.tag_id = ANY(${sql.val(ids)}::uuid[])
   )`;
   return operator === 'is_not' ? sql<SqlBool>`NOT (${exists})` : exists;
+}
+
+/**
+ * `sla_status` over `ticket_sla` (one row per ticket; tenant matched explicitly: tenant-scoping
+ * rule 5). `ok`, `warning` and `breached` match the row's status; `none` matches a ticket with no
+ * row. `is` and `contains` both mean "any of these"; `is_not` negates.
+ */
+function slaStatusFilter(operator: ConditionOperator, value: unknown): Expression<SqlBool> {
+  const raw = toStringArray(value);
+  const statuses = raw.filter((item) => item !== 'none');
+  const parts: Expression<SqlBool>[] = [];
+  if (statuses.length > 0) {
+    parts.push(sql<SqlBool>`EXISTS (
+      SELECT 1 FROM ticket_sla
+      WHERE ticket_sla.tenant_id = tickets.tenant_id
+        AND ticket_sla.ticket_id = tickets.id
+        AND ticket_sla.status = ANY(${sql.val(statuses)}::text[])
+    )`);
+  }
+  if (raw.includes('none')) {
+    parts.push(sql<SqlBool>`NOT EXISTS (
+      SELECT 1 FROM ticket_sla
+      WHERE ticket_sla.tenant_id = tickets.tenant_id
+        AND ticket_sla.ticket_id = tickets.id
+    )`);
+  }
+  const membership = parts.length === 0 ? sql<SqlBool>`false` : sql<SqlBool>`(${sql.join(parts, sql` OR `)})`;
+  return operator === 'is_not' ? sql<SqlBool>`NOT (${membership})` : membership;
 }
 
 function dateFilter(column: string, operator: ConditionOperator, value: unknown, now: Date): Expression<SqlBool> {

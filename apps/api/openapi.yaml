@@ -1211,7 +1211,7 @@ paths:
         fills the customer chat bubble/button); a failing value returns 400 VALIDATION_FAILED with
         details[].path "brandColors.primary", details[].issue "insufficient_contrast" and details[].suggestion set to an
         AA-compliant shade of the same color (aimed at 4.6:1, slightly above the 4.5:1 threshold). brandColors.accent is
-        not checked; the web theme derives a compliant shade from it. businessHoursId and notificationDefaults are not accepted here yet.
+        not checked; the web theme derives a compliant shade from it. notificationDefaults is not accepted here (it has its own route).
         Shortening retentionPeriod (from forever, or to fewer years) deletes closed tickets past the new cutoff; when that
         would purge any, the request needs confirmPurgeCount equal to the current count, otherwise it returns 409
         RETENTION_CONFIRMATION_REQUIRED carrying that count and nothing is changed. The same applies to auditRetention
@@ -3135,6 +3135,212 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+  /business-hours:
+    get:
+      operationId: listBusinessHours
+      tags:
+        - operations
+      summary: Business-hours calendars (sla_policy.view)
+      responses:
+        "200":
+          description: Calendars, by name
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/BusinessHours"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    post:
+      operationId: createBusinessHours
+      tags:
+        - operations
+      summary: Create a calendar (sla_policy.create)
+      description: The timezone must be an IANA zone and at least one weekday needs a range, else 400 invalid_value on
+        timezone or invalid on intervals; a range with the same start and end is invalid on intervals.DAY.N (00:00 to
+        00:00 means the whole day). A name already used by another calendar (case-insensitive) is 409
+        BUSINESS_HOURS_NAME_TAKEN.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessHoursInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessHours"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /business-hours/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    put:
+      operationId: updateBusinessHours
+      tags:
+        - operations
+      summary: Replace a calendar (sla_policy.edit)
+      description: Full replace; same checks as create. SLA due times of open tickets are recomputed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BusinessHoursInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BusinessHours"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+    delete:
+      operationId: deleteBusinessHours
+      tags:
+        - operations
+      summary: Delete a calendar (sla_policy.delete)
+      description: Refused with 409 IN_USE while an SLA policy or the workspace settings (businessHoursId) use it.
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /sla-policies:
+    get:
+      operationId: listSlaPolicies
+      tags:
+        - operations
+      summary: SLA policies in evaluation order (sla_policy.view)
+      description: A ticket gets the first policy, by position then id, whose conditions match its priority and group.
+      responses:
+        "200":
+          description: Policies, by position
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SlaPolicy"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    post:
+      operationId: createSlaPolicy
+      tags:
+        - operations
+      summary: Create an SLA policy (sla_policy.create)
+      description: Conditions may use only the priority and group fields with is and is_not (400 invalid_value on
+        conditions.items.N.field or .operator otherwise). Group ids and businessHoursId must belong to the workspace, else
+        400 invalid_value on conditions.items.N.value or businessHoursId. Without a position the policy goes last.
+        Open tickets' SLA times are recomputed.
+      parameters:
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SlaPolicyInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SlaPolicy"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+  /sla-policies/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    put:
+      operationId: updateSlaPolicy
+      tags:
+        - operations
+      summary: Replace an SLA policy (sla_policy.edit)
+      description: Full replace; same checks as create. The position changes only when sent. Open tickets' SLA times are
+        recomputed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SlaPolicyInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SlaPolicy"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteSlaPolicy
+      tags:
+        - operations
+      summary: Delete an SLA policy (sla_policy.delete)
+      description: Its tickets' SLA rows are removed, then open tickets are recomputed against the remaining policies.
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   securitySchemes:
     session:
@@ -3803,6 +4009,7 @@ components:
         - afterCloseBehavior
         - offlineCustomerNotification
         - outOfHoursMessage
+        - businessHoursId
         - retentionPeriod
         - auditRetention
       properties:
@@ -3839,6 +4046,13 @@ components:
             - string
             - "null"
           maxLength: 500
+        businessHoursId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: The calendar that decides when it is out of hours (outOfHoursMessage); it must be one of the
+            workspace's business-hours calendars (400 invalid_value otherwise)
         retentionPeriod:
           $ref: "#/components/schemas/RetentionPeriod"
         auditRetention:
@@ -3868,7 +4082,7 @@ components:
         - P10Y
     TenantSettingsUpdate:
       type: object
-      description: Only the fields sent are changed; businessHoursId and notificationDefaults are not accepted here yet.
+      description: Only the fields sent are changed; notificationDefaults is not accepted here (it has its own route).
         Shortening retentionPeriod (from forever, or to fewer years) that would purge closed tickets needs confirmPurgeCount.
         Shortening auditRetention that would delete audit entries needs confirmAuditPurgeCount.
       additionalProperties: false
@@ -3909,6 +4123,13 @@ components:
             - string
             - "null"
           maxLength: 500
+        businessHoursId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: The calendar that decides when it is out of hours (outOfHoursMessage); it must be one of the
+            workspace's business-hours calendars (400 invalid_value otherwise)
         retentionPeriod:
           $ref: "#/components/schemas/RetentionPeriod"
         auditRetention:
@@ -4000,6 +4221,12 @@ components:
         available:
           type: boolean
           description: False when the tenant is suspended
+        outOfHoursMessage:
+          type:
+            - string
+            - "null"
+          description: The workspace's out-of-hours message while now is outside its business hours
+            (settings.businessHoursId); null otherwise, or when none is configured. Chat still accepts messages (FR-054).
     Permission:
       type: object
       required:
@@ -5035,3 +5262,191 @@ components:
                 enum:
                   - group_inactive
                   - group_missing
+    BusinessHoursRange:
+      type: object
+      required:
+        - from
+        - to
+      additionalProperties: false
+      properties:
+        from:
+          type: string
+          pattern: ^([01]\d|2[0-3]):[0-5]\d$
+          description: Local start time, HH:MM
+        to:
+          type: string
+          pattern: ^(([01]\d|2[0-3]):[0-5]\d|24:00)$
+          description: Local end time, HH:MM; 24:00 means midnight. An end not after the start continues past midnight into
+            the next day.
+    BusinessHoursIntervals:
+      type: object
+      description: Weekday to its open ranges; a day without ranges is closed
+      additionalProperties: false
+      properties:
+        mon:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/BusinessHoursRange"
+        tue:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/BusinessHoursRange"
+        wed:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/BusinessHoursRange"
+        thu:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/BusinessHoursRange"
+        fri:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/BusinessHoursRange"
+        sat:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/BusinessHoursRange"
+        sun:
+          type: array
+          maxItems: 6
+          items:
+            $ref: "#/components/schemas/BusinessHoursRange"
+    BusinessHoursInput:
+      type: object
+      required:
+        - name
+        - timezone
+        - intervals
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        timezone:
+          type: string
+          maxLength: 64
+          description: IANA zone, e.g. Europe/Berlin
+        intervals:
+          $ref: "#/components/schemas/BusinessHoursIntervals"
+        holidays:
+          type: array
+          maxItems: 200
+          description: Local dates (in the calendar's timezone) the whole day is closed; stored sorted without duplicates
+          items:
+            type: string
+            format: date
+    BusinessHours:
+      type: object
+      required:
+        - id
+        - name
+        - timezone
+        - intervals
+        - holidays
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+        timezone:
+          type: string
+        intervals:
+          $ref: "#/components/schemas/BusinessHoursIntervals"
+        holidays:
+          type: array
+          items:
+            type: string
+            format: date
+    SlaPolicyInput:
+      type: object
+      required:
+        - name
+        - conditions
+        - businessHoursId
+      additionalProperties: false
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        position:
+          type: integer
+          minimum: 0
+          description: Evaluation order (lowest first, ties by id). Omitted on create, the policy goes last; omitted on
+            update, it stays.
+        conditions:
+          $ref: "#/components/schemas/ConditionGroup"
+        businessHoursId:
+          $ref: "#/components/schemas/Id"
+        firstResponseMinutes:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 525600
+          description: Business minutes from ticket creation to the first public staff reply; null or omitted = not tracked
+        nextResponseMinutes:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 525600
+          description: Business minutes from an unanswered customer message to the next public staff reply
+        resolutionMinutes:
+          type:
+            - integer
+            - "null"
+          minimum: 1
+          maximum: 525600
+          description: Business minutes from ticket creation to resolved or closed; pending states pause it
+        warningPercent:
+          type: integer
+          minimum: 50
+          maximum: 99
+          default: 80
+    SlaPolicy:
+      type: object
+      required:
+        - id
+        - name
+        - position
+        - conditions
+        - businessHoursId
+        - firstResponseMinutes
+        - nextResponseMinutes
+        - resolutionMinutes
+        - warningPercent
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+        position:
+          type: integer
+          minimum: 0
+        conditions:
+          $ref: "#/components/schemas/ConditionGroup"
+        businessHoursId:
+          $ref: "#/components/schemas/Id"
+        firstResponseMinutes:
+          type:
+            - integer
+            - "null"
+        nextResponseMinutes:
+          type:
+            - integer
+            - "null"
+        resolutionMinutes:
+          type:
+            - integer
+            - "null"
+        warningPercent:
+          type: integer

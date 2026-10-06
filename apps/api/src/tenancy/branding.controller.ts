@@ -1,11 +1,16 @@
 import { Controller, Get, Req } from '@nestjs/common';
+import { ZodError } from 'zod';
 
 import { Public } from '../authorization/registry/module-permissions.js';
+import { Clock } from '../platform-kernel/clock.js';
 import { TenantContext } from '../platform-kernel/db/tenant-context.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
 import { requestIdOf } from '../platform-kernel/http/request-context.js';
 import { AllowSuspended } from '../platform-kernel/http/tenant-resolver.middleware.js';
+import { BusinessCalendarError } from '../sla/business-calendar.js';
+import { businessHoursRowToCalendar } from '../sla/business-hours.mapper.js';
+import { SlaRepository } from '../sla/sla.repository.js';
 
 import type { JsonValue } from '../platform-kernel/db/tables/column-types.js';
 import type { Request } from 'express';
@@ -27,11 +32,16 @@ export interface BrandingDto {
   welcomeMessage: string | null;
   selfRegistration: boolean;
   available: boolean;
+  /** FR-054: set only outside the workspace's business hours, when configured. */
+  outOfHoursMessage: string | null;
 }
 
 @Controller('customer/branding')
 export class BrandingController {
-  constructor(private readonly unitOfWork: UnitOfWork) {}
+  constructor(
+    private readonly unitOfWork: UnitOfWork,
+    private readonly clock: Clock,
+  ) {}
 
   @Get()
   @Public()
@@ -46,7 +56,10 @@ export class BrandingController {
       requestId: requestIdOf(req),
       readOnly: true,
     });
-    const settings = await this.unitOfWork.withTenantReadOnly(ctx, (tx) => new BrandingRepository(ctx).settings(tx));
+    const { settings, outOfHoursMessage } = await this.unitOfWork.withTenantReadOnly(ctx, async (tx) => {
+      const row = await new BrandingRepository(ctx).settings(tx);
+      return { settings: row, outOfHoursMessage: await this.outOfHoursMessage(ctx, tx, row) };
+    });
 
     return {
       tenantName: settings?.name ?? tenant.slug,
@@ -57,8 +70,27 @@ export class BrandingController {
       // A suspended workspace accepts nobody, whatever the setting says.
       selfRegistration: tenant.status === 'active' && (settings?.self_registration ?? false),
       available: tenant.status === 'active',
-      // `outOfHoursMessage` needs business hours (US12, T208) and is added there.
+      outOfHoursMessage,
     };
+  }
+
+  /**
+   * The configured message, only while now (the injected clock) is outside the tenant's business
+   * hours. Null with no message, no calendar, an unusable calendar, or while the workspace is open.
+   * Chat stays available either way (FR-054).
+   */
+  private async outOfHoursMessage(ctx: TenantContext, tx: TenantTransaction, settings: BrandingSettings | undefined): Promise<string | null> {
+    const message = settings?.out_of_hours_message?.trim();
+    const hoursId = settings?.business_hours_id;
+    if (message === undefined || message === '' || hoursId === undefined || hoursId === null) return null;
+    const hours = await new SlaRepository(ctx).businessHours(tx, hoursId);
+    if (hours === undefined) return null;
+    try {
+      return businessHoursRowToCalendar(hours).isWithinBusinessHours(this.clock.now()) ? null : message;
+    } catch (error) {
+      if (error instanceof BusinessCalendarError || error instanceof ZodError) return null;
+      throw error;
+    }
   }
 }
 
@@ -72,6 +104,8 @@ function brandColors(value: JsonValue | undefined): { primary?: string; accent?:
   };
 }
 
+type BrandingSettings = Awaited<ReturnType<BrandingRepository['settings']>> & object;
+
 class BrandingRepository extends TenantRepository {
   settings(tx: TenantTransaction) {
     return this.selectFrom(tx, 'tenant_settings')
@@ -81,6 +115,8 @@ class BrandingRepository extends TenantRepository {
         'tenant_settings.brand_colors',
         'tenant_settings.welcome_message',
         'tenant_settings.self_registration',
+        'tenant_settings.out_of_hours_message',
+        'tenant_settings.business_hours_id',
       ])
       .executeTakeFirst();
   }

@@ -5,6 +5,7 @@ import { DEFAULT_VIEWS } from '../../../src/views/default-views.contributor.js';
 import { getTestApp } from '../../support/app.js';
 import { createGroup, createRole, createTenant, createTicket, createUser, type TestTenant, type TestUser } from '../../support/factories.js';
 import { asUser } from '../../support/http.js';
+import { createBusinessHours, createSlaPolicy, setTicketSla } from '../../support/sla.js';
 import { createView } from '../../support/view-factory.js';
 
 /**
@@ -190,9 +191,21 @@ describe('each view returns the right tickets for a seeded ticket set', () => {
     expect(ids.has(tickets.allOpenNew!.id)).toBe(false);
   });
 
-  it('Escalated: matches nothing (sla_status not implemented until US12)', async () => {
+  it('Escalated: warning or breached SLA status', async () => {
+    const hours = await createBusinessHours(tenant);
+    const policy = await createSlaPolicy(tenant, { businessHours: hours, resolutionMinutes: 60 });
+    const warning = await createTicket(tenant, { customer, group: groupA.id, state: 'open' });
+    const breached = await createTicket(tenant, { customer, group: groupA.id, state: 'open' });
+    const fine = await createTicket(tenant, { customer, group: groupA.id, state: 'open' });
+    await setTicketSla(tenant, warning.id, policy, 'warning');
+    await setTicketSla(tenant, breached.id, policy, 'breached');
+    await setTicketSla(tenant, fine.id, policy, 'ok');
+
     const ids = await idsFor('escalated', admin);
-    expect(ids.size).toBe(0);
+    expect(ids.has(warning.id)).toBe(true);
+    expect(ids.has(breached.id)).toBe(true);
+    expect(ids.has(fine.id)).toBe(false);
+    expect(ids.has(tickets.allOpenNew!.id)).toBe(false); // no SLA row at all
   });
 
   it('Resolved: state is resolved', async () => {
