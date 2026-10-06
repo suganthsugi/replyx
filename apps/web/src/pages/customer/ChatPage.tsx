@@ -76,6 +76,17 @@ export default function ChatPage({ me, branding }: { me: CustomerMe; branding: B
             </Typography>
           )}
 
+          {branding.outOfHoursMessage != null && branding.outOfHoursMessage !== '' && (
+            <Typography
+              variant="caption"
+              component="p"
+              role="status"
+              sx={{ px: 4, py: 2, textAlign: 'center', bgcolor: 'warning.light', color: 'warning.main', borderBottom: 1, borderColor: 'divider' }}
+            >
+              {branding.outOfHoursMessage}
+            </Typography>
+          )}
+
           <Conversation welcomeMessage={branding.welcomeMessage ?? null} />
         </Box>
       </Box>
