@@ -25,8 +25,8 @@ import {
  * FR-085, research D15). Policies and calendars are fixture rows (support/sla.ts); the SLA consumer
  * and the sweeper run by hand against the app's TestClock, so every instant is exact.
  *
- * Needs T224 (not written yet): the Escalated default view, the `sla_status` view filter and the
- * staff `SlaSummary` on ticket responses, see the `it.todo` block at the end.
+ * Escalated, the sla_status filter, SlaSummary and the admin endpoints are in sla-views, sla-summary and
+ * sla-admin.test.ts (T224).
  */
 
 // A Monday, 10:00 UTC.
@@ -526,14 +526,4 @@ describe('sweeper and consumer idempotency', () => {
     expect(await slaRow(tenant, ticketId)).toEqual(before);
     expect(await countOf(tenant, 'sla.updated')).toBe(1);
   });
-});
-
-// T224 is not in yet (Escalated default view, `sla_status` view filter, staff `SlaSummary` on ticket
-// responses). The orchestrator hands these over once it lands, together with the triad and the
-// cross-tenant fixtures for the sla_policy / business_hours endpoints.
-describe('Escalated view, sla_status filter and SlaSummary (after T224)', () => {
-  it.todo('the default Escalated view lists tickets whose sla status is warning or breached, and no others');
-  it.todo('a view with an sla_status condition filters on ticket_sla.status, and counts follow a breach');
-  it.todo('a breach moves the ticket into Escalated and emits views counts changes');
-  it.todo('staff ticket responses carry SlaSummary (status, per-target due and warn times, pausedSince); customers never see it');
 });
