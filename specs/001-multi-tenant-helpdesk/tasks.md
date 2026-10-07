@@ -558,7 +558,7 @@ tickets in the searcher's accessible groups in their tenant (spec US13).
 - [ ] T232 [P] [US13] Integration tests `apps/api/test/integration/search/search.test.ts`: matches by each field; no results from inaccessible groups or other tenants; internal note text found only by staff with access
 - [ ] T233 [P] [US13] Extend `apps/web/src/components/shell/CommandBar.tsx` with search and create `apps/web/src/pages/desk/search/SearchResultsPage.tsx`
 - [ ] T234 [US13] Create `apps/web/src/data/search.ts`
-- [ ] T235 [P] [US13] Guide `apps/docs/src/content/docs/guides/search.md`
+- [X] T235 [P] [US13] Guide `apps/docs/src/content/docs/guides/search.md`
 
 ---
 
