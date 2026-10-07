@@ -10,6 +10,7 @@ import { CustomersHttpModule } from './customers/customers.module.js';
 import { DashboardHttpModule } from './dashboard/dashboard.module.js';
 import { GroupsHttpModule } from './groups/groups.controller.js';
 import { IdentityJobsModule } from './identity/erasure.job.js';
+import { MacrosHttpModule } from './macros/macros.module.js';
 import { MessagingHttpModule, MessagingModule } from './messaging/messaging.module.js';
 import { MessagingJobsModule } from './messaging/offline-reply-email.consumer.js';
 import { NotificationsHttpModule, NotificationsJobsModule } from './notifications/notifications.module.js';
@@ -88,6 +89,7 @@ export class AppModule {
       RoutingHttpModule,
       SearchHttpModule,
       SlaHttpModule,
+      MacrosHttpModule,
       NotificationsHttpModule,
     ];
     // Outbox relay, queue consumers and sweepers (worker only).

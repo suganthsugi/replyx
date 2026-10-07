@@ -110,5 +110,7 @@ export class TicketsModule {}
     MessageMoveService,
     TriageService,
   ],
+  // Macros apply field changes through the same service as PATCH /tickets/{id} (T236).
+  exports: [TicketsService],
 })
 export class TicketsHttpModule {}
