@@ -35,6 +35,7 @@ const BusinessHoursPage = lazy(() => import('../pages/admin/sla/BusinessHoursPag
 const InboxPage = lazy(() => import('../pages/desk/inbox/InboxPage'));
 const NotificationsPage = lazy(() => import('../pages/desk/notifications/NotificationsPage'));
 const DashboardPage = lazy(() => import('../pages/desk/dashboard/DashboardPage'));
+const SearchResultsPage = lazy(() => import('../pages/desk/search/SearchResultsPage'));
 
 /**
  * The agent/admin workspace (`/desk/*` on a tenant host), loaded lazily. Paths here are relative
@@ -65,6 +66,14 @@ export default function WorkspaceArea() {
               element={
                 <Suspense fallback={<Skeleton variant="block" label="dashboard" />}>
                   <DashboardPage />
+                </Suspense>
+              }
+            />
+            <Route
+              path="search"
+              element={
+                <Suspense fallback={<Skeleton variant="block" label="search" />}>
+                  <SearchResultsPage />
                 </Suspense>
               }
             />
