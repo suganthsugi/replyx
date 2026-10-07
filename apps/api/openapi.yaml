@@ -1940,6 +1940,51 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /tickets/{id}/apply-macro:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    post:
+      operationId: applyMacro
+      tags:
+        - tickets
+      summary: Apply a macro to a ticket (ticket.edit on the ticket's group, macro.view)
+      description: |-
+        Inserts the macro's reply as a public message and applies its field changes in one transaction (FR-068); if any
+        part fails (INVALID_TRANSITION, OWNER_NOT_ELIGIBLE) nothing is stored. The reply is the macro body, or
+        bodyOverride when the agent edited the text; a blank text means a fields-only macro and no message is created.
+        The reply follows the same rules as postMessage (customer thread, first-reply timestamps, new becomes open).
+        Field changes follow updateTicket: state (a pending state is set pendingInHours from now), priority, addTagIds
+        added to the ticket's tags (tags deleted since the macro was saved are skipped) and assignToMe (the caller becomes
+        owner, who needs edit on the group). The reply and the field changes are recorded in the ticket history in the
+        same transaction under the caller. Repeating the request with the same clientMessageId returns the ticket without
+        applying anything twice. A macro the caller cannot see is 404 MACRO_NOT_FOUND, as is a ticket outside their groups.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApplyMacroRequest"
+      responses:
+        "200":
+          description: The ticket after the macro was applied
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: INVALID_TRANSITION (the state change is not allowed from the ticket's state) or OWNER_NOT_ELIGIBLE
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tickets/{id}/messages:
     parameters:
       - $ref: "#/components/parameters/IdPath"
@@ -3418,6 +3463,107 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/PermissionDenied"
+  /macros:
+    get:
+      operationId: listMacros
+      tags:
+        - tickets
+      summary: Macros visible to the caller (macro.view)
+      description: >-
+        A macro is visible to every staff user when shared with all staff, to holders of a shared role, to users with
+        view access on a shared group, and always to its creator. Ordered by name.
+      responses:
+        "200":
+          description: Macros
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Macro"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    post:
+      operationId: createMacro
+      tags:
+        - tickets
+      summary: Create a macro (macro.create)
+      description: |-
+        Visibility roles needs at least one sharedRoleIds entry and groups at least one sharedGroupIds entry; the list that
+        does not match the visibility is ignored. Roles, groups and tags must belong to the tenant, else 400 with details
+        such as sharedRoleIds.0 invalid_value. A pending state needs actions.pendingInHours (and only a pending state takes
+        it). A macro with a blank body and no actions is 400 (body required). Audited as macro.created (no body text).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MacroInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Macro"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+  /macros/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    put:
+      operationId: updateMacro
+      tags:
+        - tickets
+      summary: Replace a macro (macro.edit)
+      description: Rules are those of createMacro. A macro the caller cannot see is 404 MACRO_NOT_FOUND. Audited as macro.updated.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MacroInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Macro"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteMacro
+      tags:
+        - tickets
+      summary: Delete a macro (macro.delete)
+      description: A macro the caller cannot see is 404 MACRO_NOT_FOUND. Audited as macro.deleted.
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
 components:
   securitySchemes:
     session:
@@ -5566,6 +5712,120 @@ components:
             - "null"
         warningPercent:
           type: integer
+    MacroActions:
+      type: object
+      additionalProperties: false
+      description: Field changes a macro makes besides its reply. Every key is optional.
+      properties:
+        state:
+          $ref: "#/components/schemas/TicketState"
+        pendingInHours:
+          type: integer
+          minimum: 1
+          maximum: 8760
+          description: Required with a pending state (the pending date is this many hours from when the macro is applied); not allowed otherwise
+        priority:
+          $ref: "#/components/schemas/Priority"
+        addTagIds:
+          type: array
+          maxItems: 20
+          description: Tags added to the ticket's existing tags
+          items:
+            type: string
+            format: uuid
+        assignToMe:
+          type: boolean
+          description: Makes the agent who applies the macro the ticket's owner
+    MacroInput:
+      type: object
+      additionalProperties: false
+      description: Body of createMacro and updateMacro. Visibility roles needs at least one sharedRoleIds entry and groups
+        at least one sharedGroupIds entry; the other list is ignored.
+      required:
+        - name
+        - body
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+          description: Trimmed before the length check
+        body:
+          type: string
+          maxLength: 10000
+          description: Reply template; may be empty for a macro that only sets fields
+        actions:
+          $ref: "#/components/schemas/MacroActions"
+        visibility:
+          type: string
+          enum:
+            - all_staff
+            - roles
+            - groups
+          default: all_staff
+        sharedRoleIds:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            format: uuid
+        sharedGroupIds:
+          type: array
+          maxItems: 100
+          items:
+            type: string
+            format: uuid
+    Macro:
+      type: object
+      required:
+        - id
+        - name
+        - body
+        - actions
+        - visibility
+        - sharedRoleIds
+        - sharedGroupIds
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+        body:
+          type: string
+        actions:
+          $ref: "#/components/schemas/MacroActions"
+        visibility:
+          type: string
+          enum:
+            - all_staff
+            - roles
+            - groups
+        sharedRoleIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Id"
+        sharedGroupIds:
+          type: array
+          items:
+            $ref: "#/components/schemas/Id"
+    ApplyMacroRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - macroId
+        - clientMessageId
+      properties:
+        macroId:
+          type: string
+          format: uuid
+        clientMessageId:
+          type: string
+          format: uuid
+          description: Idempotency key of the reply; a repeat returns the ticket without applying the macro again
+        bodyOverride:
+          type: string
+          maxLength: 10000
+          description: Edited macro text, sent instead of the macro body
     Dashboard:
       type: object
       required:
