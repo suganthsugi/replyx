@@ -20,23 +20,25 @@ results you are allowed to open, so two people can run the same search and get d
 ## Search from the command bar
 
 1. Press **Ctrl+K** (**Cmd+K** on a Mac) from any page.
-2. Type your search. Matching views and tickets appear as you type.
+2. Type your search. Matching views, tickets and customers appear as you type.
 3. Use the arrow keys to move through the list and press **Enter** to open the highlighted result.
-4. To see every match, choose the full search option or press **Enter** with no result highlighted. This opens the search results page.
+4. To see every match, choose **See all results** at the end of the list. This opens the search results page.
+
+Choosing a customer in the command bar opens the search results page with that customer's tickets.
 
 ## The search results page
 
 The results page lists matching tickets and customers, each with a short snippet that shows
 where your words were found. Use the filter at the top to show **Tickets**, **Customers** or
-**All**. Results load in pages; scroll to the end of the list to load more. Select a ticket to open
-it, or a customer to see their tickets.
+**All**, and use the search box to change your search. Results load in pages; select **Load more**
+at the end of the list to see the next page. Select a ticket to open it.
 
 ## Matching behaviour
 
 - **Accents are ignored.** Searching `jose` finds `José`, and searching `müller` finds `Muller`.
 - **Capitalisation does not matter.**
 - **Names, emails and ticket numbers match partial text.** You do not need to type the whole value.
-- **Titles and messages match whole words.** `refund` finds "refund", but not "refunded".
+- **Titles and messages match words and the start of words.** `refund` finds "refund" and "refunded", but not "prerefund".
 - **Tags must match exactly.** `billing` finds the tag **billing**, not **billing-eu**.
 
 ## Who sees what
