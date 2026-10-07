@@ -542,6 +542,21 @@ Start commit: b4afe6b
 - P15-3 72120c0 accidentally also carries the two `DashboardHttpModule` lines of app.module.ts (the committer staged the whole file), so 72120c0 alone does not build. The committer refused to amend without the user's approval; not amended. ebf821c (dashboard module, next commit) makes the tree build again. Squash only if the user approves.
 - T225 part 1 ebf821c: dashboard module + `dashboard` cross-tenant fixture (RX-3). openapi `/dashboard` merge still open, so T225 stays unticked.
 - T224 delegated to backend-agent.
+- T226 tests 47a5c4e (SLA, SLA notifications, dashboard). Spec ticks 2471bf0.
+- T224 1c1ef7b (RX-4 Done): business-hours + sla-policies CRUD, sla_status filter (Escalated matches), staff SlaSummary, branding outOfHoursMessage, `/settings` businessHoursId, SlaReapplyService (inline, 100 tickets per transaction after policy/calendar edits). Shipped with the `sla_policy` cross-tenant fixture and three tests updated for the changed behaviour. T226 tests 16bfb04 (sla-admin, sla-summary, sla-views, branding out-of-hours). Full API suite 1084/1085, tsc/eslint clean.
+- T225 done: d414b9b (`/dashboard` in openapi, all fields required to match the code; the contract left inner fields optional), client bcc05ba (RX-3 Done).
+- T229 7e9d64f (RX-8 Done), docs build 19 pages.
+- T228 9fe781b (data/sla.ts, data/dashboard.ts, sla.* events invalidate tickets, dashboard live via hints + 60 s fallback) and 4137fb1 (ChatPage out-of-hours banner). T227 ae6cd94 (SLA policies / business hours admin pages, dashboard, SlaBadge time remaining, useNow, Organization "Business hours" picker; gap found by the orchestrator: without the picker the out-of-hours message could never show). T227/T228 NOT ticked: their tests are unfinished.
+
+### Stopped by the user 2026-10-07 — resume here
+- Uncommitted, work in progress from the stopped agents (review before committing):
+  - apps/api/test/integration/realtime/catch-up.test.ts: test-automator investigating the catch-up SC-002 "outsider got a hint" failure, which fails in every full API run since T223 but passes 3/3 alone. It had reached "now the full suite"; its fix is unverified.
+  - apps/web/test/admin/organization-settings.test.tsx, apps/web/test/data/settings.test.tsx: `businessHoursId: null` fixture fixes (web test tsc has been broken since bcc05ba).
+  - apps/web/test/sla/ (new): frontend-automator's US12 component/hook tests, partial; e2e spec not started.
+  - tasks.md: T224, T225, T229 ticked but not committed.
+- Next: finish the web tests + one e2e spec (frontend-automator), verify the catch-up fix with a full API run, commit, tick T226/T227/T228, then end of story (turbo lint/typecheck/test, check-coverage.sh, full e2e, reviewer on 29b8d52..HEAD, story summary, Jira RX-1 Done).
+- Jira: RX-1 Story In Progress; RX-2, RX-3, RX-4, RX-8 Done; RX-5 (T226), RX-6 (T227), RX-7 (T228) In Progress.
+- Open for the user: P15-3 (72120c0 doesn't build alone; squash with ebf821c only on approval).
 
 ## Skills created
 - Catalog section added to CLAUDE.md (8 skills `planned`) — skill-writer — b773097
