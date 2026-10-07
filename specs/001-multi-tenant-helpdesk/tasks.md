@@ -557,7 +557,7 @@ tickets in the searcher's accessible groups in their tenant (spec US13).
 - [X] T231 [US13] Implement `apps/api/src/search/search.service.ts` (`SearchService` interface + PostgreSQL implementation; ticket results always ANDed with `ticketAccessFilter(viewer, 'view')`; plain-text highlight snippets) and `GET /search` in `apps/api/src/search/search.controller.ts`; merge into `apps/api/openapi.yaml`
 - [ ] T232 [P] [US13] Integration tests `apps/api/test/integration/search/search.test.ts`: matches by each field; no results from inaccessible groups or other tenants; internal note text found only by staff with access
 - [ ] T233 [P] [US13] Extend `apps/web/src/components/shell/CommandBar.tsx` with search and create `apps/web/src/pages/desk/search/SearchResultsPage.tsx`
-- [ ] T234 [US13] Create `apps/web/src/data/search.ts`
+- [X] T234 [US13] Create `apps/web/src/data/search.ts`
 - [X] T235 [P] [US13] Guide `apps/docs/src/content/docs/guides/search.md`
 
 ---
