@@ -586,3 +586,10 @@ Start commit: b4afe6b
 - Carry-over: run `scripts/generate-api-client.sh` right after T052 (http.ts) and commit what it generates, or confirm it generates nothing. The CI freshness check now also catches untracked files.
 - Next up: Phase 2. skill-writer creates `tenant-scoping` before T016.
 
+
+### Session 2026-10-08 (parallel agents) — resume here
+- US12: T226-T229 done (web tests, sla.spec.ts e2e 2/2, web vitest 615/615). End of story still open: full turbo checks, reviewer, Jira RX-1/RX-6/RX-7 Done. Open bug: mobile business-hours drawer "Add calendar" button covered by the weekly-hours rows.
+- US13: T230-T235 done; reviewer PASS with 3 majors: CommandBar encoding (fixed), tsquery 500 on chars like ½ ⑴ and 0015 maintenance-window note (search backend-agent fix in progress, uncommitted). Jira RX-9 in Review.
+- US14: T236 done; T239 macros part and T241 macros hooks committed. T237 merge/split backend-agent in progress (uncommitted). Remaining: T237 rest, T238, T239 merge/split/bulk/presence, T240, T241 merge-split+presence, T242.
+- Untracked apps/web/test/search/search.test.tsx has lint errors and a failing test; owner unknown, review before committing.
+- Migrations are numbered 0015_search, 0016_macros (tasks.md numbers are taken).
