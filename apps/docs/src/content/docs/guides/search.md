@@ -44,7 +44,8 @@ at the end of the list to see the next page. Select a ticket to open it.
 ## Who sees what
 
 - **Only tickets in groups you can access.** Search applies the same rules as your ticket lists. If your role lacks **View** on a group, its tickets never appear in results, and nothing hints that they exist. See [Roles and groups](/admin/roles-and-groups/).
-- **Internal notes are searchable only by staff with access.** If a phrase appears only in an internal note, you find that ticket only when you can already see the note. Customers cannot search at all.
+- **Internal notes are searchable only by staff with access.** If a phrase appears only in an internal note, you find that ticket only when you can already see the note, and the snippet under the result may show the note's text. Customers cannot search at all.
+- **Customer results need permission to view people.** If your role lacks the **View** permission for users, search still finds tickets by customer name and email, but customers are not listed as separate results.
 - **Only your workspace.** Search never returns anything from another organisation.
 
 ## When you cannot find something
