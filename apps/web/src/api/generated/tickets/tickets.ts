@@ -49,6 +49,8 @@ import type {
   PreviewViewCount200,
   PreviewViewCountBody,
   ReorderViewsBody,
+  SearchTickets200,
+  SearchTicketsParams,
   TagRef,
   Ticket,
   TicketLink,
@@ -3333,3 +3335,137 @@ export const useDeleteView = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * Staff only. Tickets match by title and message text (public replies and internal notes) as whole words or word prefixes, accents ignored, and by ticket number, exact tag name, and customer name or email. Only tickets in groups the caller can view are returned (the same access filter as ticket lists), so internal note text is found only by staff with access to the ticket. Customers match by name, email or exact tag name and are included only when the caller has user.view. type=all lists tickets first, then customers, newest first. highlight is a plain text snippet of the best match (title, else the newest matching message), with each matched word wrapped in U+27E6 and U+27E7; never render it as HTML. Tickets that matched only by number, tag or customer have no highlight.
+ * @summary Search tickets and customers the caller can access (ticket.view, FR-070)
+ */
+export const getSearchTicketsUrl = (params: SearchTicketsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/search?${stringifiedParams}` : `/search`;
+};
+
+export const searchTickets = async (
+  params: SearchTicketsParams,
+  options?: RequestInit,
+): Promise<SearchTickets200> => {
+  return http<SearchTickets200>(getSearchTicketsUrl(params), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getSearchTicketsQueryKey = (params?: SearchTicketsParams) => {
+  return [`/search`, ...(params ? [params] : [])] as const;
+};
+
+export const getSearchTicketsQueryOptions = <
+  TData = Awaited<ReturnType<typeof searchTickets>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params: SearchTicketsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof searchTickets>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getSearchTicketsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof searchTickets>>> = ({ signal }) =>
+    searchTickets(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof searchTickets>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type SearchTicketsQueryResult = NonNullable<Awaited<ReturnType<typeof searchTickets>>>;
+export type SearchTicketsQueryError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useSearchTickets<
+  TData = Awaited<ReturnType<typeof searchTickets>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params: SearchTicketsParams,
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof searchTickets>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof searchTickets>>,
+          TError,
+          Awaited<ReturnType<typeof searchTickets>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSearchTickets<
+  TData = Awaited<ReturnType<typeof searchTickets>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params: SearchTicketsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof searchTickets>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof searchTickets>>,
+          TError,
+          Awaited<ReturnType<typeof searchTickets>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useSearchTickets<
+  TData = Awaited<ReturnType<typeof searchTickets>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params: SearchTicketsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof searchTickets>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Search tickets and customers the caller can access (ticket.view, FR-070)
+ */
+
+export function useSearchTickets<
+  TData = Awaited<ReturnType<typeof searchTickets>>,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  params: SearchTicketsParams,
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof searchTickets>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getSearchTicketsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
