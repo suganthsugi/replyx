@@ -9,6 +9,7 @@
 
 export * from './acceptInvitationBody';
 export * from './afterCloseBehavior';
+export * from './applyMacroRequest';
 export * from './attachmentSummary';
 export * from './attachmentSummaryDownloadPath';
 export * from './attachmentSummaryScanStatus';
@@ -107,6 +108,7 @@ export * from './listGroupDestinations200';
 export * from './listGroups200';
 export * from './listGroupsParams';
 export * from './listGroupsStatus';
+export * from './listMacros200';
 export * from './listMentionCandidates200';
 export * from './listMentionCandidatesParams';
 export * from './listNotifications200';
@@ -138,6 +140,11 @@ export * from './listUsers200AllOf';
 export * from './listUsersKind';
 export * from './listUsersParams';
 export * from './listViews200';
+export * from './macro';
+export * from './macroActions';
+export * from './macroInput';
+export * from './macroInputVisibility';
+export * from './macroVisibility';
 export * from './markConversationReadBody';
 export * from './markNotificationsRead200';
 export * from './markNotificationsReadBody';

@@ -23,6 +23,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  ApplyMacroRequest,
   AttachmentSummary,
   CreateTagBody,
   CreateTicketBody,
@@ -30,6 +31,7 @@ import type {
   CustomerProfile,
   ErrorResponse,
   GetViewCounts200,
+  ListMacros200,
   ListMentionCandidates200,
   ListMentionCandidatesParams,
   ListTags200,
@@ -41,6 +43,8 @@ import type {
   ListTickets200,
   ListTicketsParams,
   ListViews200,
+  Macro,
+  MacroInput,
   Message,
   MoveTicketMessageBody,
   NotFoundResponse,
@@ -721,6 +725,117 @@ export const useTriageTicket = <
   TContext
 > => {
   const mutationOptions = getTriageTicketMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Inserts the macro's reply as a public message and applies its field changes in one transaction (FR-068); if any
+part fails (INVALID_TRANSITION, OWNER_NOT_ELIGIBLE) nothing is stored. The reply is the macro body, or
+bodyOverride when the agent edited the text; a blank text means a fields-only macro and no message is created.
+The reply follows the same rules as postMessage (customer thread, first-reply timestamps, new becomes open).
+Field changes follow updateTicket: state (a pending state is set pendingInHours from now), priority, addTagIds
+added to the ticket's tags (tags deleted since the macro was saved are skipped) and assignToMe (the caller becomes
+owner, who needs edit on the group). The reply and the field changes are recorded in the ticket history in the
+same transaction under the caller. Repeating the request with the same clientMessageId returns the ticket without
+applying anything twice. A macro the caller cannot see is 404 MACRO_NOT_FOUND, as is a ticket outside their groups.
+ * @summary Apply a macro to a ticket (ticket.edit on the ticket's group, macro.view)
+ */
+export const getApplyMacroUrl = (id: string) => {
+  return `/tickets/${id}/apply-macro`;
+};
+
+export const applyMacro = async (
+  id: string,
+  applyMacroRequest: ApplyMacroRequest,
+  options?: RequestInit,
+): Promise<Ticket> => {
+  return http<Ticket>(getApplyMacroUrl(id), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(applyMacroRequest),
+  });
+};
+
+export const getApplyMacroMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof applyMacro>>,
+    TError,
+    { id: string; data: ApplyMacroRequest },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof applyMacro>>,
+  TError,
+  { id: string; data: ApplyMacroRequest },
+  TContext
+> => {
+  const mutationKey = ['applyMacro'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof applyMacro>>,
+    { id: string; data: ApplyMacroRequest }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return applyMacro(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ApplyMacroMutationResult = NonNullable<Awaited<ReturnType<typeof applyMacro>>>;
+export type ApplyMacroMutationBody = ApplyMacroRequest;
+export type ApplyMacroMutationError =
+  | ValidationFailedResponse
+  | UnauthenticatedResponse
+  | PermissionDeniedResponse
+  | NotFoundResponse
+  | ErrorResponse;
+
+/**
+ * @summary Apply a macro to a ticket (ticket.edit on the ticket's group, macro.view)
+ */
+export const useApplyMacro = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof applyMacro>>,
+      TError,
+      { id: string; data: ApplyMacroRequest },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof applyMacro>>,
+  TError,
+  { id: string; data: ApplyMacroRequest },
+  TContext
+> => {
+  const mutationOptions = getApplyMacroMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
@@ -3469,3 +3584,383 @@ export function useSearchTickets<
 
   return query;
 }
+
+/**
+ * A macro is visible to every staff user when shared with all staff, to holders of a shared role, to users with view access on a shared group, and always to its creator. Ordered by name.
+ * @summary Macros visible to the caller (macro.view)
+ */
+export const getListMacrosUrl = () => {
+  return `/macros`;
+};
+
+export const listMacros = async (options?: RequestInit): Promise<ListMacros200> => {
+  return http<ListMacros200>(getListMacrosUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListMacrosQueryKey = () => {
+  return [`/macros`] as const;
+};
+
+export const getListMacrosQueryOptions = <
+  TData = Awaited<ReturnType<typeof listMacros>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMacros>>, TError, TData>>;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListMacrosQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listMacros>>> = ({ signal }) =>
+    listMacros({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listMacros>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListMacrosQueryResult = NonNullable<Awaited<ReturnType<typeof listMacros>>>;
+export type ListMacrosQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useListMacros<
+  TData = Awaited<ReturnType<typeof listMacros>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMacros>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMacros>>,
+          TError,
+          Awaited<ReturnType<typeof listMacros>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListMacros<
+  TData = Awaited<ReturnType<typeof listMacros>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMacros>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listMacros>>,
+          TError,
+          Awaited<ReturnType<typeof listMacros>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListMacros<
+  TData = Awaited<ReturnType<typeof listMacros>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMacros>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Macros visible to the caller (macro.view)
+ */
+
+export function useListMacros<
+  TData = Awaited<ReturnType<typeof listMacros>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMacros>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListMacrosQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Visibility roles needs at least one sharedRoleIds entry and groups at least one sharedGroupIds entry; the list that
+does not match the visibility is ignored. Roles, groups and tags must belong to the tenant, else 400 with details
+such as sharedRoleIds.0 invalid_value. A pending state needs actions.pendingInHours (and only a pending state takes
+it). A macro with a blank body and no actions is 400 (body required). Audited as macro.created (no body text).
+ * @summary Create a macro (macro.create)
+ */
+export const getCreateMacroUrl = () => {
+  return `/macros`;
+};
+
+export const createMacro = async (
+  macroInput: MacroInput,
+  options?: RequestInit,
+): Promise<Macro> => {
+  return http<Macro>(getCreateMacroUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(macroInput),
+  });
+};
+
+export const getCreateMacroMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createMacro>>,
+    TError,
+    { data: MacroInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createMacro>>,
+  TError,
+  { data: MacroInput },
+  TContext
+> => {
+  const mutationKey = ['createMacro'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createMacro>>,
+    { data: MacroInput }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createMacro(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateMacroMutationResult = NonNullable<Awaited<ReturnType<typeof createMacro>>>;
+export type CreateMacroMutationBody = MacroInput;
+export type CreateMacroMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+
+/**
+ * @summary Create a macro (macro.create)
+ */
+export const useCreateMacro = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createMacro>>,
+      TError,
+      { data: MacroInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createMacro>>,
+  TError,
+  { data: MacroInput },
+  TContext
+> => {
+  const mutationOptions = getCreateMacroMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Rules are those of createMacro. A macro the caller cannot see is 404 MACRO_NOT_FOUND. Audited as macro.updated.
+ * @summary Replace a macro (macro.edit)
+ */
+export const getUpdateMacroUrl = (id: string) => {
+  return `/macros/${id}`;
+};
+
+export const updateMacro = async (
+  id: string,
+  macroInput: MacroInput,
+  options?: RequestInit,
+): Promise<Macro> => {
+  return http<Macro>(getUpdateMacroUrl(id), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(macroInput),
+  });
+};
+
+export const getUpdateMacroMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateMacro>>,
+    TError,
+    { id: string; data: MacroInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateMacro>>,
+  TError,
+  { id: string; data: MacroInput },
+  TContext
+> => {
+  const mutationKey = ['updateMacro'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateMacro>>,
+    { id: string; data: MacroInput }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateMacro(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateMacroMutationResult = NonNullable<Awaited<ReturnType<typeof updateMacro>>>;
+export type UpdateMacroMutationBody = MacroInput;
+export type UpdateMacroMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Replace a macro (macro.edit)
+ */
+export const useUpdateMacro = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateMacro>>,
+      TError,
+      { id: string; data: MacroInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateMacro>>,
+  TError,
+  { id: string; data: MacroInput },
+  TContext
+> => {
+  const mutationOptions = getUpdateMacroMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * A macro the caller cannot see is 404 MACRO_NOT_FOUND. Audited as macro.deleted.
+ * @summary Delete a macro (macro.delete)
+ */
+export const getDeleteMacroUrl = (id: string) => {
+  return `/macros/${id}`;
+};
+
+export const deleteMacro = async (id: string, options?: RequestInit): Promise<void> => {
+  return http<void>(getDeleteMacroUrl(id), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteMacroMutationOptions = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteMacro>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteMacro>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ['deleteMacro'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMacro>>, { id: string }> = (
+    props,
+  ) => {
+    const { id } = props ?? {};
+
+    return deleteMacro(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteMacroMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMacro>>>;
+
+export type DeleteMacroMutationError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Delete a macro (macro.delete)
+ */
+export const useDeleteMacro = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteMacro>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<Awaited<ReturnType<typeof deleteMacro>>, TError, { id: string }, TContext> => {
+  const mutationOptions = getDeleteMacroMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
