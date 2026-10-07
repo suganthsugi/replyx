@@ -207,7 +207,8 @@ export default function DeskLayout() {
         onSelectView={(viewId) => void navigate(`${WORKSPACE_BASE}/inbox/${viewId}`)}
         onOpenTicketNumber={(ticketNumber) => void onOpenTicketNumber(ticketNumber)}
         onOpenTicket={onOpenNotificationTicket}
-        onOpenSearch={onOpenSearch}
+        // Search lists tickets, so people without ticket.view get no search (and no error per query).
+        onOpenSearch={permissions.has('ticket.view') ? onOpenSearch : undefined}
       />
     </DesignSystemScope>
   );

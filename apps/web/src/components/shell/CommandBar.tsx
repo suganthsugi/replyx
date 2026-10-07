@@ -112,6 +112,15 @@ export function CommandBar({ views, onSelectView, onOpenTicketNumber, onOpenTick
     announce(results.length === 0 ? 'No matches' : `${results.length} result${results.length === 1 ? '' : 's'}`);
   }, [results, open, announce]);
 
+  const searching = open && searchEnabled && query.trim() !== '' && search.isFetching;
+  const searchError = open && searchEnabled ? search.error?.message : undefined;
+  useEffect(() => {
+    if (searching) announce('Searching');
+  }, [searching, announce]);
+  useEffect(() => {
+    if (searchError !== undefined) announce(`Search is unavailable: ${searchError}`, 'assertive');
+  }, [searchError, announce]);
+
   const close = () => setOpen(false);
 
   const commit = (result: CommandResult) => {
@@ -186,14 +195,14 @@ export function CommandBar({ views, onSelectView, onOpenTicketNumber, onOpenTick
           ))}
         </List>
       )}
-      {searchEnabled && query.trim() !== '' && search.isFetching && (
+      {searching && (
         <Typography variant="caption" color="text.secondary" sx={{ px: 1, pt: 1, display: 'block' }}>
-          Searching…
+          Searchingâ€¦
         </Typography>
       )}
-      {searchEnabled && search.error !== undefined && (
+      {searchError !== undefined && (
         <Typography variant="caption" color="error" sx={{ px: 1, pt: 1, display: 'block' }}>
-          Search is unavailable: {search.error.message}
+          Search is unavailable: {searchError}
         </Typography>
       )}
     </Modal>
@@ -211,11 +220,11 @@ function optionSecondary(result: CommandResult): ReactNode {
         result.detail
       ) : (
         <>
-          {result.detail} · <SearchHighlight highlight={result.highlight} />
+          {result.detail} Â· <SearchHighlight highlight={result.highlight} />
         </>
       );
     case 'found-customer':
-      return `Customer · ${result.detail}`;
+      return `Customer Â· ${result.detail}`;
     case 'see-all':
       return 'Search page';
   }

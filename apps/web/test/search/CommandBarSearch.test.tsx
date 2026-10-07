@@ -1,12 +1,16 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { delay, http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CommandBar } from '../../src/components/shell/CommandBar';
+import { API, errorResponse } from '../msw/handlers';
 import { renderWithProviders } from '../render';
 import { expectNoAxeViolations, server } from '../setup';
 
 import { customerResult, searchHandler, ticketResult } from './fixtures';
+
+import type { SearchTickets200 } from '../../src/api/generated/model';
 
 const VIEWS = [{ id: 'view-1', name: 'My open tickets' }];
 
@@ -45,7 +49,8 @@ describe('CommandBar search', () => {
     const dialog = await screen.findByRole('dialog');
     const ticket = await within(dialog).findByRole('option', { name: /#4471 Billing/ });
     expect(within(ticket).getByText('invoice').tagName).toBe('MARK');
-    expect(within(dialog).getByRole('option', { name: /Ines Invoice/ })).toBeInTheDocument();
+    expect(within(dialog).getByRole('option', { name: /Ines Invoice/ })).toHaveTextContent('Customer · ines@example.com');
+    expect(ticket).toHaveTextContent('Cara Customer · About invoice 4471');
     expect(within(dialog).getByRole('option', { name: /See all results for "invoice"/ })).toBeInTheDocument();
     expect(seen).toHaveLength(1);
     expect(seen[0]?.searchParams.get('type')).toBe('all');
@@ -93,5 +98,31 @@ describe('CommandBar search', () => {
     await typeQuery('refund');
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(seen).toHaveLength(0);
+  });
+
+  it('shows and announces "Searching…" while the request is in flight', async () => {
+    server.use(
+      http.get(`${API}/search`, async () => {
+        await delay(300);
+        return HttpResponse.json<SearchTickets200>({ items: [], nextCursor: null });
+      }),
+    );
+    setup();
+    await typeQuery('refund');
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText('Searching…')).toBeInTheDocument();
+    expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent('Searching');
+    await waitFor(() => expect(within(dialog).queryByText('Searching…')).not.toBeInTheDocument());
+  });
+
+  it('shows and announces a search failure, and keeps the views usable', async () => {
+    server.use(http.get(`${API}/search`, () => errorResponse(500, 'INTERNAL', 'Boom')));
+    setup();
+    await typeQuery('tickets');
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByText(/Search is unavailable/)).toBeInTheDocument();
+    expect(document.querySelector('[aria-live="assertive"]')).toHaveTextContent('Search is unavailable');
+    expect(within(dialog).getByRole('option', { name: /My open tickets/ })).toBeInTheDocument();
+    await expectNoAxeViolations(dialog);
   });
 });
