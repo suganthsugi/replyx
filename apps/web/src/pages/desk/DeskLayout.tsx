@@ -24,6 +24,7 @@ import { useViews } from '../../data/views';
 import { WORKSPACE_BASE } from '../../routes/area';
 
 import type { Availability } from '../../data/auth';
+import type { SearchScope } from '../../data/search';
 
 /**
  * The workspace shell (docs/design-system "Workspace Inbox"): a top bar with the command bar,
@@ -88,6 +89,15 @@ export default function DeskLayout() {
       void navigate(`${WORKSPACE_BASE}/inbox/${viewId}/${ticketId}`);
     },
     [routeParams.viewId, views.data, navigate],
+  );
+
+  const onOpenSearch = useCallback(
+    (query: string, type?: SearchScope) => {
+      const searchParams = new URLSearchParams({ q: query });
+      if (type !== undefined && type !== 'all') searchParams.set('type', type);
+      void navigate(`${WORKSPACE_BASE}/search?${searchParams.toString()}`);
+    },
+    [navigate],
   );
 
   if (meQuery.error?.code === 'UNAUTHENTICATED') {
@@ -196,6 +206,8 @@ export default function DeskLayout() {
         views={commandBarViews}
         onSelectView={(viewId) => void navigate(`${WORKSPACE_BASE}/inbox/${viewId}`)}
         onOpenTicketNumber={(ticketNumber) => void onOpenTicketNumber(ticketNumber)}
+        onOpenTicket={onOpenNotificationTicket}
+        onOpenSearch={onOpenSearch}
       />
     </DesignSystemScope>
   );

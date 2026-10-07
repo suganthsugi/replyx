@@ -3,15 +3,18 @@ import ListItemButton from '@mui/material/ListItemButton';
 import ListItemText from '@mui/material/ListItemText';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 
+import { isCustomerResult, isTicketResult, useQuickSearch, type SearchScope } from '../../data/search';
+import { SearchHighlight } from '../data-display/SearchHighlight';
 import { useAnnounce } from '../foundations/LiveRegion';
 
 import { Modal } from './Modal';
 
 /**
- * Ctrl/Cmd+K command bar (T153): jumps to a view by name or a ticket by number. Full search
- * across messages and customers arrives in US13 (T233), which extends this component.
+ * Ctrl/Cmd+K command bar (T153): jumps to a view by name or a ticket by number. With
+ * `onOpenSearch` it also runs a quick search (US13, T233) over tickets and customers and offers
+ * "See all results", which opens the search results page.
  */
 
 export interface CommandBarView {
@@ -23,21 +26,30 @@ export interface CommandBarProps {
   views: readonly CommandBarView[];
   onSelectView: (viewId: string) => void;
   onOpenTicketNumber: (ticketNumber: number) => void;
+  /** Opens a ticket found by search. */
+  onOpenTicket?: (ticketId: string) => void;
+  /** Opens the search results page; its presence turns search on in the command bar. */
+  onOpenSearch?: (query: string, type?: SearchScope) => void;
 }
 
 type CommandResult =
   | { kind: 'ticket'; key: string; label: string; ticketNumber: number }
-  | { kind: 'view'; key: string; label: string; viewId: string };
+  | { kind: 'view'; key: string; label: string; viewId: string }
+  | { kind: 'found-ticket'; key: string; label: string; detail: string | undefined; highlight: string | undefined; ticketId: string }
+  | { kind: 'found-customer'; key: string; label: string; detail: string; email: string }
+  | { kind: 'see-all'; key: string; label: string; query: string };
 
 const TICKET_NUMBER_PATTERN = /^#?(\d+)$/;
 
-export function CommandBar({ views, onSelectView, onOpenTicketNumber }: CommandBarProps) {
+export function CommandBar({ views, onSelectView, onOpenTicketNumber, onOpenTicket, onOpenSearch }: CommandBarProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [activeIndex, setActiveIndex] = useState(0);
   const announce = useAnnounce();
   const inputRef = useRef<HTMLInputElement>(null);
   const listboxId = useId();
+  const searchEnabled = onOpenSearch !== undefined;
+  const search = useQuickSearch(open && searchEnabled ? query : '');
 
   useEffect(() => {
     function handleShortcut(event: globalThis.KeyboardEvent) {
@@ -73,8 +85,26 @@ export function CommandBar({ views, onSelectView, onOpenTicketNumber }: CommandB
         list.push({ kind: 'view', key: `view-${view.id}`, label: view.name, viewId: view.id });
       }
     }
+
+    if (searchEnabled && trimmed !== '') {
+      for (const item of search.data ?? []) {
+        if (isTicketResult(item)) {
+          list.push({
+            kind: 'found-ticket',
+            key: `found-ticket-${item.ticket.id}`,
+            label: `#${item.ticket.number} ${item.ticket.title}`,
+            detail: item.ticket.customer.name,
+            highlight: item.highlight,
+            ticketId: item.ticket.id,
+          });
+        } else if (isCustomerResult(item)) {
+          list.push({ kind: 'found-customer', key: `found-customer-${item.customer.id}`, label: item.customer.name, detail: item.email, email: item.email });
+        }
+      }
+      list.push({ kind: 'see-all', key: 'see-all', label: `See all results for "${trimmed}"`, query: trimmed });
+    }
     return list;
-  }, [query, views]);
+  }, [query, views, searchEnabled, search.data]);
 
   useEffect(() => {
     if (!open) return;
@@ -87,7 +117,11 @@ export function CommandBar({ views, onSelectView, onOpenTicketNumber }: CommandB
   const commit = (result: CommandResult) => {
     close();
     if (result.kind === 'ticket') onOpenTicketNumber(result.ticketNumber);
-    else onSelectView(result.viewId);
+    else if (result.kind === 'view') onSelectView(result.viewId);
+    else if (result.kind === 'found-ticket') onOpenTicket?.(result.ticketId);
+    // A customer has no profile page of their own yet, so choosing one shows their tickets.
+    else if (result.kind === 'found-customer') onOpenSearch?.(result.email, 'tickets');
+    else onOpenSearch?.(result.query);
   };
 
   const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
@@ -117,7 +151,7 @@ export function CommandBar({ views, onSelectView, onOpenTicketNumber }: CommandB
         onChange={(event) => setQuery(event.target.value)}
         onKeyDown={handleKeyDown}
         label="Jump to a view or ticket number"
-        placeholder="Type a view name or a ticket number, e.g. #1234"
+        placeholder={searchEnabled ? 'Type a view, a ticket number such as #1234, or search' : 'Type a view name or a ticket number, e.g. #1234'}
         fullWidth
         autoFocus
         autoComplete="off"
@@ -147,11 +181,42 @@ export function CommandBar({ views, onSelectView, onOpenTicketNumber }: CommandB
               onClick={() => commit(result)}
               onMouseEnter={() => setActiveIndex(index)}
             >
-              <ListItemText primary={result.label} secondary={result.kind === 'ticket' ? 'Ticket' : 'View'} />
+              <ListItemText primary={result.label} secondary={optionSecondary(result)} />
             </ListItemButton>
           ))}
         </List>
       )}
+      {searchEnabled && query.trim() !== '' && search.isFetching && (
+        <Typography variant="caption" color="text.secondary" sx={{ px: 1, pt: 1, display: 'block' }}>
+          Searching…
+        </Typography>
+      )}
+      {searchEnabled && search.error !== undefined && (
+        <Typography variant="caption" color="error" sx={{ px: 1, pt: 1, display: 'block' }}>
+          Search is unavailable: {search.error.message}
+        </Typography>
+      )}
     </Modal>
   );
+}
+
+function optionSecondary(result: CommandResult): ReactNode {
+  switch (result.kind) {
+    case 'ticket':
+      return 'Ticket';
+    case 'view':
+      return 'View';
+    case 'found-ticket':
+      return result.highlight === undefined || result.highlight === '' ? (
+        result.detail
+      ) : (
+        <>
+          {result.detail} · <SearchHighlight highlight={result.highlight} />
+        </>
+      );
+    case 'found-customer':
+      return `Customer · ${result.detail}`;
+    case 'see-all':
+      return 'Search page';
+  }
 }
