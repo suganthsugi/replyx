@@ -1,5 +1,7 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { sql, type Kysely } from 'kysely';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 
+import { PLATFORM_DB, type Database } from '../../../src/platform-kernel/db/database.js';
 import { TenantContext } from '../../../src/platform-kernel/db/tenant-context.js';
 import { UnitOfWork } from '../../../src/platform-kernel/db/unit-of-work.js';
 import { OutboxService } from '../../../src/platform-kernel/outbox/outbox.service.js';
@@ -52,6 +54,31 @@ async function settleHints(socket: Socket, quietMs = 1_000): Promise<void> {
   while (await arrives(socket, isHint, quietMs)) {
     // keep draining
   }
+}
+
+/**
+ * Waits until the worker's view-counts consumer has processed every event of the tenant it handles
+ * (setup's access.changed bumps, ticket events). A quiet period alone is not enough: with a busy
+ * worker (a backlog from earlier files, one more consumer since T223) the setup events can be
+ * processed, and their hints appended, later than any fixed quiet window, so a leftover hint reached
+ * the sockets mid-measurement. Once everything is consumed, only the 500 ms trailing flush can still
+ * follow, and settleHints drains that.
+ */
+async function awaitViewCountsConsumed(tenantId: string): Promise<void> {
+  const { app } = await getTestApp();
+  const platformDb = app.get<Kysely<Database>>(PLATFORM_DB);
+  await vi.waitFor(
+    async () => {
+      const { rows } = await sql<{ pending: string }>`
+        SELECT count(*) AS pending FROM outbox_events e
+        WHERE e.tenant_id = ${tenantId}
+          AND e.type IN ('ticket.created', 'ticket.updated', 'ticket.removed_from_view', 'access.changed', 'sla.warning', 'sla.breached', 'sla.updated')
+          AND NOT EXISTS (SELECT 1 FROM processed_events p WHERE p.consumer = 'view-counts' AND p.event_id = e.id)
+      `.execute(platformDb);
+      if (Number(rows[0]?.pending ?? 0) !== 0) throw new Error('view-counts consumer has not caught up');
+    },
+    { timeout: 60_000, interval: 200 },
+  );
 }
 
 /**
@@ -209,6 +236,7 @@ describe('view count hints follow a ticket change within 2 s (SC-002)', () => {
     // get a leftover hint from setup rather than from the ticket change below. Drain it first, so
     // the timed measurement only sees the hint this test is actually about. Drained until quiet,
     // not for a fixed time, so a slow worker under load can't deliver a leftover mid-measurement.
+    await awaitViewCountsConsumed(tenant.id);
     await Promise.all([settleHints(viewerSocket), settleHints(outsiderSocket)]);
 
     const before = await asUser(viewer).get('/views/counts');
