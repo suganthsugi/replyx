@@ -3,6 +3,7 @@ import { act, renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { dashboardKeys } from '../../src/data/dashboard';
 import { RealtimeClient, type Envelope, type RealtimeSocket } from '../../src/data/socket';
 import { reorderViewsMutationKey, useDeleteView, useReorderViews, useViewCountEvents, VIEW_LIST_REFRESH_MS, viewCountKeys } from '../../src/data/view-counts';
 import { viewKeys } from '../../src/data/views';
@@ -186,7 +187,7 @@ describe('useViewCountEvents', () => {
     renderHook(() => useViewCountEvents(client));
     expect(register).toHaveBeenCalledWith('views', expect.any(Function));
     const keysFor = register.mock.calls[0]![1];
-    expect(keysFor('views')).toEqual([viewCountKeys.all, viewKeys.list()]);
+    expect(keysFor('views')).toEqual([viewCountKeys.all, viewKeys.list(), dashboardKeys.all]);
   });
 });
 

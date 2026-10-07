@@ -28,6 +28,7 @@ const settings: TenantSettings = {
   afterCloseBehavior: 'new_follow_up',
   offlineCustomerNotification: 'email',
   outOfHoursMessage: null,
+  businessHoursId: null,
   retentionPeriod: 'forever',
   auditRetention: 'forever',
 };
