@@ -6,6 +6,7 @@ import { asUser } from '../../support/http.js';
 import { sweeperJob } from '../../support/jobs.js';
 import { createBusinessHours, createSlaPolicy, recomputeSla, setTicketSla } from '../../support/sla.js';
 import { createView } from '../../support/view-factory.js';
+import { awaitViewCountsConsumed } from '../../support/view-counts-wait.js';
 
 import type { ConditionGroup } from '../../../src/views/condition-schema.js';
 
@@ -31,13 +32,15 @@ let customer: TestUser;
 beforeAll(async () => {
   await getTestApp();
   await getTestWorker();
+});
+
+// A fresh tenant per test: the sweeper walks every SLA ticket, so tickets left by the first test
+// would change state at the second test's sweep times and skew its counts.
+beforeEach(async () => {
+  (await getTestApp()).clock.set(T0);
   tenant = await createTenant({ timezone: 'UTC' });
   admin = await createUser(tenant, { roles: ['admin'] });
   customer = await createUser(tenant, { roles: ['customer'] });
-});
-
-beforeEach(async () => {
-  (await getTestApp()).clock.set(T0);
 });
 
 async function escalatedViewId(): Promise<string> {
@@ -56,7 +59,7 @@ async function idsIn(viewId: string): Promise<Set<string>> {
 const slaCondition = (operator: 'is' | 'is_not' | 'contains', value: string | string[]): ConditionGroup => ({ op: 'and', items: [{ field: 'sla_status', operator, value }] });
 
 describe('Escalated and sla_status', () => {
-  it('Escalated lists warning and breached open tickets only, and a custom sla_status view filters on the status', async () => {
+  it('Escalated lists warning and breached open tickets only, and a custom sla_status view filters on the status', { timeout: 60_000 }, async () => {
     const hours = await createBusinessHours(tenant);
     const policy = await createSlaPolicy(tenant, { businessHours: hours, resolutionMinutes: 60 });
     const make = (state: 'open' | 'resolved' | 'closed' = 'open') => createTicket(tenant, { customer, state, now: T0, messages: [{ body: 'x' }] });
@@ -94,6 +97,7 @@ describe('Escalated and sla_status', () => {
     const hours = await createBusinessHours(tenant);
     await createSlaPolicy(tenant, { businessHours: hours, firstResponseMinutes: 60, warningPercent: 80 });
     const viewId = await escalatedViewId();
+    await awaitViewCountsConsumed(tenant.id);
     const before = ((await asUser(admin).get('/views/counts')).body as Record<string, number>)[viewId] ?? 0;
 
     const ticket = await createTicket(tenant, { customer, state: 'open', now: T0, messages: [{ body: 'Help' }] });
@@ -107,6 +111,7 @@ describe('Escalated and sla_status', () => {
 
     await sweepAt(50); // warning
     expect((await idsIn(viewId)).has(ticket.id)).toBe(true);
+    await awaitViewCountsConsumed(tenant.id);
     await vi.waitFor(
       async () => {
         const counts = (await asUser(admin).get('/views/counts')).body as Record<string, number>;
@@ -117,7 +122,8 @@ describe('Escalated and sla_status', () => {
 
     await sweepAt(61); // breached: still escalated, count unchanged
     expect((await idsIn(viewId)).has(ticket.id)).toBe(true);
+    await awaitViewCountsConsumed(tenant.id);
     const counts = (await asUser(admin).get('/views/counts')).body as Record<string, number>;
     expect(counts[viewId]).toBe(before + 1);
-  });
+  }, 90_000);
 });
