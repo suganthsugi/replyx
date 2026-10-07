@@ -66,7 +66,7 @@ export function DashboardView({ status, errorMessage, onRetry, data, updatedAt }
   const updated = updatedAt === undefined ? undefined : new Date(updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <Box component="main" id="desk-main" tabIndex={-1} sx={{ height: '100%', overflow: 'auto', px: { xs: 4, sm: 8 }, py: 6, outline: 'none' }}>
+    <Box component="main" id="desk-main" tabIndex={0} sx={{ height: '100%', overflow: 'auto', px: { xs: 4, sm: 8 }, py: 6, outline: 'none', '&:focus-visible': { outline: 2, outlineColor: 'primary.main', outlineStyle: 'solid', outlineOffset: -2 } }}>
       <Box sx={{ maxWidth: 1040 }}>
         <Box sx={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 4, flexWrap: 'wrap', mb: 2 }}>
           <Typography component="h1" variant="h1">
