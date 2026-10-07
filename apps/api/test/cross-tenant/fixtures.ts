@@ -176,6 +176,8 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       // Zod requires groupId before the tenant-scoped lookup runs; a well-formed but unrelated id
       // is enough since the ticket lookup 404s first either way (tenant B, or an unknown id).
       'TicketsController.triage': () => ({ groupId: uuidv7() }),
+      // The ticket lookup 404s before the macro is looked up (T236).
+      'MacroApplyController.apply': () => ({ macroId: uuidv7(), clientMessageId: uuidv7() }),
     },
     // Both fixture messages contain "tenant", so tenant A's own search finds them (T232).
     queries: { 'SearchController.find': () => 'q=tenant&type=all' },
@@ -187,6 +189,16 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
     },
     bodies: {
       'TagsController.update': () => ({ name: 'Renamed by another tenant' }),
+    },
+  },
+  macro: {
+    async create(tenant) {
+      const id = await insertMacro(tenant, 'Tenant A macro');
+      return { params: { id }, ids: [id] };
+    },
+    bodies: {
+      // MacroInput must validate before the tenant-scoped lookup 404s (POST /macros has no path id).
+      'MacrosController.update': () => ({ name: 'Renamed by another tenant', body: 'Hello', actions: { priority: 'high' }, visibility: 'all_staff' }),
     },
   },
   view: {
@@ -384,6 +396,22 @@ class RoutingRuleFixtureRepository extends TenantRepository {
       conditions: JSON.stringify({ messageContainsAny: ['refund'] }),
       actions: JSON.stringify({ groupId }),
     })
+      .returning('id')
+      .executeTakeFirstOrThrow();
+    return row.id;
+  }
+}
+
+/** A tenant's macro, inserted directly (shared with all staff, no actions). */
+async function insertMacro(tenant: TestTenant, name: string): Promise<string> {
+  const unitOfWork = await service(UnitOfWork);
+  const ctx = TenantContext.create({ tenantId: tenant.id, actor: { kind: 'system' }, requestId: 'cross-tenant-fixture' });
+  return unitOfWork.withTenant(ctx, (tx) => new MacroFixtureRepository(ctx).insert(tx, name));
+}
+
+class MacroFixtureRepository extends TenantRepository {
+  async insert(tx: TenantTransaction, name: string): Promise<string> {
+    const row = await this.insertInto(tx, 'macros', { name, body: 'Hello from tenant A', actions: '{}', created_by: null })
       .returning('id')
       .executeTakeFirstOrThrow();
     return row.id;
