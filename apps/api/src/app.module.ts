@@ -26,6 +26,7 @@ import { OutboxRelayModule } from './platform-kernel/outbox/relay.js';
 import { RealtimeModule } from './platform-kernel/realtime/gateway.js';
 import { RedisModule } from './platform-kernel/redis/redis.module.js';
 import { RoutingHttpModule } from './routing/routing.module.js';
+import { SearchHttpModule } from './search/search.module.js';
 import { SlaHttpModule, SlaJobsModule } from './sla/sla.module.js';
 import { TagsHttpModule, TagsModule } from './tags/tags.module.js';
 import { RetentionJobsModule } from './tenancy/retention/retention.module.js';
@@ -85,6 +86,7 @@ export class AppModule {
       ViewsModule,
       DashboardHttpModule,
       RoutingHttpModule,
+      SearchHttpModule,
       SlaHttpModule,
       NotificationsHttpModule,
     ];
