@@ -5,8 +5,8 @@ import { createTenant, createTicket, createUser, type TestTenant, type TestUser 
 import { asUser } from '../../support/http.js';
 import { sweeperJob } from '../../support/jobs.js';
 import { createBusinessHours, createSlaPolicy, recomputeSla, setTicketSla } from '../../support/sla.js';
-import { createView } from '../../support/view-factory.js';
 import { awaitViewCountsConsumed } from '../../support/view-counts-wait.js';
+import { createView } from '../../support/view-factory.js';
 
 import type { ConditionGroup } from '../../../src/views/condition-schema.js';
 
