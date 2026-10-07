@@ -87,9 +87,18 @@ describe('cross-tenant isolation (generated)', () => {
         roles: fixture.callerRoles ?? [resource.startsWith('customer:') ? 'customer' : 'admin'],
       });
       const body = fixture.bodies?.[route.name]?.(created);
-      const call = (path: string) => asUser(callerB)[method](path, body);
+      const query = fixture.queries?.[route.name]?.(created);
+      const withQuery = (path: string) => (query === undefined ? path : `${path}?${query}`);
+      const call = (path: string) => asUser(callerB)[method](withQuery(path), body);
 
       if (params.length === 0) {
+        if (query !== undefined) {
+          // Control: the same query as a tenant A admin finds the resource, so B's empty answer means something.
+          const ownerA = await createUser(a, { roles: ['admin'] });
+          const own = await asUser(ownerA)[method](withQuery(route.path), body);
+          expect(own.status).toBe(200);
+          expect(created.ids.some((id) => JSON.stringify(own.body).includes(id))).toBe(true);
+        }
         const response = await call(route.path);
         expect(response.status).toBe(200);
         const text = JSON.stringify(response.body);

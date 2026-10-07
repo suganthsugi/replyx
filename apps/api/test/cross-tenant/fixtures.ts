@@ -39,6 +39,12 @@ export interface CrossTenantFixture {
    * request reaches the service's lookup instead of failing validation.
    */
   bodies?: Record<string, (resource: CreatedResource) => object>;
+  /**
+   * A query string (without `?`) per GET route name, for routes that reject a bare call (`GET /search`
+   * needs `q`). It must match the created resource: the generated suite also calls the route as a
+   * tenant A admin and requires a created id in the body, so tenant B's empty answer is meaningful.
+   */
+  queries?: Record<string, (resource: CreatedResource) => string>;
   /** Roles for the tenant B caller; defaults to Admin (every permission, full group access). */
   callerRoles?: RoleRef[];
 }
@@ -171,6 +177,8 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       // is enough since the ticket lookup 404s first either way (tenant B, or an unknown id).
       'TicketsController.triage': () => ({ groupId: uuidv7() }),
     },
+    // Both fixture messages contain "tenant", so tenant A's own search finds them (T232).
+    queries: { 'SearchController.find': () => 'q=tenant&type=all' },
   },
   tag: {
     async create(tenant) {
