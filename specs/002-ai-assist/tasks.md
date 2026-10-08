@@ -50,7 +50,7 @@ description: "Task list for AI Assist (first cut)"
 
 ## Phase 2: Foundational (blocks all stories)
 
-- [ ] T003 Write migration `apps/api/migrations/0017_ai.ts` and the Kysely types in `apps/api/src/platform-kernel/db/tables/ai.ts` (registered in the DB type), exactly per [data-model.md](data-model.md).
+- [X] T003 Write migration `apps/api/migrations/0017_ai.ts` and the Kysely types in `apps/api/src/platform-kernel/db/tables/ai.ts` (registered in the DB type), exactly per [data-model.md](data-model.md).
   - **Tables**: `ai_settings`, `ai_store_connections`, `ai_complexity_factors`, `ai_policy_documents`, `ai_policy_versions`, `ai_policy_chunks`, `ai_ticket_state`, `ai_turns`, `ai_drafts`, `ai_runs`.
   - **Every table**: `tenant_id`, `enable_tenant_rls` and `grant_app_dml`.
   - **Key constraints**:
