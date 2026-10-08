@@ -8,7 +8,7 @@ import { useState } from 'react';
 import type { BulkChanges } from '../../data/merge-split';
 
 /**
- * The bar above the ticket list while tickets are checked (US14, FR-041): one change at a time to
+ * The bar under the ticket list while tickets are checked (US14, FR-041): one change at a time to
  * every checked ticket. It only collects the change; the caller runs `useBulkUpdateTickets` and
  * reports per-ticket refusals. Pending states need a date, so the state menu offers only the
  * states that don't.
@@ -44,7 +44,7 @@ export function BulkActionBar({ count, busy = false, onAssignToMe, onApply, onCl
     <Box
       role="toolbar"
       aria-label="Bulk actions"
-      sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, px: 3, py: 2, borderBottom: 1, borderColor: 'divider', bgcolor: 'action.selected' }}
+      sx={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 2, px: 3, py: 2, borderTop: 1, borderColor: 'divider', bgcolor: 'action.selected' }}
     >
       <Typography variant="body2" sx={{ fontWeight: 600, mr: 1 }}>
         {count} selected

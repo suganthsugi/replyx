@@ -339,15 +339,6 @@ function TicketListPane({
           </Button>
         )}
       </Box>
-      {canBulk && checkedVisible.size > 0 && (
-        <BulkActionBar
-          count={checkedVisible.size}
-          busy={bulk.isPending}
-          onApply={(changes) => void apply(changes)}
-          onAssignToMe={me.data === undefined ? undefined : () => void apply({ ownerId: me.data.id })}
-          onClear={() => setChecked(new Set())}
-        />
-      )}
       <Box sx={{ flex: 1, minHeight: 0 }}>
         {tickets.isPending ? (
           <Box sx={{ p: 3 }}>
@@ -365,6 +356,16 @@ function TicketListPane({
           />
         )}
       </Box>
+      {/* Below the list, so the rows don't shift under the pointer when the bar appears. */}
+      {canBulk && checkedVisible.size > 0 && (
+        <BulkActionBar
+          count={checkedVisible.size}
+          busy={bulk.isPending}
+          onApply={(changes) => void apply(changes)}
+          onAssignToMe={me.data === undefined ? undefined : () => void apply({ ownerId: me.data.id })}
+          onClear={() => setChecked(new Set())}
+        />
+      )}
     </>
   );
 }
