@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -111,6 +111,7 @@ describe('MergeTicketDialog', () => {
     renderWithProviders(<MergeTicketDialog open sourceNumber={1001} onClose={() => undefined} onMerge={onMerge} />);
     const dialog = screen.getByRole('dialog', { name: 'Merge #1001 into another ticket' });
     const input = within(dialog).getByRole('textbox', { name: 'Ticket number to merge into' });
+    await waitFor(() => expect(input).toHaveFocus());
 
     await userEvent.type(input, 'abc');
     await userEvent.click(within(dialog).getByRole('button', { name: 'Merge' }));

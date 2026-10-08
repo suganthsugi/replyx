@@ -5,7 +5,7 @@ import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { Modal } from '../shell/Modal';
 
@@ -85,14 +85,7 @@ export function MergeTicketDialog({ open, sourceNumber, onClose, onMerge }: Merg
         <Typography variant="body2" color="text.secondary">
           #{sourceNumber} will be closed and its messages shown in the other ticket. Both tickets must belong to the same customer.
         </Typography>
-        <TextField
-          label="Ticket number to merge into"
-          value={value}
-          onChange={(event) => setValue(event.target.value)}
-          autoFocus
-          error={error !== null}
-          slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-describedby': error === null ? undefined : errorId } }}
-        />
+        <NumberField value={value} onChange={setValue} invalid={error !== null} describedBy={error === null ? undefined : errorId} />
         {error !== null && (
           <Typography id={errorId} role="alert" variant="body2" color="error">
             {error}
@@ -100,6 +93,28 @@ export function MergeTicketDialog({ open, sourceNumber, onClose, onMerge }: Merg
         )}
       </Box>
     </Modal>
+  );
+}
+
+/**
+ * The merge target field. It focuses itself from its own mount effect: it mounts with the dialog
+ * content (after MUI's Portal), and a descendant's effect runs ahead of the focus trap's, which
+ * then leaves focus inside the panel alone (`autoFocus` loses to the trap; see ViewBuilder).
+ */
+function NumberField({ value, onChange, invalid, describedBy }: { value: string; onChange: (next: string) => void; invalid: boolean; describedBy?: string }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    inputRef.current?.focus();
+  }, []);
+  return (
+    <TextField
+      label="Ticket number to merge into"
+      value={value}
+      onChange={(event) => onChange(event.target.value)}
+      inputRef={inputRef}
+      error={invalid}
+      slotProps={{ htmlInput: { inputMode: 'numeric', 'aria-describedby': describedBy } }}
+    />
   );
 }
 
