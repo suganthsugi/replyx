@@ -51,8 +51,10 @@ export function auditRoutes(routes: readonly RouteInfo[], knownPermission: (key:
       continue;
     }
     const access = route.access[0] as RouteAccess;
-    if (access.kind === 'permission' && !knownPermission(access.permission)) {
-      problems.push(`${label} requires unknown permission ${access.permission}`);
+    if (access.kind === 'permission') {
+      for (const key of [access.permission, ...(access.alternatives ?? [])]) {
+        if (!knownPermission(key)) problems.push(`${label} requires unknown permission ${key}`);
+      }
     }
     const segment = firstSegment(route.path);
     if (access.kind === 'staff' && !STAFF_API_SEGMENTS.has(segment)) {

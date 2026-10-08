@@ -56,7 +56,7 @@ export function permissionKeys(declaration: ModulePermissions): PermissionKey[] 
 export const ROUTE_ACCESS = 'replyx:routeAccess';
 
 export type RouteAccess =
-  | { kind: 'permission'; permission: PermissionKey }
+  | { kind: 'permission'; permission: PermissionKey; /** Further keys of an any-of route (`RequireAnyPermission`). */ alternatives?: PermissionKey[] }
   | { kind: 'public' }
   | { kind: 'staff' }
   | { kind: 'customer' }
@@ -76,6 +76,13 @@ function accessDecorator(access: RouteAccess): ClassDecorator & MethodDecorator 
 
 /** Staff route: the global permission guard asks the policy service for `permission`. */
 export const RequirePermission = (permission: PermissionKey) => accessDecorator({ kind: 'permission', permission });
+
+/**
+ * Staff route open to holders of any one of the keys (a shared action, such as uploading a file for
+ * a message or for a policy). The service handling the resource still checks what it needs.
+ */
+export const RequireAnyPermission = (permission: PermissionKey, ...alternatives: PermissionKey[]) =>
+  accessDecorator({ kind: 'permission', permission, alternatives });
 
 /** No session needed (sign-in, branding, health). */
 export const Public = () => accessDecorator({ kind: 'public' });

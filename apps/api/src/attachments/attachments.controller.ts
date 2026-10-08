@@ -1,6 +1,6 @@
 import { Controller, Post, Req, UseInterceptors } from '@nestjs/common';
 
-import { CustomerApi, RequirePermission } from '../authorization/registry/module-permissions.js';
+import { CustomerApi, RequireAnyPermission } from '../authorization/registry/module-permissions.js';
 import { tenantContextOf } from '../platform-kernel/http/request-context.js';
 
 import { AttachmentsService, type UploadedAttachmentDto } from './attachments.service.js';
@@ -28,9 +28,12 @@ function actorIdOf(req: Request): string {
 export class StaffAttachmentsController {
   constructor(private readonly attachments: AttachmentsService) {}
 
-  /** Anyone who may reply somewhere may upload; sending checks the ticket. */
+  /**
+   * Anyone who may reply somewhere may upload; sending checks the ticket. Policy admins upload files
+   * for the AI knowledge base too; the policies service only accepts files uploaded by its own holders.
+   */
   @Post()
-  @RequirePermission('ticket.edit')
+  @RequireAnyPermission('ticket.edit', 'ai_knowledge.manage')
   @UseInterceptors(UploadInterceptor)
   upload(@Req() req: Request): Promise<UploadedAttachmentDto> {
     return this.attachments.upload(tenantContextOf(req), actorIdOf(req), uploadOf(req));

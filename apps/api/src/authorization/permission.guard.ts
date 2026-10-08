@@ -61,9 +61,15 @@ export class PermissionGuard implements CanActivate {
       case 'permission': {
         if (req.actor === undefined && req.support !== undefined) return true;
         if (req.actor?.kind !== 'staff') throw routeNotFound();
-        const decision = await this.policy.can(tenantContextOf(req), entry.permission);
-        if (decision === 'allow') return true;
-        throw decision === 'not_found' ? routeNotFound() : permissionDenied();
+        const ctx = tenantContextOf(req);
+        let denied: 'deny' | 'not_found' = 'not_found';
+        // Any one key lets the caller in; 404 only when every key says the route does not exist for them.
+        for (const key of [entry.permission, ...(entry.alternatives ?? [])]) {
+          const decision = await this.policy.can(ctx, key);
+          if (decision === 'allow') return true;
+          if (decision === 'deny') denied = 'deny';
+        }
+        throw denied === 'not_found' ? routeNotFound() : permissionDenied();
       }
       case undefined:
         throw new Error('Route has no single access decorator');
