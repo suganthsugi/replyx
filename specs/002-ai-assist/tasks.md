@@ -147,7 +147,7 @@ description: "Task list for AI Assist (first cut)"
     - in one transaction: inserts the chunks, marks the version `active` and the previous one `superseded`, deletes the old chunks, and sets `active_version_id`
     - emits `ai.policy_version_updated`
   - **`PolicySearch.search(tenant, query)`**: vector top 20 + FTS top 20, fused with Reciprocal Rank Fusion (k=60), returning the top 6 `{ documentTitle, heading, content }`.
-- [ ] T016 [US2] API tests in `apps/api/test/integration/ai/policies.test.ts` and `apps/api/test/cross-tenant/ai-policies.test.ts`:
+- [X] T016 [US2] API tests in `apps/api/test/integration/ai/policies.test.ts` and `apps/api/test/cross-tenant/ai-policies.test.ts`:
   - the triad and cross-tenant cases
   - while a new version is processing, search returns only old-version chunks; after activation, only new ones
   - a deleted document is never returned
