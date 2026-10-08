@@ -109,7 +109,7 @@ description: "Task list for AI Assist (first cut)"
   - **Pause**: on provider `auth`/`credit` errors, set `paused_reason`/`paused_at` and emit `ai.paused`, which notifies holders of `ai_settings.manage` once. A successful test or a key replace clears it and emits `ai.resumed`.
   - **Mode or pause changes** emit `ai.responder_scope_changed`.
   - **Audit**: every change is audited.
-- [ ] T010 [US1] API tests in `apps/api/test/integration/ai/settings.test.ts` and `apps/api/test/cross-tenant/ai-settings.test.ts`:
+- [X] T010 [US1] API tests in `apps/api/test/integration/ai/settings.test.ts` and `apps/api/test/cross-tenant/ai-settings.test.ts`:
   - the triad plus cross-tenant 404 for every endpoint
   - the key is never in a response or a log line
   - an invalid model id gives 400
