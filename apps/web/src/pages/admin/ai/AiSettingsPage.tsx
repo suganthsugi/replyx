@@ -8,7 +8,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import Typography from '@mui/material/Typography';
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 
 import { EmptyState } from '../../../components/foundations/EmptyState';
 import { useAnnounce } from '../../../components/foundations/LiveRegion';
@@ -91,7 +91,7 @@ export default function AiSettingsPage() {
           use.
         </Typography>
 
-        {(settingsQuery.isPending || modelsQuery.isPending) && <Skeleton variant="block" label="AI settings" />}
+        {(settingsQuery.isPending || modelsQuery.isPending) && !settingsQuery.isError && !modelsQuery.isError && <Skeleton variant="block" label="AI settings" />}
         {settingsQuery.isError && (
           <EmptyState variant="error" title="Couldn't load AI settings" message={settingsQuery.error?.message} onRetry={() => void settingsQuery.refetch()} />
         )}
@@ -119,9 +119,10 @@ export default function AiSettingsPage() {
 }
 
 function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+  const headingId = useId();
   return (
-    <Box component="section" aria-labelledby={`ai-section-${title}`} sx={{ p: 5, border: 1, borderColor: 'divider', borderRadius: 3, bgcolor: 'background.paper' }}>
-      <Typography id={`ai-section-${title}`} component="h2" variant="h3" sx={{ mb: 1 }}>
+    <Box component="section" aria-labelledby={headingId} sx={{ p: 5, border: 1, borderColor: 'divider', borderRadius: 3, bgcolor: 'background.paper' }}>
+      <Typography id={headingId} component="h2" variant="h3" sx={{ mb: 1 }}>
         {title}
       </Typography>
       <Typography color="text.secondary" sx={{ mb: 4 }}>
@@ -178,7 +179,8 @@ function ProviderSection({ settings }: { settings: AiSettings }) {
       </Box>
 
       {result !== undefined && (
-        <Alert severity={result.ok ? 'success' : 'error'} sx={{ mt: 4 }}>
+        // Announced once through useAnnounce, so the Alert itself is not a live region.
+        <Alert severity={result.ok ? 'success' : 'error'} role="note" aria-label="Connection test result" sx={{ mt: 4 }}>
           {result.detail}
           {result.ok && typeof result.creditRemainingUsd === 'number' && ` Credit left on this key: ${price(result.creditRemainingUsd)}.`}
         </Alert>

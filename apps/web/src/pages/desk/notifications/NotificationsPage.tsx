@@ -8,10 +8,12 @@ import { useNavigate } from 'react-router';
 import { EmptyState } from '../../../components/foundations/EmptyState';
 import { useAnnounce } from '../../../components/foundations/LiveRegion';
 import { Skeleton } from '../../../components/foundations/Skeleton';
-import { NotificationRow } from '../../../components/shell/NotificationCenter';
+import { notificationPage, NotificationRow } from '../../../components/shell/NotificationCenter';
 import { useMarkNotificationsRead, useNotifications } from '../../../data/notifications';
 import { useViews } from '../../../data/views';
 import { WORKSPACE_BASE } from '../../../routes/area';
+
+import type { Notification } from '../../../data/notifications';
 
 /**
  * The full notification history (US8, T169): every ticket, mention and SLA alert for the signed-in
@@ -26,14 +28,17 @@ export default function NotificationsPage() {
   const announce = useAnnounce();
   const navigate = useNavigate();
 
-  const openNotification = async (notification: { id: string; title: string; ticketId: string | null; read: boolean }) => {
+  const openNotification = async (notification: Pick<Notification, 'id' | 'title' | 'ticketId' | 'read' | 'eventType'>) => {
     if (!notification.read) {
       await markRead.mutateAsync({ ids: [notification.id] });
       announce(`Marked "${notification.title}" as read`);
     }
     const viewId = views.data?.[0]?.id;
+    const page = notificationPage(notification);
     if (notification.ticketId !== null && viewId !== undefined) {
       void navigate(`${WORKSPACE_BASE}/inbox/${viewId}/${notification.ticketId}`);
+    } else if (page !== undefined) {
+      void navigate(page);
     }
   };
 

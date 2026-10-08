@@ -1,5 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { Route, Routes } from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 
 import { NotificationCenter } from '../../src/components/shell/NotificationCenter';
@@ -43,6 +44,26 @@ describe('NotificationCenter', () => {
 
     await waitFor(() => expect(onOpenTicket).toHaveBeenCalledWith('ticket-7'));
     expect(container.ownerDocument.querySelector('[aria-live="polite"]')).toHaveTextContent('Marked "Assigned to you" as read');
+  });
+
+  it('opens AI settings from an AI pause notification, which has no ticket', async () => {
+    server.use(
+      notificationsHandler([makeNotification({ id: 'n9', eventType: 'ai.paused', title: 'AI paused: the AI provider key was not accepted', ticketId: null, read: false })]),
+      markNotificationsReadHandler(0),
+    );
+    const onOpenTicket = vi.fn();
+    renderWithProviders(
+      <Routes>
+        <Route path="/desk" element={<NotificationCenter onOpenTicket={onOpenTicket} />} />
+        <Route path="/desk/admin/ai" element={<p>AI settings page</p>} />
+      </Routes>,
+      { route: '/desk' },
+    );
+
+    await userEvent.click(await screen.findByRole('button', { name: /Notifications/ }));
+    await userEvent.click(await screen.findByRole('button', { name: /AI paused/ }));
+    expect(await screen.findByText('AI settings page')).toBeInTheDocument();
+    expect(onOpenTicket).not.toHaveBeenCalled();
   });
 
   it('closes on Escape', async () => {

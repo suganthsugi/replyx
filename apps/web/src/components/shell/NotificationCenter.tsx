@@ -31,6 +31,11 @@ import type { Notification } from '../../data/notifications';
  * once in `DeskLayout`.
  */
 
+/** Where a notification that is not about a ticket leads (spec 002: an AI pause opens AI settings). */
+export function notificationPage(notification: Pick<Notification, 'eventType'>): string | undefined {
+  return notification.eventType === 'ai.paused' ? `${WORKSPACE_BASE}/admin/ai` : undefined;
+}
+
 export interface NotificationCenterProps {
   /** Opens the given ticket in the inbox; the caller decides which view it belongs to. */
   onOpenTicket: (ticketId: string) => void;
@@ -59,9 +64,13 @@ export function NotificationCenter({ onOpenTicket }: NotificationCenterProps) {
       await markRead.mutateAsync({ ids: [notification.id] });
       announce(`Marked "${notification.title}" as read`);
     }
+    const page = notificationPage(notification);
     if (notification.ticketId !== null) {
       setOpen(false);
       onOpenTicket(notification.ticketId);
+    } else if (page !== undefined) {
+      setOpen(false);
+      void navigate(page);
     }
   };
 

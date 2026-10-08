@@ -143,12 +143,12 @@ describe('AiSettingsPage', () => {
       ),
     );
     await userEvent.click(await screen.findByRole('button', { name: 'Test connection' }, FIND));
-    expect(await screen.findByRole('alert')).toHaveTextContent(/OpenRouter did not accept this key/);
+    expect(await screen.findByRole('note', { name: 'Connection test result' })).toHaveTextContent(/OpenRouter did not accept this key/);
     expect(container.ownerDocument.querySelector('[aria-live="assertive"]')).toHaveTextContent('Connection failed');
 
     server.use(http.post(`${API}/ai/settings/provider-key/test`, () => HttpResponse.json<ConnectionTest>({ ok: true, detail: 'Connected to OpenRouter.', creditRemainingUsd: 4.5 })));
     await userEvent.click(screen.getByRole('button', { name: 'Test connection' }));
-    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Connected to OpenRouter. Credit left on this key: $4.50.'));
+    await waitFor(() => expect(screen.getByRole('note', { name: 'Connection test result' })).toHaveTextContent('Connected to OpenRouter. Credit left on this key: $4.50.'));
     expect(container.ownerDocument.querySelector('[aria-live="polite"]')).toHaveTextContent('Connection works');
   });
 
