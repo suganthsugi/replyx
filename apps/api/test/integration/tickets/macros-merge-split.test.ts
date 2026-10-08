@@ -446,3 +446,232 @@ describe('macros', () => {
     });
   });
 });
+
+interface MessageItem {
+  id: string;
+  body: string;
+}
+const bodies = (response: { body: unknown }) => (response.body as { items: MessageItem[] }).items.map((item) => item.body);
+
+class MergeInspect extends TenantRepository {
+  ticket(tx: TenantTransaction, ticketId: string) {
+    return this.selectFrom(tx, 'tickets').select(['state', 'merged_into_id', 'origin', 'customer_id']).where('id', '=', ticketId).executeTakeFirstOrThrow();
+  }
+
+  links(tx: TenantTransaction, ticketId: string) {
+    return this.selectFrom(tx, 'ticket_links').select(['from_ticket_id', 'to_ticket_id', 'kind']).where('from_ticket_id', '=', ticketId).execute();
+  }
+
+  messageCount(tx: TenantTransaction, customerId: string) {
+    return this.selectFrom(tx, 'ticket_messages')
+      .innerJoin('tickets', (join) => join.onRef('tickets.tenant_id', '=', 'ticket_messages.tenant_id').onRef('tickets.id', '=', 'ticket_messages.ticket_id'))
+      .select((eb) => eb.fn.countAll<string>().as('n'))
+      .where('tickets.customer_id', '=', customerId)
+      .executeTakeFirstOrThrow();
+  }
+
+  messageTicket(tx: TenantTransaction, body: string) {
+    return this.selectFrom(tx, 'ticket_messages').select(['id', 'ticket_id']).where('body', '=', body).executeTakeFirstOrThrow();
+  }
+}
+
+async function inspectMerge<T>(tenant: TestTenant, fn: (tx: TenantTransaction, repo: MergeInspect) => Promise<T>): Promise<T> {
+  const ctx = TenantContext.create({ tenantId: tenant.id, actor: { kind: 'system' }, requestId: 'merge-test' });
+  return (await service(UnitOfWork)).withTenant(ctx, (tx) => fn(tx, new MergeInspect(ctx)));
+}
+
+describe('POST /tickets/{id}/merge', () => {
+  let tenant: TestTenant;
+  let admin: TestUser;
+  beforeAll(async () => {
+    tenant = await createTenant();
+    admin = await createUser(tenant, { roles: ['admin'] });
+  });
+
+  it('closes the source with merged_into, links it, and shows its messages once in the target timeline and the customer thread (success)', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const source = await createTicket(tenant, { customer, state: 'open', messages: [{ body: 'merge-src-1' }] });
+    const target = await createTicket(tenant, { customer, state: 'open', messages: [{ body: 'merge-tgt-1' }] });
+    const before = await inspectMerge(tenant, (tx, repo) => repo.messageCount(tx, customer.id));
+
+    const response = await asUser(admin).post(`/tickets/${source.id}/merge`, { targetTicketId: target.id });
+    expect(response.status).toBe(200);
+    expect((response.body as TicketBody).id).toBe(target.id);
+
+    expect(await inspectMerge(tenant, (tx, repo) => repo.ticket(tx, source.id))).toMatchObject({ state: 'closed', merged_into_id: target.id });
+    expect(await inspectMerge(tenant, (tx, repo) => repo.links(tx, source.id))).toEqual([{ from_ticket_id: source.id, to_ticket_id: target.id, kind: 'merged_into' }]);
+
+    const timeline = bodies(await asUser(admin).get(`/tickets/${target.id}/messages`));
+    expect(timeline.filter((body) => body === 'merge-src-1')).toHaveLength(1);
+    expect(timeline).toContain('merge-tgt-1');
+    // Nothing is copied.
+    expect(await inspectMerge(tenant, (tx, repo) => repo.messageCount(tx, customer.id))).toEqual(before);
+
+    const thread = (await asUser(customer).get('/customer/conversation')).body as { items: { type: string; message?: { body: string } }[] };
+    const texts = thread.items.filter((item) => item.type === 'message').map((item) => item.message?.body);
+    expect(texts.filter((body) => body === 'merge-src-1')).toHaveLength(1);
+    expect(texts.filter((body) => body === 'merge-tgt-1')).toHaveLength(1);
+
+    const history = await inspect(tenant, (tx, repo) => repo.history(tx, source.id));
+    expect(history.map((entry) => entry.field)).toEqual(expect.arrayContaining(['merged_into_id', 'state']));
+  });
+
+  it('is idempotent when the same merge is repeated', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const source = await createTicket(tenant, { customer, state: 'open' });
+    const target = await createTicket(tenant, { customer, state: 'open' });
+    expect((await asUser(admin).post(`/tickets/${source.id}/merge`, { targetTicketId: target.id })).status).toBe(200);
+    const again = await asUser(admin).post(`/tickets/${source.id}/merge`, { targetTicketId: target.id });
+    expect(again.status).toBe(200);
+    expect(await inspectMerge(tenant, (tx, repo) => repo.links(tx, source.id))).toHaveLength(1);
+  });
+
+  it('repoints tickets already merged into the source, so no chain forms', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const first = await createTicket(tenant, { customer, state: 'open', messages: [{ body: 'chain-first' }] });
+    const middle = await createTicket(tenant, { customer, state: 'open' });
+    const last = await createTicket(tenant, { customer, state: 'open' });
+    expect((await asUser(admin).post(`/tickets/${first.id}/merge`, { targetTicketId: middle.id })).status).toBe(200);
+    expect((await asUser(admin).post(`/tickets/${middle.id}/merge`, { targetTicketId: last.id })).status).toBe(200);
+    expect((await inspectMerge(tenant, (tx, repo) => repo.ticket(tx, first.id))).merged_into_id).toBe(last.id);
+    expect(bodies(await asUser(admin).get(`/tickets/${last.id}/messages`))).toContain('chain-first');
+  });
+
+  it('is 409 DIFFERENT_CUSTOMER, SAME_TICKET and ALREADY_MERGED', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const stranger = await createUser(tenant, { roles: ['customer'] });
+    const a = await createTicket(tenant, { customer, state: 'open' });
+    const b = await createTicket(tenant, { customer, state: 'open' });
+    const c = await createTicket(tenant, { customer, state: 'open' });
+    const foreign = await createTicket(tenant, { customer: stranger, state: 'open' });
+
+    const different = await asUser(admin).post(`/tickets/${a.id}/merge`, { targetTicketId: foreign.id });
+    expect([different.status, failure(different).error.code]).toEqual([409, 'DIFFERENT_CUSTOMER']);
+    const same = await asUser(admin).post(`/tickets/${a.id}/merge`, { targetTicketId: a.id });
+    expect([same.status, failure(same).error.code]).toEqual([409, 'SAME_TICKET']);
+
+    expect((await asUser(admin).post(`/tickets/${a.id}/merge`, { targetTicketId: b.id })).status).toBe(200);
+    const sourceMerged = await asUser(admin).post(`/tickets/${a.id}/merge`, { targetTicketId: c.id });
+    expect([sourceMerged.status, failure(sourceMerged).error.code]).toEqual([409, 'ALREADY_MERGED']);
+    const targetMerged = await asUser(admin).post(`/tickets/${c.id}/merge`, { targetTicketId: a.id });
+    expect([targetMerged.status, failure(targetMerged).error.code]).toEqual([409, 'ALREADY_MERGED']);
+  });
+
+  it('is 403 without ticket.merge or edit on either group, and 404 when the target is not visible', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const editable = await createGroup(tenant);
+    const viewOnly = await createGroup(tenant);
+    const hidden = await createGroup(tenant);
+    const agent = await staffWithRole(tenant, ['ticket.view', 'ticket.edit', 'ticket.merge'], [
+      { group: editable.id, flags: { view: true, edit: true } },
+      { group: viewOnly.id, flags: { view: true } },
+    ]);
+    const inEditable = await createTicket(tenant, { customer, group: editable.id, state: 'open' });
+    const inEditable2 = await createTicket(tenant, { customer, group: editable.id, state: 'open' });
+    const inViewOnly = await createTicket(tenant, { customer, group: viewOnly.id, state: 'open' });
+    const inHidden = await createTicket(tenant, { customer, group: hidden.id, state: 'open' });
+
+    const toViewOnly = await asUser(agent).post(`/tickets/${inEditable.id}/merge`, { targetTicketId: inViewOnly.id });
+    expect([toViewOnly.status, failure(toViewOnly).error.code]).toEqual([403, 'PERMISSION_DENIED']);
+    const fromViewOnly = await asUser(agent).post(`/tickets/${inViewOnly.id}/merge`, { targetTicketId: inEditable.id });
+    expect(fromViewOnly.status).toBe(403);
+    const toHidden = await asUser(agent).post(`/tickets/${inEditable.id}/merge`, { targetTicketId: inHidden.id });
+    expect(toHidden.status).toBe(404);
+
+    const withoutKey = await staffWithRole(tenant, ['ticket.view', 'ticket.edit'], [{ group: editable.id, flags: { view: true, edit: true } }]);
+    const denied = await asUser(withoutKey).post(`/tickets/${inEditable.id}/merge`, { targetTicketId: inEditable2.id });
+    expect([denied.status, failure(denied).error.code]).toEqual([403, 'PERMISSION_DENIED']);
+    expect((await asUser(agent).post(`/tickets/${inEditable.id}/merge`, { targetTicketId: inEditable2.id })).status).toBe(200);
+  });
+
+  it("is 404 for another tenant's ticket as source or target, equal to an unknown id", async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const own = await createTicket(tenant, { customer, state: 'open' });
+    const other = await createTenant();
+    const otherCustomer = await createUser(other, { roles: ['customer'] });
+    const foreign = await createTicket(other, { customer: otherCustomer, state: 'open' });
+
+    await expectCrossTenant404((id) => asUser(admin).post(`/tickets/${id}/merge`, { targetTicketId: own.id }), foreign.id, 'TICKET_NOT_FOUND');
+    await expectCrossTenant404((id) => asUser(admin).post(`/tickets/${own.id}/merge`, { targetTicketId: id }), foreign.id, 'TICKET_NOT_FOUND');
+  });
+
+  it('validates the request body', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const ticket = await createTicket(tenant, { customer, state: 'open' });
+    for (const body of [{}, { targetTicketId: 'nope' }, { targetTicketId: ticket.id, extra: 1 }]) {
+      const response = await asUser(admin).post(`/tickets/${ticket.id}/merge`, body);
+      expect([response.status, failure(response).error.code]).toEqual([400, 'VALIDATION_FAILED']);
+    }
+  });
+});
+
+describe('POST /tickets/{id}/split', () => {
+  let tenant: TestTenant;
+  let admin: TestUser;
+  beforeAll(async () => {
+    tenant = await createTenant();
+    admin = await createUser(tenant, { roles: ['admin'] });
+  });
+
+  it('moves the message to a new split ticket linked split_from, and the next customer message lands on it (success)', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const source = await createTicket(tenant, { customer, state: 'open', title: 'Original', messages: [{ body: 'first question' }, { body: 'A different problem\nmore detail' }] });
+    const moving = await inspectMerge(tenant, (tx, repo) => repo.messageTicket(tx, 'A different problem\nmore detail'));
+
+    const response = await asUser(admin).post(`/tickets/${source.id}/split`, { messageId: moving.id });
+    expect(response.status).toBe(201);
+    const created = response.body as TicketBody & { title: string };
+    expect(created.id).not.toBe(source.id);
+    expect(created.title).toBe('A different problem');
+    expect(created.state).toBe('new');
+
+    expect(await inspectMerge(tenant, (tx, repo) => repo.ticket(tx, created.id))).toMatchObject({ origin: 'split', customer_id: customer.id });
+    expect(await inspectMerge(tenant, (tx, repo) => repo.links(tx, created.id))).toEqual([{ from_ticket_id: created.id, to_ticket_id: source.id, kind: 'split_from' }]);
+    expect(bodies(await asUser(admin).get(`/tickets/${source.id}/messages`))).toEqual(['first question']);
+    expect(bodies(await asUser(admin).get(`/tickets/${created.id}/messages`))).toEqual(['A different problem\nmore detail']);
+
+    const next = await asUser(customer).post('/customer/messages', { body: 'follow-up after split', clientMessageId: uuidv7() });
+    expect(next.status).toBeLessThan(300);
+    expect((await inspectMerge(tenant, (tx, repo) => repo.messageTicket(tx, 'follow-up after split'))).ticket_id).toBe(created.id);
+  });
+
+  it('uses the given title, and a repeat returns the ticket created the first time', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const source = await createTicket(tenant, { customer, state: 'open', messages: [{ body: 'keep' }, { body: 'split-repeat' }] });
+    const moving = await inspectMerge(tenant, (tx, repo) => repo.messageTicket(tx, 'split-repeat'));
+    const first = await asUser(admin).post(`/tickets/${source.id}/split`, { messageId: moving.id, title: 'Custom title' });
+    expect([first.status, (first.body as { title: string }).title]).toEqual([201, 'Custom title']);
+    const again = await asUser(admin).post(`/tickets/${source.id}/split`, { messageId: moving.id });
+    expect((again.body as TicketBody).id).toBe((first.body as TicketBody).id);
+  });
+
+  it('refuses internal notes with 409 MESSAGE_NOT_SPLITTABLE and messages of other tickets with 404', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const source = await createTicket(tenant, { customer, state: 'open', messages: [{ body: 'split-note', staff: admin, visibility: 'internal' }] });
+    const note = await inspectMerge(tenant, (tx, repo) => repo.messageTicket(tx, 'split-note'));
+    const refused = await asUser(admin).post(`/tickets/${source.id}/split`, { messageId: note.id });
+    expect([refused.status, failure(refused).error.code]).toEqual([409, 'MESSAGE_NOT_SPLITTABLE']);
+
+    await createTicket(tenant, { customer, state: 'open', messages: [{ body: 'split-elsewhere' }] });
+    const elsewhere = await inspectMerge(tenant, (tx, repo) => repo.messageTicket(tx, 'split-elsewhere'));
+    expect((await asUser(admin).post(`/tickets/${source.id}/split`, { messageId: elsewhere.id })).status).toBe(404);
+    expect((await asUser(admin).post(`/tickets/${source.id}/split`, { messageId: uuidv7() })).status).toBe(404);
+  });
+
+  it('is 403 without ticket.split or edit on the group, and 404 cross-tenant', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const group = await createGroup(tenant);
+    const source = await createTicket(tenant, { customer, group: group.id, state: 'open', messages: [{ body: 'split-perm' }] });
+    const message = await inspectMerge(tenant, (tx, repo) => repo.messageTicket(tx, 'split-perm'));
+    const viewer = await staffWithRole(tenant, ['ticket.view', 'ticket.split'], [{ group: group.id, flags: { view: true } }]);
+    const withoutKey = await staffWithRole(tenant, ['ticket.view', 'ticket.edit'], [{ group: group.id, flags: { view: true, edit: true } }]);
+    expect((await asUser(viewer).post(`/tickets/${source.id}/split`, { messageId: message.id })).status).toBe(403);
+    expect((await asUser(withoutKey).post(`/tickets/${source.id}/split`, { messageId: message.id })).status).toBe(403);
+
+    const other = await createTenant();
+    const otherAdmin = await createUser(other, { roles: ['admin'] });
+    const cross = await asUser(otherAdmin).post(`/tickets/${source.id}/split`, { messageId: message.id });
+    const unknown = await asUser(otherAdmin).post(`/tickets/${UNKNOWN_ID}/split`, { messageId: message.id });
+    expect([cross.status, cross.body]).toEqual([404, unknown.body]);
+  });
+});
