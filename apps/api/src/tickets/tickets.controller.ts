@@ -8,6 +8,7 @@ import { paginationQuery, type Page } from '../platform-kernel/http/pagination.j
 import { tenantContextOf } from '../platform-kernel/http/request-context.js';
 import { toDetails, ZodValidationPipe } from '../platform-kernel/http/validation.pipe.js';
 
+import { BulkUpdateService, type BulkResult } from './bulk.service.js';
 import { MergeSplitService } from './merge-split.service.js';
 import { MessageMoveService } from './message-move.service.js';
 import { StaffStartedTicketService } from './staff-started-ticket.service.js';
@@ -95,6 +96,22 @@ const MoveMessageBody = z.object({ targetTicketId: z.uuid() }).strict();
 const MergeBody = z.object({ targetTicketId: z.uuid() }).strict();
 const SplitBody = z.object({ messageId: z.uuid(), title: z.string().min(1).max(200).optional() }).strict();
 
+const BulkBody = z
+  .object({
+    ticketIds: z.array(z.uuid()).min(1).max(100),
+    changes: z
+      .object({
+        state: TicketState.optional(),
+        pendingUntil: z.iso.datetime().nullable().optional(),
+        priority: Priority.optional(),
+        ownerId: z.uuid().nullable().optional(),
+        addTagIds: z.array(z.uuid()).max(50).optional(),
+      })
+      .strict()
+      .refine((changes) => Object.keys(changes).length > 0, { message: 'At least one change is required' }),
+  })
+  .strict();
+
 const IdempotencyKeyHeader = z.string().min(1).max(100).optional();
 
 /** `@Headers()` has no pipe overload (unlike `@Body`/`@Query`/`@Param`), so this validates by hand. */
@@ -114,7 +131,16 @@ export class TicketsController {
     private readonly messageMove: MessageMoveService,
     private readonly triageService: TriageService,
     private readonly mergeSplit: MergeSplitService,
+    private readonly bulk: BulkUpdateService,
   ) {}
+
+  /** The same changes on up to 100 tickets, each checked and written on its own (FR-041). */
+  @Post('bulk')
+  @RequirePermission('ticket.bulk_update')
+  @HttpCode(200)
+  async bulkUpdate(@Req() req: Request, @Body(new ZodValidationPipe(BulkBody)) body: z.infer<typeof BulkBody>): Promise<{ results: BulkResult[] }> {
+    return { results: await this.bulk.update(tenantContextOf(req), body.ticketIds, body.changes) };
+  }
 
   @Get()
   @RequirePermission('ticket.view')

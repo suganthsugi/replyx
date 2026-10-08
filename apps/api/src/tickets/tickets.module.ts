@@ -9,6 +9,7 @@ import { RealtimeModule } from '../platform-kernel/realtime/gateway.js';
 import { TICKET_GROUP_LOOKUP, type TicketGroupLookup } from '../platform-kernel/realtime/socket-context.js';
 import { ViewCompiler } from '../views/view-compiler.js';
 
+import { BulkUpdateService } from './bulk.service.js';
 import { MergeSplitService } from './merge-split.service.js';
 import { MessageMoveService } from './message-move.service.js';
 import { StaffStartedTicketService } from './staff-started-ticket.service.js';
@@ -110,6 +111,7 @@ export class TicketsModule {}
     TicketHistoryQueryService,
     MessageMoveService,
     MergeSplitService,
+    BulkUpdateService,
     TriageService,
   ],
   // Macros apply field changes through the same service as PATCH /tickets/{id} (T236).
