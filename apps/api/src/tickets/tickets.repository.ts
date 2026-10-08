@@ -99,6 +99,26 @@ export class TicketsRepository extends TenantRepository {
     await this.deleteFrom(tx, 'tickets').where('tickets.id', '=', id).execute();
   }
 
+  /** Tickets that were merged into `id` (their messages show in its timeline, FR-042). */
+  async repointMerged(tx: TenantTransaction, fromId: string, toId: string): Promise<void> {
+    await this.updateTable(tx, 'tickets').set({ merged_into_id: toId }).where('tickets.merged_into_id', '=', fromId).execute();
+  }
+
+  /** The split ticket (if any) that `ticket_links` records as split from `sourceId`, among `candidateIds`. */
+  async splitTicketFrom(tx: TenantTransaction, sourceId: string, candidateId: string): Promise<TicketRow | undefined> {
+    const row = await this.selectFrom(tx, 'tickets')
+      .innerJoin('ticket_links', (join) =>
+        join.onRef('ticket_links.tenant_id', '=', 'tickets.tenant_id').onRef('ticket_links.from_ticket_id', '=', 'tickets.id'),
+      )
+      .select(TICKET_COLUMNS)
+      .where('tickets.id', '=', candidateId)
+      .where('tickets.origin', '=', 'split')
+      .where('ticket_links.to_ticket_id', '=', sourceId)
+      .where('ticket_links.kind', '=', 'split_from')
+      .executeTakeFirst();
+    return row === undefined ? undefined : toRow(row);
+  }
+
   /** The customer's most recently updated active, unmerged ticket, locked. */
   async lockActiveForCustomer(tx: TenantTransaction, customerId: string): Promise<TicketRow | undefined> {
     const row = await this.selectFrom(tx, 'tickets')

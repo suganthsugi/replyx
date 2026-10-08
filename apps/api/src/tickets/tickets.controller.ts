@@ -8,6 +8,7 @@ import { paginationQuery, type Page } from '../platform-kernel/http/pagination.j
 import { tenantContextOf } from '../platform-kernel/http/request-context.js';
 import { toDetails, ZodValidationPipe } from '../platform-kernel/http/validation.pipe.js';
 
+import { MergeSplitService } from './merge-split.service.js';
 import { MessageMoveService } from './message-move.service.js';
 import { StaffStartedTicketService } from './staff-started-ticket.service.js';
 import { TicketHistoryQueryService, type HistoryEntryDto } from './ticket-history-query.service.js';
@@ -91,6 +92,9 @@ const HistoryQuery = z.object({ ...paginationQuery }).strict();
 const MoveMessageParams = z.object({ id: z.uuid(), messageId: z.uuid() }).strict();
 const MoveMessageBody = z.object({ targetTicketId: z.uuid() }).strict();
 
+const MergeBody = z.object({ targetTicketId: z.uuid() }).strict();
+const SplitBody = z.object({ messageId: z.uuid(), title: z.string().min(1).max(200).optional() }).strict();
+
 const IdempotencyKeyHeader = z.string().min(1).max(100).optional();
 
 /** `@Headers()` has no pipe overload (unlike `@Body`/`@Query`/`@Param`), so this validates by hand. */
@@ -109,6 +113,7 @@ export class TicketsController {
     private readonly historyQuery: TicketHistoryQueryService,
     private readonly messageMove: MessageMoveService,
     private readonly triageService: TriageService,
+    private readonly mergeSplit: MergeSplitService,
   ) {}
 
   @Get()
@@ -177,5 +182,29 @@ export class TicketsController {
     @Body(new ZodValidationPipe(MoveMessageBody)) body: z.infer<typeof MoveMessageBody>,
   ): Promise<MessageDto> {
     return this.messageMove.move(tenantContextOf(req), params.id, params.messageId, body.targetTicketId);
+  }
+
+  /** Folds this ticket into another of the same customer (FR-039); returns the target. */
+  @Post(':id/merge')
+  @RequirePermission('ticket.merge')
+  @HttpCode(200)
+  merge(
+    @Req() req: Request,
+    @Param(new ZodValidationPipe(IdParams)) params: z.infer<typeof IdParams>,
+    @Body(new ZodValidationPipe(MergeBody)) body: z.infer<typeof MergeBody>,
+  ): Promise<TicketDto> {
+    return this.mergeSplit.merge(tenantContextOf(req), params.id, body.targetTicketId);
+  }
+
+  /** Moves one public message into a new ticket linked split_from (FR-039). */
+  @Post(':id/split')
+  @RequirePermission('ticket.split')
+  @HttpCode(201)
+  split(
+    @Req() req: Request,
+    @Param(new ZodValidationPipe(IdParams)) params: z.infer<typeof IdParams>,
+    @Body(new ZodValidationPipe(SplitBody)) body: z.infer<typeof SplitBody>,
+  ): Promise<TicketDto> {
+    return this.mergeSplit.split(tenantContextOf(req), params.id, body);
   }
 }

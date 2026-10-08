@@ -82,14 +82,33 @@ export class MessagesRepository extends TenantRepository {
       .executeTakeFirstOrThrow();
   }
 
-  /** A ticket's timeline page, oldest first, after `(createdAt, id)`. Staff only: includes notes. */
+  /**
+   * A ticket's timeline page, oldest first, after `(createdAt, id)`. Staff only: includes notes.
+   * Messages of tickets merged into this one are part of the timeline without being copied
+   * (data-model.md "Ticket state machine", FR-042), so each message stays stored once.
+   */
   listForTicket(
     tx: TenantTransaction,
     ticketId: string,
     limit: number,
     after?: { createdAt: Date; id: string },
   ): Promise<MessageRow[]> {
-    let query = this.selectFrom(tx, 'ticket_messages').select(MESSAGE_COLUMNS).where('ticket_messages.ticket_id', '=', ticketId);
+    let query = this.selectFrom(tx, 'ticket_messages')
+      .select(MESSAGE_COLUMNS)
+      .where((eb) =>
+        eb.or([
+          eb('ticket_messages.ticket_id', '=', ticketId),
+          eb(
+            'ticket_messages.ticket_id',
+            'in',
+            eb
+              .selectFrom('tickets')
+              .select('tickets.id')
+              .whereRef('tickets.tenant_id', '=', 'ticket_messages.tenant_id')
+              .where('tickets.merged_into_id', '=', ticketId),
+          ),
+        ]),
+      );
     if (after !== undefined) {
       query = query.where(sql<boolean>`(ticket_messages.created_at, ticket_messages.id) > (${after.createdAt}, ${after.id}::uuid)`);
     }
