@@ -91,7 +91,7 @@ description: "Task list for AI Assist (first cut)"
   - `aiDescription` on Group
 
   Then run `bash scripts/generate-api-client.sh` and commit the generated client.
-- [ ] T008 [P] Add an "AI" section to the admin navigation in `apps/web/src/pages/admin/AdminLayout.tsx`, with lazy routes `/admin/ai`, `/admin/ai/policies`, `/admin/ai/complexity` and `/admin/ai/usage` in `apps/web/src/routes/WorkspaceArea.tsx`. Each is gated by its permission and starts as a placeholder page in `apps/web/src/pages/admin/ai/`.
+- [X] T008 [P] Add an "AI" section to the admin navigation in `apps/web/src/pages/admin/AdminLayout.tsx`, with lazy routes `/admin/ai`, `/admin/ai/policies`, `/admin/ai/complexity` and `/admin/ai/usage` in `apps/web/src/routes/WorkspaceArea.tsx`. Each is gated by its permission and starts as a placeholder page in `apps/web/src/pages/admin/ai/`.
 
 **Checkpoint**: migrations run, the client is generated, and `turbo run lint typecheck test` passes.
 
