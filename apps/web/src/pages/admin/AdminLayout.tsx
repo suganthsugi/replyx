@@ -27,6 +27,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   { path: 'roles', label: 'Roles', permission: 'role.view' },
   { path: 'groups', label: 'Groups', permission: 'group.view' },
   { path: 'routing', label: 'Routing rules', permission: 'routing_rule.view' },
+  { path: 'macros', label: 'Macros', permission: 'macro.view' },
   { path: 'sla-policies', label: 'SLA policies', permission: 'sla_policy.view' },
   { path: 'business-hours', label: 'Business hours', permission: 'sla_policy.view' },
   { path: 'support-access', label: 'Support access', permission: 'support_access.view' },

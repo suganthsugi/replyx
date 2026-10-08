@@ -29,6 +29,7 @@ const SupportAccessPage = lazy(() => import('../pages/admin/support-access/Suppo
 const OrganizationSettingsPage = lazy(() => import('../pages/admin/settings/OrganizationSettingsPage'));
 const RoutingRulesPage = lazy(() => import('../pages/admin/routing/RoutingRulesPage'));
 const AuditLogPage = lazy(() => import('../pages/admin/audit/AuditLogPage'));
+const MacrosPage = lazy(() => import('../pages/admin/macros/MacrosPage'));
 const SlaPoliciesPage = lazy(() => import('../pages/admin/sla/SlaPoliciesPage'));
 const BusinessHoursPage = lazy(() => import('../pages/admin/sla/BusinessHoursPage'));
 // The inbox (US6) is most of the workspace's code; its own chunk keeps admin-only visits light.
@@ -98,6 +99,7 @@ export default function WorkspaceArea() {
               <Route path="roles/:id" element={<RoleEditorPage />} />
               <Route path="groups" element={<GroupsPage />} />
               <Route path="routing" element={<RoutingRulesPage />} />
+              <Route path="macros" element={<MacrosPage />} />
               <Route path="sla-policies" element={<SlaPoliciesPage />} />
               <Route path="business-hours" element={<BusinessHoursPage />} />
               <Route path="support-access" element={<SupportAccessPage />} />
