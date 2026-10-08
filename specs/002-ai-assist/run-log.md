@@ -2,10 +2,10 @@
 
 ## Resume here (2026-10-08)
 
-**Next: US1, starting with T009** (settings backend). Phase 2 (T001–T008) is done. Create a new Jira Story for US1 first.
+**Next: US2, starting with T014** (policy API). US1 (T009–T013) is built, reviewed and fixed. To close Story RX-32, someone must apply migration 0018 to the dev DB (`docker compose run --rm -T tools sh -c "cd apps/api && pnpm migrate"`), restart api/worker/web, check `/desk/admin/ai` in the browser and attach a screenshot. **Ask the user before migrating or restarting**: they rejected doing it unprompted.
 
 **Jira**:
-- RX-23 (Phases 1–2) is Done. US1 needs a new Story.
+- RX-23 (Phases 1–2) is Done. RX-32 is the US1 Story (In Progress, needs the screenshot); its tasks RX-33 to RX-37 are Done.
 - Tasks so far: RX-24 (T001), RX-25 (T002), RX-26 (T003), RX-27 (T004), RX-28 (T005), RX-29 (T006), RX-30 (T007), RX-31 (T008), all Done.
 - Screenshots: `uploadAttachmentToJiraIssue` via `executeWrite` (phase 1 returns a curl command; run it, then embed the returned id inline in an html comment).
 - RX is team-managed: a Task **cannot have a Story as parent** (the API rejects it). Write "Story: RX-n" in the description instead.
@@ -31,6 +31,15 @@
 | T006 | e7fe7df | `AiModule` is global (api + worker): `AI_PROVIDER`, `AiRunsRecorder.track()` (one `ai_runs` row per call; non-provider errors not recorded), `AiAudience.streamsFor(tx, ctx, permission)` (user streams of holders, else `tenant`). `ai.responder_scope_changed` is a control event: the staff gateway emits signal `ai.responder_scope_changed` to every socket in the tenant room (both namespaces); it has no seq. |
 | T007 | 8e85511 | Merged with a text-splicing script (the yaml lib reflows existing descriptions). New fields on existing schemas are optional until the server emits them. Tag `ai` added to the api-conventions skill. |
 | T008 | aca68d4 | Admin sections can be nested and grouped (`group: 'AI'`); `sectionFor()` picks the longest match. Page files: `AiSettingsPage`, `PoliciesPage`, `ComplexityPage`, `AiUsagePage` (placeholders). |
+| T009 | cd31820, fixes 08d6db2, 316d40f | `ai/settings/` + `AiStatus` (shared). `ai.paused` is a notification type (migration 0018) written by `notifications/direct-notifier.ts`, not the ticket consumer. A connection test pauses/resumes only if the tested key is still the saved one. Removing the key resumes. Threshold: two decimals. `@RateLimit('ai-key-test')`, 10/min per tenant. |
+| T010 | 56521b0 | Includes the `ai_settings` cross-tenant fixture (marker = A's last4; the model catalog is global). The "no ai job while paused" check is vacuous until US3; T026 must re-assert it. |
+| T011 | e568cb0 | `data/ai/settings.ts`; `useAiSettingsEvents` handles pause/resume. The `user` stream resync keys belong to notifications, so settings refetch on mount/focus. |
+| T012 | fca91cb, fix 6bb911e | `AiSettingsPage`; an `ai.paused` notification opens `/desk/admin/ai` (`notificationPage()` in NotificationCenter). |
+| T013 | 49542de | `test/ai/settings.test.tsx`. |
+
+## US1 review (2026-10-09)
+
+Reviewer FAIL: 1 major (the notification preferences openapi schemas lacked `ai.paused`), 8 minors, 3 nits. All fixed in 08d6db2, 316d40f and 6bb911e. The AI, cross-tenant and notifications API suites pass (174), as do the web AI and notification tests.
 
 ## Environment notes
 
