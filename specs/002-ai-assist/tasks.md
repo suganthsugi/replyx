@@ -78,7 +78,7 @@ description: "Task list for AI Assist (first cut)"
   - `catalog.ts`: levels and defaults (Fast `anthropic/claude-haiku-5.5`, Standard `google/gemini-3.1-flash-lite`, Advanced `anthropic/claude-sonnet-5.5`), embedding `openai/text-embedding-3-small`, decision `typesafe/jev-1.13`, and a daily Valkey price cache.
   - The provider is chosen by `AI_PROVIDER`.
   - Unit tests with mocked `fetch` in `apps/api/test/unit/ai/providers/`.
-- [ ] T006 AI module skeleton in `apps/api/src/ai/`:
+- [X] T006 AI module skeleton in `apps/api/src/ai/`:
   - `ai.module.ts`, registered in the api and worker modules.
   - `ai.permissions.ts` declaring `ai_settings.manage`, `ai_knowledge.manage` and `ai_usage.view`, granted to Admin by default.
   - `runs/ai-runs.recorder.ts`, which writes one `ai_runs` row per provider call (no content; `cost_usd` from the provider when given, else an estimate with `cost_estimated=true`).
