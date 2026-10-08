@@ -296,3 +296,28 @@ describe('GET /search validation', () => {
     expect(response.status).toBe(200);
   });
 });
+
+describe('GET /search query text that unaccent turns into tsquery syntax', () => {
+  it.each([
+    ['one-half', '½'],
+    ['parenthesised digit', '⑴'],
+    ['modifier apostrophe', 'ʼ'],
+    ['mixed with a word', 'invoice ½ ⑴'],
+  ])('answers %s with 200 instead of a 500', async (_name, text) => {
+    const { admin } = await setup();
+    const response = await search(admin, q(text));
+    expect(response.status).toBe(200);
+  });
+
+  it('finds a title containing such characters', async () => {
+    const { tenant, admin, customer } = await setup();
+    const ticket = await createTicket(tenant, { customer, title: 'Quokka ½ shipment' });
+    expect(ticketIds((await search(admin, q('quokka ½'))).body)).toEqual([ticket.id]);
+  });
+
+  it('does not substring-match customers on a single character', async () => {
+    const { tenant, admin } = await setup();
+    await createCustomer(tenant, { name: 'Xavier Single' });
+    expect((await search(admin, q('x', '&type=customers'))).body.items).toEqual([]);
+  });
+});

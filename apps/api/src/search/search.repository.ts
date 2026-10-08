@@ -21,17 +21,27 @@ export const HIGHLIGHT_START = '⟦';
 export const HIGHLIGHT_STOP = '⟧';
 
 const MAX_TOKENS = 10;
+/** Below this many characters a substring (trigram) match would scan far too widely. */
+const MIN_SUBSTRING_CHARS = 2;
 const HEADLINE_OPTIONS = sql.lit(
   `StartSel=${HIGHLIGHT_START}, StopSel=${HIGHLIGHT_STOP}, MaxWords=25, MinWords=10, ShortWord=1, MaxFragments=1, HighlightAll=false`,
 );
+/**
+ * Characters with meaning in a tsquery (`& | ! ( ) : * < >`, quote, backslash) plus whitespace. They
+ * are removed from each token AFTER unaccent, because unaccent can turn letters and digits into
+ * them (one-half becomes `1/2`, a parenthesised digit becomes `(1)`, a modifier apostrophe becomes `'`).
+ */
+const TSQUERY_SYNTAX = sql.lit(String.raw`[&|!():*<>'\s\x5c]`);
 
 export interface SearchTerm {
   /** The trimmed text as typed (exact tag name match). */
   text: string;
-  /** `word:* & word:*` over the letters and digits of the text, or null when there are none. */
-  tsquery: string | null;
+  /** The letters and digits of the text as typed; SQL unaccents and sanitises each one (`tsquery`). */
+  tokens: string[];
   /** `%text%` with LIKE wildcards escaped. */
   like: string;
+  /** False when the text is too short for the substring (ILIKE) matches. */
+  substring: boolean;
   /** Digits when the whole text looks like a ticket number (`1042`, `#1042`). */
   numberPrefix: string | null;
 }
@@ -42,12 +52,12 @@ export function buildSearchTerm(raw: string): SearchTerm {
   const escaped = text.replace(/[\\%_]/g, (char) => `\\${char}`);
   return {
     text,
-    tsquery: tokens.length === 0 ? null : tokens.map((token) => `${token}:*`).join(' & '),
+    tokens,
     like: `%${escaped}%`,
+    substring: [...text].length >= MIN_SUBSTRING_CHARS,
     numberPrefix: /^#?\d{1,12}$/.test(text) ? text.replace('#', '') : null,
   };
 }
-
 
 export interface CustomerHit {
   id: string;
@@ -58,8 +68,19 @@ export interface CustomerHit {
 type RawTicket = Omit<TicketRow, 'number'> & { number: string };
 
 export class SearchRepository extends TenantRepository {
+  /**
+   * `word:* & word:*`, built in SQL so that each token is unaccented first and only then stripped of
+   * tsquery syntax characters; words that end up empty are dropped. NULL (no usable word) matches nothing.
+   */
   private tsquery(term: SearchTerm): Expression<unknown> {
-    return sql`to_tsquery('simple', public.replyx_unaccent(${term.tsquery}))`;
+    return sql`to_tsquery('simple', (
+      SELECT string_agg(w.word || ':*', ' & ')
+      FROM (
+        SELECT regexp_replace(public.replyx_unaccent(tok), ${TSQUERY_SYNTAX}, '', 'g') AS word
+        FROM unnest(${term.tokens}::text[]) AS tok
+      ) w
+      WHERE w.word <> ''
+    ))`;
   }
 
   /** Tickets matching the term by title, message text, number, tag name or customer name/email. */
@@ -71,16 +92,18 @@ export class SearchRepository extends TenantRepository {
     const tenantId = this.ctx.tenantId;
     const matches: Expression<SqlBool>[] = [
       sql<SqlBool>`EXISTS (
-        SELECT 1 FROM users u
-        WHERE u.tenant_id = tickets.tenant_id AND u.id = tickets.customer_id
-          AND (public.replyx_unaccent(u.name) ILIKE public.replyx_unaccent(${term.like}) OR u.email::text ILIKE ${term.like})
-      )`,
-      sql<SqlBool>`EXISTS (
         SELECT 1 FROM ticket_tags tt JOIN tags t ON t.tenant_id = tt.tenant_id AND t.id = tt.tag_id
         WHERE tt.tenant_id = ${tenantId}::uuid AND tt.ticket_id = tickets.id AND lower(t.name) = lower(${term.text})
       )`,
     ];
-    if (term.tsquery !== null) {
+    if (term.substring) {
+      matches.push(sql<SqlBool>`EXISTS (
+        SELECT 1 FROM users u
+        WHERE u.tenant_id = tickets.tenant_id AND u.id = tickets.customer_id
+          AND (public.replyx_unaccent(u.name) ILIKE public.replyx_unaccent(${term.like}) OR u.email::text ILIKE ${term.like})
+      )`);
+    }
+    if (term.tokens.length > 0) {
       matches.push(
         sql<SqlBool>`tickets.title_tsv @@ ${this.tsquery(term)}`,
         sql<SqlBool>`EXISTS (
@@ -107,7 +130,7 @@ export class SearchRepository extends TenantRepository {
    */
   async highlights(tx: TenantTransaction, term: SearchTerm, ticketIds: readonly string[]): Promise<Map<string, string>> {
     const found = new Map<string, string>();
-    if (term.tsquery === null || ticketIds.length === 0) return found;
+    if (term.tokens.length === 0 || ticketIds.length === 0) return found;
     const ids = [...ticketIds];
 
     const messages = await this.selectFrom(tx, 'ticket_messages')
@@ -145,8 +168,10 @@ export class SearchRepository extends TenantRepository {
       .where('users.erased_at', 'is', null)
       .where(
         sql<SqlBool>`(
-          public.replyx_unaccent(users.name) ILIKE public.replyx_unaccent(${term.like})
-          OR users.email::text ILIKE ${term.like}
+          (${term.substring} AND (
+            public.replyx_unaccent(users.name) ILIKE public.replyx_unaccent(${term.like})
+            OR users.email::text ILIKE ${term.like}
+          ))
           OR EXISTS (
             SELECT 1 FROM customer_tags ct JOIN tags t ON t.tenant_id = ct.tenant_id AND t.id = ct.tag_id
             WHERE ct.tenant_id = users.tenant_id AND ct.user_id = users.id AND lower(t.name) = lower(${term.text})
