@@ -102,7 +102,7 @@ description: "Task list for AI Assist (first cut)"
 **Goal**: A tenant saves its own OpenRouter key, tests it, picks the reply mode and the models per level, and AI pauses safely on a bad key or no credit.
 **Independent test**: quickstart scenario 1.
 
-- [ ] T009 [US1] Settings backend in `apps/api/src/ai/settings/`:
+- [X] T009 [US1] Settings backend in `apps/api/src/ai/settings/`:
   - **Endpoints**: `GET/PATCH /ai/settings`, `PUT/DELETE /ai/settings/provider-key`, `POST /ai/settings/provider-key/test` and `GET /ai/models`, all requiring `ai_settings.manage`.
   - **Validation**: `routingThreshold` 0.50–0.99; each `models.<level>` must be in the catalog for that level; `apiKey` 8–200 chars, write-only. Responses carry `last4` only.
   - **`AiStatus.isActive(tenantId)`**: true when (mode ≠ off or routing on), a key is set and the tenant is not paused.
