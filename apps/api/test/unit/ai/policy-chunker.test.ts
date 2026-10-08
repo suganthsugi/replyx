@@ -11,7 +11,8 @@ describe('chunkPolicyText', () => {
   it('returns nothing for empty or whitespace-only text', () => {
     expect(chunkPolicyText('')).toEqual([]);
     expect(chunkPolicyText('  \n\n \t\n')).toEqual([]);
-    expect(chunkPolicyText('# Only a heading\n')).toEqual([]);
+    // A heading with no body is kept as a passage of its own, so it can still be found.
+    expect(chunkPolicyText('# Only a heading\n')).toEqual([{ heading: 'Only a heading', content: 'Only a heading' }]);
   });
 
   it('keeps a short text as one passage without a heading', () => {

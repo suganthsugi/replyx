@@ -7,6 +7,8 @@
 
 export const CHUNK_TARGET = 3200;
 export const CHUNK_OVERLAP = 400;
+/** A text that splits into more passages than this is refused (`too_large`). */
+export const MAX_CHUNKS = 500;
 
 export interface PolicyChunk {
   heading: string | null;
@@ -65,7 +67,8 @@ function tail(text: string): string {
 
 function chunkSection(section: Section): PolicyChunk[] {
   const body = section.lines.join('\n').trim();
-  if (body.length === 0) return [];
+  // A heading with nothing under it is still worth finding by its words.
+  if (body.length === 0) return section.heading === null ? [] : [{ heading: section.heading, content: section.heading }];
   const pieces = body
     .split(/\n[ \t]*\n/)
     .map((paragraph) => paragraph.trim())

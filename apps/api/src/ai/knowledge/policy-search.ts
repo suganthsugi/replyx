@@ -44,7 +44,7 @@ export function queryTokens(query: string): string[] {
  *
  * The query is embedded with the tenant's own key (one `ai_runs` row, purpose `embedding`) before
  * the read transaction opens. An `auth`/`credit` error pauses the tenant and, like any provider
- * error, is rethrown for the caller to handle. A tenant with no key gets full-text results only.
+ * error, is rethrown for the caller to handle. A paused tenant or one with no key skips the embedding and gets full-text results only.
  */
 @Injectable()
 export class PolicySearch {
@@ -60,7 +60,9 @@ export class PolicySearch {
     if (text.length === 0) return [];
     const tokens = queryTokens(text);
 
-    const credentials = this.status.credentials(await this.status.settings(ctx));
+    const settings = await this.status.settings(ctx);
+    // A paused tenant's key is known to be bad: no call is made, and full-text results still answer.
+    const credentials = settings.pausedReason === null ? this.status.credentials(settings) : undefined;
     let embedding: number[] | undefined;
     if (credentials !== undefined) {
       try {

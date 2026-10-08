@@ -16,7 +16,7 @@ import { AI_PROVIDER, ProviderError, type AiProvider } from '../providers/ports.
 import { AiRunsRecorder } from '../runs/ai-runs.recorder.js';
 import { AiStatus } from '../settings/ai-status.js';
 
-import { chunkPolicyText, type PolicyChunk } from './policy-chunker.js';
+import { chunkPolicyText, MAX_CHUNKS, type PolicyChunk } from './policy-chunker.js';
 import { PolicyIndexRepository, type EmbeddedChunk, type IndexableVersion } from './policy-index.repository.js';
 import { extractPolicyText, fileKindOf, MAX_POLICY_CHARS } from './policy-text.js';
 
@@ -176,6 +176,7 @@ export class AiIndexJob extends JobProcessor<AiIndexJobData> {
     if (text.length > MAX_POLICY_CHARS) throw new IndexFailure('too_large');
     const chunks = chunkPolicyText(text);
     if (chunks.length === 0) throw new IndexFailure('no_extractable_text');
+    if (chunks.length > MAX_CHUNKS) throw new IndexFailure('too_large');
     return { chunks, chars: text.length };
   }
 
