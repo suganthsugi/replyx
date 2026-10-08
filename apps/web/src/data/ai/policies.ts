@@ -60,6 +60,8 @@ export interface PolicyFormError {
   title?: string;
   /** Shown on the file/attachment field (`ATTACHMENT_BLOCKED` or a 400 on `attachmentId`). */
   attachmentId?: string;
+  /** Shown on the text field (`PAYLOAD_TOO_LARGE`). */
+  text?: string;
   /** Anything not tied to a field; show as a form-level alert. */
   message?: string;
   code: string;
@@ -68,8 +70,24 @@ export interface PolicyFormError {
 const TITLE_TAKEN_MESSAGE = 'A policy with this title already exists. Choose a different title.';
 const ATTACHMENT_BLOCKED_MESSAGE = 'This file was blocked by the security scan. Upload a different file.';
 
+const TOO_LONG_MESSAGE = 'This policy is too long. Split it into smaller policies.';
+
+const POLICY_ERROR_MESSAGES: Record<string, string> = {
+  no_extractable_text: "We couldn't find any text in this file. Upload a text-based PDF, or paste the text instead.",
+  blocked_by_scan: 'The file was blocked by the virus scan.',
+  embedding_failed: 'The AI provider could not process this policy. Check the AI key in AI settings, then save again.',
+  too_large: TOO_LONG_MESSAGE,
+  unsupported_type: "This file type isn't supported. Use a .txt, .md or .pdf file.",
+};
+
+/** Plain-language text for a document or version `error` code, with a generic fallback. */
+export function policyErrorMessage(code: string | null | undefined): string {
+  return (code === null || code === undefined ? undefined : POLICY_ERROR_MESSAGES[code]) ?? 'This policy could not be processed. Try uploading it again.';
+}
+
 export function mapPolicyError(raw: unknown): PolicyFormError {
   const error: UiError = mapError(raw);
+  if (error.code === 'PAYLOAD_TOO_LARGE') return { code: error.code, text: TOO_LONG_MESSAGE };
   if (error.code === 'POLICY_TITLE_TAKEN') return { code: error.code, title: TITLE_TAKEN_MESSAGE };
   if (error.code === 'ATTACHMENT_BLOCKED') return { code: error.code, attachmentId: ATTACHMENT_BLOCKED_MESSAGE };
   const title = error.fieldErrors?.['title'];
@@ -161,6 +179,12 @@ export function usePolicyEvents(client: RealtimeClient | undefined): void {
       void queryClient.invalidateQueries({ queryKey: policyKeys.list() });
       void queryClient.invalidateQueries({ queryKey: policyKeys.detail(documentId) });
     });
-    return off;
+    const offCreated = client.onEvent('ai.policy_version_created', (_envelope, queryClient) => {
+      void queryClient.invalidateQueries({ queryKey: policyKeys.list() });
+    });
+    return () => {
+      off();
+      offCreated();
+    };
   }, [client]);
 }

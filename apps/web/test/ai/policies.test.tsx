@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it } from 'vitest';
 
+import { policyErrorMessage } from '../../src/data/ai/policies';
 import { RealtimeProvider } from '../../src/data/realtime';
 import PoliciesPage from '../../src/pages/admin/ai/PoliciesPage';
 import { FakeSocket } from '../chat/fixtures';
@@ -10,7 +11,7 @@ import { API, errorResponse } from '../msw/handlers';
 import { renderWithProviders } from '../render';
 import { expectNoAxeViolations, server } from '../setup';
 
-import type { AttachmentSummary, ListPolicyDocuments200, PolicyDocument, PolicyDocumentDetail, PolicyDocumentInput } from '../../src/api/generated/model';
+import type { AttachmentSummary, PolicyVersion, ListPolicyDocuments200, PolicyDocument, PolicyDocumentDetail, PolicyDocumentInput } from '../../src/api/generated/model';
 import type { Envelope } from '../../src/data/socket';
 
 /**
@@ -81,7 +82,7 @@ describe('PoliciesPage', () => {
     const { container } = renderPage([
       policy(),
       policy({ id: 'pol-2', title: 'Refund policy', status: 'ready', activeSince: '2026-10-08T08:00:00.000Z' }),
-      policy({ id: 'pol-3', title: 'Shipping policy', status: 'failed', error: 'No readable text in this file.' }),
+      policy({ id: 'pol-3', title: 'Shipping policy', status: 'failed', error: 'no_extractable_text' }),
     ]);
     const list = await screen.findByRole('list', { name: 'Policies' }, FIND);
     const rows = within(list).getAllByRole('listitem');
@@ -89,7 +90,7 @@ describe('PoliciesPage', () => {
     expect(within(rows[0]!).getByText('Processing')).toBeInTheDocument();
     expect(within(rows[1]!).getByText('Ready')).toBeInTheDocument();
     expect(within(rows[2]!).getByText('Failed')).toBeInTheDocument();
-    expect(screen.getByRole('note', { name: 'Why Shipping policy failed' })).toHaveTextContent('No readable text in this file.');
+    expect(screen.getByRole('note', { name: 'Problem with Shipping policy' })).toHaveTextContent(policyErrorMessage('no_extractable_text'));
     await expectNoAxeViolations(container);
   });
 
@@ -163,11 +164,11 @@ describe('PoliciesPage', () => {
     expect(within(row).queryByText('Processing')).not.toBeInTheDocument();
     await waitFor(() => expect(live(container, 'polite')).toHaveTextContent('Return policy is ready'));
 
-    setItems([policy({ status: 'failed', error: 'Could not read the file.' })]);
+    setItems([policy({ status: 'failed', error: 'embedding_failed' })]);
     fire(socket, 'ai.policy_version_updated', { documentId: 'pol-1', versionId: 'v-2', status: 'failed' });
     expect(await within(row).findByText('Failed')).toBeInTheDocument();
     await waitFor(() => expect(live(container, 'assertive')).toHaveTextContent('Return policy failed to process'));
-    expect(await screen.findByRole('note', { name: 'Why Return policy failed' })).toHaveTextContent('Could not read the file.');
+    expect(await screen.findByRole('note', { name: 'Problem with Return policy' })).toHaveTextContent(policyErrorMessage('embedding_failed'));
   });
 
   it('renames a policy', async () => {
@@ -264,5 +265,55 @@ describe('PoliciesPage', () => {
     expect(await within(dialog).findByRole('textbox', { name: /Policy text/ }, FIND)).toHaveValue('Returns within 30 days.');
     expect(within(dialog).getByRole('button', { name: 'Save changes' })).toBeDisabled();
     await expectNoAxeViolations(dialog);
+  });
+
+  it('warns that the latest change was not applied on a ready policy with an error', async () => {
+    renderPage([policy({ status: 'ready', error: 'blocked_by_scan' })]);
+    const note = await screen.findByRole('note', { name: 'Problem with Return policy' }, FIND);
+    expect(note).toHaveTextContent(`Your latest change wasn't applied: ${policyErrorMessage('blocked_by_scan')} The previous version is still in use.`);
+    expect(within(note.closest('li')!).getByText('Ready')).toBeInTheDocument();
+  });
+
+  it('falls back to the generic message for an unknown error code', async () => {
+    renderPage([policy({ status: 'failed', error: 'something_new' as never })]);
+    const note = await screen.findByRole('note', { name: 'Problem with Return policy' }, FIND);
+    expect(note).toHaveTextContent('This policy could not be processed. Try uploading it again.');
+    expect(policyErrorMessage('something_new')).toBe('This policy could not be processed. Try uploading it again.');
+  });
+
+  it('refetches the list on ai.policy_version_created so a new Processing row appears', async () => {
+    const { socket, setItems } = renderPage([policy({ status: 'ready' })]);
+    await screen.findByRole('heading', { name: 'Return policy' }, FIND);
+    setItems([policy({ status: 'ready' }), policy({ id: 'pol-2', title: 'Shipping policy', status: 'processing' })]);
+    fire(socket, 'ai.policy_version_created', { documentId: 'pol-2', versionId: 'v-9' });
+    const row = (await screen.findByRole('heading', { name: 'Shipping policy' })).closest('li')!;
+    expect(within(row).getByText('Processing')).toBeInTheDocument();
+  });
+
+  it('shows PAYLOAD_TOO_LARGE on the text field, focuses it and announces it', async () => {
+    const { container } = renderPage([]);
+    server.use(http.post(`${API}/ai/policies`, () => errorResponse(413, 'PAYLOAD_TOO_LARGE', 'Too large')));
+    await userEvent.click((await screen.findAllByRole('button', { name: 'Add policy' }, FIND))[0]!);
+    const dialog = await screen.findByRole('dialog', { name: 'Add a policy' });
+    await userEvent.type(within(dialog).getByRole('textbox', { name: /Title/ }), 'Big');
+    const text = within(dialog).getByRole('textbox', { name: /Policy text/ });
+    await userEvent.type(text, 'Lots of text');
+    await userEvent.click(within(dialog).getByRole('button', { name: 'Add policy' }));
+    await waitFor(() => expect(text).toHaveAccessibleDescription('This policy is too long. Split it into smaller policies.'));
+    expect(text).toHaveAttribute('aria-invalid', 'true');
+    await waitFor(() => expect(text).toHaveFocus());
+    expect(live(container, 'assertive')).toHaveTextContent('This policy is too long');
+  });
+
+  it('shows mapped messages in the editor version history', async () => {
+    renderPage([policy({ status: 'ready' })]);
+    const versions: PolicyVersion[] = [
+      { id: 'v-2', status: 'failed', source: 'file', error: 'unsupported_type', createdAt: '2026-10-09T08:00:00.000Z' },
+      { id: 'v-1', status: 'active', source: 'text', createdAt: '2026-10-08T08:00:00.000Z' },
+    ];
+    server.use(http.get(`${API}/ai/policies/:id`, () => HttpResponse.json<PolicyDocumentDetail>({ ...policy({ status: 'ready' }), text: 'Returns within 30 days.', versions })));
+    await userEvent.click(await screen.findByRole('button', { name: 'Edit Return policy' }, FIND));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit policy' });
+    expect(await within(dialog).findByText(`Why it failed: ${policyErrorMessage('unsupported_type')}`, undefined, FIND)).toBeInTheDocument();
   });
 });

@@ -12,7 +12,7 @@ import { Skeleton } from '../../../components/foundations/Skeleton';
 import { ConfirmationDialog } from '../../../components/shell/ConfirmationDialog';
 import { DesignSystemScope } from '../../../components/shell/DesignSystemScope';
 import { useToast } from '../../../components/shell/Toast';
-import { useDeletePolicyDocument, usePolicyDocuments, usePolicyEvents, type PolicyDocument, type PolicyStatus } from '../../../data/ai/policies';
+import { policyErrorMessage, useDeletePolicyDocument, usePolicyDocuments, usePolicyEvents, type PolicyDocument, type PolicyStatus } from '../../../data/ai/policies';
 import { useRealtime } from '../../../data/realtime';
 
 import { PolicyEditor, RenamePolicyDialog } from './PolicyEditor';
@@ -144,9 +144,11 @@ function PolicyRow({ policy, onEdit, onRename, onDelete }: PolicyRowProps) {
         {sourceText(policy)} · Updated {formatTime(policy.updatedAt)}
         {policy.activeSince != null && ` · Answering since ${formatTime(policy.activeSince)}`}
       </Typography>
-      {policy.status === 'failed' && (
-        <Alert severity="error" role="note" aria-label={`Why ${policy.title} failed`} sx={{ mt: 3 }}>
-          {policy.error ?? 'This policy could not be processed.'}
+      {(policy.error != null || policy.status === 'failed') && (
+        <Alert severity={policy.status === 'failed' ? 'error' : 'warning'} role="note" aria-label={`Problem with ${policy.title}`} sx={{ mt: 3 }}>
+          {policy.status === 'failed'
+            ? policyErrorMessage(policy.error)
+            : `Your latest change wasn't applied: ${policyErrorMessage(policy.error)} The previous version is still in use.`}
         </Alert>
       )}
       <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mt: 3 }}>

@@ -22,6 +22,7 @@ import { Modal } from '../../../components/shell/Modal';
 import { useToast } from '../../../components/shell/Toast';
 import {
   mapPolicyError,
+  policyErrorMessage,
   useCreatePolicyDocument,
   useCreatePolicyVersion,
   usePolicyDocument,
@@ -105,9 +106,10 @@ function PolicyForm({ detail, onDone, onBusyChange }: PolicyFormProps) {
   const [errors, setErrors] = useState<PolicyFormError | undefined>();
 
   const titleRef = useRef<HTMLInputElement>(null);
+  const textRef = useRef<HTMLTextAreaElement>(null);
   const chooseRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [focusTarget, setFocusTarget] = useState<'title' | 'file' | undefined>();
+  const [focusTarget, setFocusTarget] = useState<'title' | 'text' | 'file' | undefined>();
 
   const modeLabelId = useId();
   const fileHelpId = useId();
@@ -132,6 +134,7 @@ function PolicyForm({ detail, onDone, onBusyChange }: PolicyFormProps) {
     if (focusTarget === undefined) return undefined;
     const timer = setTimeout(() => {
       if (focusTarget === 'title') titleRef.current?.focus();
+      else if (focusTarget === 'text') textRef.current?.focus();
       else chooseRef.current?.focus();
       setFocusTarget(undefined);
     }, 0);
@@ -183,16 +186,18 @@ function PolicyForm({ detail, onDone, onBusyChange }: PolicyFormProps) {
         // The uploaded file can't be used; clear it so another one can be chosen.
         upload.attachments.forEach((attachment) => upload.remove(attachment.localId));
         setFocusTarget('file');
+      } else if (mapped.text !== undefined) {
+        setFocusTarget(mode === 'text' ? 'text' : 'file');
       } else if (mapped.title !== undefined) {
         setFocusTarget('title');
       }
-      announce(mapped.title ?? mapped.attachmentId ?? mapped.message ?? 'Could not save the policy', 'assertive');
+      announce(mapped.title ?? mapped.attachmentId ?? mapped.text ?? mapped.message ?? 'Could not save the policy', 'assertive');
     } finally {
       onBusyChange(false);
     }
   };
 
-  const fileMessage = fileProblem ?? errors?.attachmentId;
+  const fileMessage = fileProblem ?? errors?.attachmentId ?? (mode === 'file' ? errors?.text : undefined);
 
   return (
     <Form label={editing ? 'Edit policy' : 'Add a policy'} onSubmit={submit}>
@@ -229,7 +234,12 @@ function PolicyForm({ detail, onDone, onBusyChange }: PolicyFormProps) {
           required={!editing}
           value={text}
           onChange={(event) => setText(event.target.value)}
-          helperText={editing ? 'Saving changed text adds a new version. The current one keeps answering until the new one is ready.' : 'Plain text or Markdown, up to 200,000 characters.'}
+          error={errors?.text !== undefined}
+          inputRef={textRef}
+          helperText={
+            errors?.text ??
+            (editing ? 'Saving changed text adds a new version. The current one keeps answering until the new one is ready.' : 'Plain text or Markdown, up to 200,000 characters.')
+          }
           slotProps={{ htmlInput: { maxLength: TEXT_MAX } }}
         />
       ) : (
@@ -313,7 +323,7 @@ function VersionHistory({ detail }: { detail: PolicyDocumentDetail }) {
             </Typography>
             {version.status === 'failed' && version.error != null && (
               <Typography variant="body2" color="error" sx={{ flexBasis: '100%' }}>
-                Why it failed: {version.error}
+                Why it failed: {policyErrorMessage(version.error)}
               </Typography>
             )}
           </Box>
