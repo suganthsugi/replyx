@@ -83,7 +83,7 @@ description: "Task list for AI Assist (first cut)"
   - `ai.permissions.ts` declaring `ai_settings.manage`, `ai_knowledge.manage` and `ai_usage.view`, granted to Admin by default.
   - `runs/ai-runs.recorder.ts`, which writes one `ai_runs` row per provider call (no content; `cost_usd` from the provider when given, else an estimate with `cost_estimated=true`).
   - Event types `ai.policy_version_created`, `ai.policy_version_updated`, `ai.draft_ready`, `ai.paused`, `ai.resumed`, `conversation.responder_changed` and `ai.responder_scope_changed` in `apps/api/src/platform-kernel/outbox/event-types.ts`, with realtime routing per [contracts/realtime-events.md](contracts/realtime-events.md).
-- [ ] T007 Merge the paths and schemas of [contracts/ai.yaml](contracts/ai.yaml) into `apps/api/openapi.yaml` under tag `ai`, including the `x-changes-to-existing` items:
+- [X] T007 Merge the paths and schemas of [contracts/ai.yaml](contracts/ai.yaml) into `apps/api/openapi.yaml` under tag `ai`, including the `x-changes-to-existing` items:
   - `authorKind: assistant` on Message, and `isAi` in the customer projection
   - `responder` and `ai` on TicketDetail
   - `responder` on the customer conversation
