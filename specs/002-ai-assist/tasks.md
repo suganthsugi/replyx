@@ -122,7 +122,7 @@ description: "Task list for AI Assist (first cut)"
   - reply mode radio: Off, Drafts for agents, Auto-reply
   - model select per level showing the price per million tokens
   - "AI paused: <reason>" banner
-- [ ] T013 [US1] Web tests in `apps/web/test/ai/settings.test.tsx`: renders, saves, the test result, the paused banner, and an axe check.
+- [X] T013 [US1] Web tests in `apps/web/test/ai/settings.test.tsx`: renders, saves, the test result, the paused banner, and an axe check.
 
 **Checkpoint**: reviewer pass for US1; Jira Story to Done with a screenshot.
 
