@@ -44,7 +44,7 @@ description: "Task list for AI Assist (first cut)"
   - Add `CREATE EXTENSION IF NOT EXISTS vector;` to `infra/postgres/init.sql` (runs as superuser).
   - Add `REPLYX_SECRETS_KEY` (64 hex chars = 32 bytes), `AI_PROVIDER` (`fake`|`openrouter`, default `fake`), `COMMERCE_PROVIDER` (`fake`|`spree`, default `fake`) and `OPENROUTER_BASE_URL` (default `https://openrouter.ai`) to `.env.example`.
   - Add the one-off production step ("run `CREATE EXTENSION vector` as postgres before migration 0017") to `infra/README.md`. Create that file if it is missing.
-- [ ] T002 Add `unpdf` and `pgvector` to `apps/api/package.json`, then regenerate `pnpm-lock.yaml` in Docker (`docker compose run --rm tools pnpm install`).
+- [X] T002 Add `unpdf` and `pgvector` to `apps/api/package.json`, then regenerate `pnpm-lock.yaml` in Docker (`docker compose run --rm tools pnpm install`).
 
 ---
 
