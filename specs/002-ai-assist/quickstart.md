@@ -2,9 +2,9 @@
 
 ## Prerequisites
 
-- The dev stack from spec 001 (`docker compose up -d --build`). Its Postgres image is now `pgvector/pgvector:pg17`.
+- The dev stack from spec 001 (`docker compose up -d --build`). Its Postgres image is now `pgvector/pgvector:0.8.7-pg17-trixie`.
 - **Existing dev volume only**: run `docker compose exec postgres psql -U postgres -d replyx -c "CREATE EXTENSION IF NOT EXISTS vector"` once, then run migrations. New volumes get it from `infra/postgres/init.sql`. Production does the same one-off step before deploying `0017_ai` (add it to the deploy notes).
-- `.env`: `REPLYX_SECRETS_KEY` (generate with `openssl rand -base64 32`). For offline work, set `AI_PROVIDER=fake` and `COMMERCE_PROVIDER=fake` (the default in tests and e2e).
+- `.env`: `REPLYX_SECRETS_KEY` (64 hex chars; generate with `openssl rand -hex 32`). For offline work, set `AI_PROVIDER=fake` and `COMMERCE_PROVIDER=fake` (the default in tests and e2e).
 
 ## Run the checks
 

@@ -21,13 +21,13 @@ Facts checked on 2026-10-08: the OpenRouter model and price lists (`/api/v1/mode
 
 ## R2 Encrypting tenant keys
 
-- **Decision**: `platform-kernel/crypto/secret-box.ts` seals with AES-256-GCM using `REPLYX_SECRETS_KEY` (32 bytes, base64, env). Stored format: `v1:<iv>:<tag>:<ciphertext>`. `last4` is stored separately for display. Keys are decrypted only inside worker jobs and the "test" endpoint, never logged. pino redaction adds `apiKey`, `authorization` and `x-spree-api-key`.
+- **Decision**: `platform-kernel/crypto/secret-box.ts` seals with AES-256-GCM using `REPLYX_SECRETS_KEY` (32 bytes as 64 hex chars, env, like the other secrets). Stored format: `v1:<iv>:<tag>:<ciphertext>`. `last4` is stored separately for display. Keys are decrypted only inside worker jobs and the "test" endpoint, never logged. pino redaction adds `apiKey`, `authorization` and `x-spree-api-key`.
 - **Rationale**: Node `crypto` is built in. The version prefix allows key rotation later.
 - **Alternatives**: pgcrypto (the key would have to travel to the DB in SQL); an external KMS (new infrastructure, not justified for a single VM).
 
 ## R3 Vector store and hybrid search
 
-- **Decision**: The pgvector extension in the existing Postgres 17. The image becomes `pgvector/pgvector:pg17` in compose, prod and Testcontainers. The extension is created in `infra/postgres/init.sql` as superuser; existing volumes need a one-off `CREATE EXTENSION vector` (quickstart). Details:
+- **Decision**: The pgvector extension in the existing Postgres 17. The image becomes `pgvector/pgvector:0.8.7-pg17-trixie` in compose, prod and Testcontainers. It must be the trixie variant: `postgres:17` is Debian trixie, and the bookworm variant has an older glibc, whose different collation version would put text indexes on existing volumes at risk. The extension is created in `infra/postgres/init.sql` as superuser; existing volumes need a one-off `CREATE EXTENSION vector` (quickstart). Details:
   - `ai_policy_chunks.embedding vector(1536)` with an HNSW index (`vector_cosine_ops`), plus a generated `tsvector` column using the `replyx_search` config from migration 0015.
   - The query runs vector top-20 and FTS top-20, fused with Reciprocal Rank Fusion (k=60). It keeps the top 6 chunks of each tenant's **active** versions only.
   - The embedding model is ReplyX-wide, `openai/text-embedding-3-small` (1536 dims, $0.02/M). Each chunk stores `embedding_model`. Changing the model needs a re-index job (not in this release).

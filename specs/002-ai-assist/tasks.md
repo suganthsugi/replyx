@@ -40,9 +40,9 @@ description: "Task list for AI Assist (first cut)"
 ## Phase 1: Setup
 
 - [ ] T001 Switch Postgres to pgvector and add env:
-  - Image `postgres:17` → `pgvector/pgvector:pg17` in `compose.yaml`, in both services of `infra/compose.prod.yml`, and in `apps/api/test/support/global-setup.ts`.
+  - Image `postgres:17` → `pgvector/pgvector:0.8.7-pg17-trixie` in `compose.yaml`, in both services of `infra/compose.prod.yml`, and in `apps/api/test/support/global-setup.ts`.
   - Add `CREATE EXTENSION IF NOT EXISTS vector;` to `infra/postgres/init.sql` (runs as superuser).
-  - Add `REPLYX_SECRETS_KEY` (base64, 32 bytes), `AI_PROVIDER` (`fake`|`openrouter`, default `fake`), `COMMERCE_PROVIDER` (`fake`|`spree`, default `fake`) and `OPENROUTER_BASE_URL` (default `https://openrouter.ai`) to `.env.example`.
+  - Add `REPLYX_SECRETS_KEY` (64 hex chars = 32 bytes), `AI_PROVIDER` (`fake`|`openrouter`, default `fake`), `COMMERCE_PROVIDER` (`fake`|`spree`, default `fake`) and `OPENROUTER_BASE_URL` (default `https://openrouter.ai`) to `.env.example`.
   - Add the one-off production step ("run `CREATE EXTENSION vector` as postgres before migration 0017") to `infra/README.md`. Create that file if it is missing.
 - [ ] T002 Add `unpdf` and `pgvector` to `apps/api/package.json`, then regenerate `pnpm-lock.yaml` in Docker (`docker compose run --rm tools pnpm install`).
 

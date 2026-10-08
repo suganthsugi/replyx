@@ -24,7 +24,7 @@ All AI work runs in the `worker` process, on a new BullMQ `ai` queue fed by outb
 - `unpdf` (PDF text extraction in the worker)
 - No provider SDKs. OpenRouter (chat, embeddings, decisions, key info) and the Spree Admin API v3 are called with `fetch` and their responses validated with zod (research R1, R9).
 
-**Storage**: PostgreSQL 17 with pgvector (`pgvector/pgvector:pg17` image in dev, prod and Testcontainers). Policy source files go through the existing `FileStorage` and attachments pipeline. Valkey holds the model price cache and BullMQ deduplication.
+**Storage**: PostgreSQL 17 with pgvector (`pgvector/pgvector:0.8.7-pg17-trixie` image in dev, prod and Testcontainers). Policy source files go through the existing `FileStorage` and attachments pipeline. Valkey holds the model price cache and BullMQ deduplication.
 
 **Testing**: Vitest + Supertest + Testcontainers (unchanged), with a `FakeAiProvider` and `FakeCommerceConnector` selected by `AI_PROVIDER=fake` / `COMMERCE_PROVIDER=fake`. CI never calls the network. Web tests use Vitest + RTL + MSW, and Playwright runs with the fake providers. A manual golden-set check with a real key (SC-006, SC-007) is in [quickstart.md](quickstart.md).
 
@@ -88,7 +88,7 @@ specs/002-ai-assist/
 ### Source Code (repository root)
 
 ```text
-compose.yaml, infra/compose.prod.yml       # postgres image → pgvector/pgvector:pg17
+compose.yaml, infra/compose.prod.yml       # postgres image → pgvector/pgvector:0.8.7-pg17-trixie
 infra/postgres/init.sql                    # CREATE EXTENSION IF NOT EXISTS vector (superuser)
 .env.example                               # REPLYX_SECRETS_KEY, AI_PROVIDER, COMMERCE_PROVIDER, OPENROUTER_BASE_URL
 
