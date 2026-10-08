@@ -115,7 +115,7 @@ description: "Task list for AI Assist (first cut)"
   - an invalid model id gives 400
   - the fake provider's `auth` error pauses AI and a later test resumes it
   - while paused, a customer message produces no `ai` job
-- [ ] T011 [P] [US1] Data hooks in `apps/web/src/data/ai/settings.ts`: settings, models, key save/remove/test, and an `ai.paused`/`ai.resumed` socket handler that updates the settings cache.
+- [X] T011 [P] [US1] Data hooks in `apps/web/src/data/ai/settings.ts`: settings, models, key save/remove/test, and an `ai.paused`/`ai.resumed` socket handler that updates the settings cache.
 - [ ] T012 [US1] `apps/web/src/pages/admin/ai/AiSettingsPage.tsx`:
   - provider key field showing "•••• last4", with Replace and Remove
   - Test connection with a plain-language result
