@@ -138,7 +138,7 @@ description: "Task list for AI Assist (first cut)"
   - **Validation**: title 1–200 chars, unique per tenant among non-deleted documents (409 `POLICY_TITLE_TAKEN`). Exactly one of `text` (≤ 200 000 chars) or `attachmentId`; an attachment must be txt, md or pdf, ≤ 10 MB, uploaded by an admin.
   - **On create**: a version starts as `processing` and emits `ai.policy_version_created`.
   - **On delete**: soft-delete the document and hard-delete its chunks in the same transaction.
-- [ ] T015 [US2] Indexing job and retrieval in `apps/api/src/ai/knowledge/` (research R3, R4):
+- [X] T015 [US2] Indexing job and retrieval in `apps/api/src/ai/knowledge/` (research R3, R4):
   - **`ai-index` job** (job id `index:{versionId}`):
     - waits while the attachment scan is pending, and fails with `blocked_by_scan` if blocked
     - extracts text (txt/md as-is, PDF via `unpdf`; empty text fails with `no_extractable_text`)
