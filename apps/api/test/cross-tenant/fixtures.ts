@@ -128,6 +128,16 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       return Promise.resolve({ params: {}, ids: [tenant.id] });
     },
   },
+  // AI settings are one row per tenant: tenant B's admin must see its own defaults, never A's
+  // mode or key (the id is A's distinctive last4; the model catalog is the same for everyone).
+  ai_settings: {
+    async create(tenant) {
+      const admin = await createUser(tenant, { roles: ['admin'] });
+      await asUser(admin).put('/ai/settings/provider-key', { apiKey: 'sk-or-v1-tenant-a-ZQXW' });
+      await asUser(admin).patch('/ai/settings', { replyMode: 'auto', models: { fast: 'qwen/qwen3.7-flash' } });
+      return { params: {}, ids: ['ZQXW'] };
+    },
+  },
   routing_rule: {
     async create(tenant) {
       const group = await createGroup(tenant);
