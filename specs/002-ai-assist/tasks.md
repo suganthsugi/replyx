@@ -133,7 +133,7 @@ description: "Task list for AI Assist (first cut)"
 **Goal**: Admins add, edit and delete policies. A new version replaces the old one atomically and is searchable by meaning and by exact words.
 **Independent test**: quickstart scenario 2.
 
-- [ ] T014 [US2] Policy API in `apps/api/src/ai/knowledge/`, requiring `ai_knowledge.manage`:
+- [X] T014 [US2] Policy API in `apps/api/src/ai/knowledge/`, requiring `ai_knowledge.manage`:
   - **Endpoints**: `GET/POST /ai/policies`, `GET/PATCH/DELETE /ai/policies/{id}`, `POST /ai/policies/{id}/versions`.
   - **Validation**: title 1–200 chars, unique per tenant among non-deleted documents (409 `POLICY_TITLE_TAKEN`). Exactly one of `text` (≤ 200 000 chars) or `attachmentId`; an attachment must be txt, md or pdf, ≤ 10 MB, uploaded by an admin.
   - **On create**: a version starts as `processing` and emits `ai.policy_version_created`.
