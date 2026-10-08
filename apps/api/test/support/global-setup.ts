@@ -38,7 +38,7 @@ let valkey: StartedTestContainer | undefined;
 
 export async function setup(project: TestProject): Promise<void> {
   [postgres, valkey] = await Promise.all([
-    new PostgreSqlContainer('postgres:17')
+    new PostgreSqlContainer('pgvector/pgvector:0.8.7-pg17-trixie')
       .withDatabase('replyx')
       .withCopyFilesToContainer([{ source: INIT_SQL, target: '/docker-entrypoint-initdb.d/init.sql' }])
       .withEnvironment(PASSWORDS)

@@ -34,7 +34,7 @@ x-app-common: &app-common
 
 services:
   postgres:
-    image: postgres:17
+    image: pgvector/pgvector:0.8.7-pg17-trixie
     restart: unless-stopped
     logging: *logging
     # Not published. The host also runs its own PostgreSQL on 5432; this one is internal.
@@ -141,6 +141,10 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in infra/.env.prod}
       FILE_SIGNING_KEY: ${FILE_SIGNING_KEY:?set FILE_SIGNING_KEY in infra/.env.prod}
       WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY:?set WEBHOOK_ENCRYPTION_KEY in infra/.env.prod}
+      REPLYX_SECRETS_KEY: ${REPLYX_SECRETS_KEY:?set REPLYX_SECRETS_KEY in infra/.env.prod}
+      AI_PROVIDER: ${AI_PROVIDER:-openrouter}
+      COMMERCE_PROVIDER: ${COMMERCE_PROVIDER:-spree}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai}
       FILE_STORAGE: ${FILE_STORAGE:-local}
       FILES_DIR: /data/files
       S3_BUCKET: ${S3_BUCKET:-}
@@ -194,6 +198,10 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in infra/.env.prod}
       FILE_SIGNING_KEY: ${FILE_SIGNING_KEY:?set FILE_SIGNING_KEY in infra/.env.prod}
       WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY:?set WEBHOOK_ENCRYPTION_KEY in infra/.env.prod}
+      REPLYX_SECRETS_KEY: ${REPLYX_SECRETS_KEY:?set REPLYX_SECRETS_KEY in infra/.env.prod}
+      AI_PROVIDER: ${AI_PROVIDER:-openrouter}
+      COMMERCE_PROVIDER: ${COMMERCE_PROVIDER:-spree}
+      OPENROUTER_BASE_URL: ${OPENROUTER_BASE_URL:-https://openrouter.ai}
       FILE_STORAGE: ${FILE_STORAGE:-local}
       FILES_DIR: /data/files
       S3_BUCKET: ${S3_BUCKET:-}
@@ -247,7 +255,7 @@ services:
   # Nightly pg_dump (custom format) into the replyx-backups volume, newest BACKUP_KEEP kept.
   # Off-VM copies are deferred (T203). See infra/scripts/pg-backup.sh for how to restore.
   backup:
-    image: postgres:17
+    image: pgvector/pgvector:0.8.7-pg17-trixie
     restart: unless-stopped
     logging: *logging
     mem_limit: 256m

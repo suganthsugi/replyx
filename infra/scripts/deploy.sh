@@ -99,6 +99,12 @@ if "${COMPOSE[@]}" ps --status running --services 2>/dev/null | grep -qx postgre
   "${COMPOSE[@]}" run --rm --no-deps backup bash /usr/local/bin/pg-backup.sh once
 fi
 
+# pgvector is not a trusted extension, so the owner role that runs migrations cannot create it.
+# Create it as the superuser first (idempotent; a no-op once it exists).
+log "Ensuring superuser-only extensions"
+"${COMPOSE[@]}" up -d --wait postgres
+"${COMPOSE[@]}" exec -T postgres psql -U postgres -d replyx -v ON_ERROR_STOP=1 -q   -c 'CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public'
+
 log "Running migrations"
 "${COMPOSE[@]}" run --rm migrate
 

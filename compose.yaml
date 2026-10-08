@@ -24,7 +24,7 @@ x-api-dev: &api-dev
 
 services:
   postgres:
-    image: postgres:17
+    image: pgvector/pgvector:0.8.7-pg17-trixie
     environment:
       POSTGRES_DB: replyx
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}

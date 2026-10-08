@@ -149,6 +149,9 @@ GRANT USAGE ON SCHEMA public TO replyx_app, replyx_platform, replyx_retention;
 CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 CREATE EXTENSION IF NOT EXISTS pg_trgm WITH SCHEMA public;
 CREATE EXTENSION IF NOT EXISTS unaccent WITH SCHEMA public;
+-- pgvector (AI Assist policy search, specs/002-ai-assist research R3). Needs the
+-- pgvector/pgvector image; not a trusted extension, so only the superuser creates it.
+CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public;
 
 -- ---------------------------------------------------------------------------
 -- Self-check: stop the init if the runtime roles could ever bypass RLS or own

@@ -136,8 +136,10 @@ From the repo root, `infra/scripts/deploy.sh`:
    out detached.
 3. Tags images with the 12-character commit id and builds them on the VM.
 4. If postgres is already running, takes a pre-deploy dump (`pg-backup.sh once`).
-5. Runs the one-off `migrate` service as `replyx_owner`, then `docker compose up -d`.
-6. Polls `http://127.0.0.1:8081/health/ready` for up to 3 minutes. On failure it prints the api log
+5. Starts postgres and creates the superuser-only `vector` extension (pgvector, used by AI
+   Assist) if it is missing. The owner role that runs migrations cannot create it.
+6. Runs the one-off `migrate` service as `replyx_owner`, then `docker compose up -d`.
+7. Polls `http://127.0.0.1:8081/health/ready` for up to 3 minutes. On failure it prints the api log
    tail and the command to roll back.
 
 ## Rollback
