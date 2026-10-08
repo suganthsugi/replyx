@@ -22,6 +22,9 @@ export const QUEUE_NAMES = [
   'retention',
   'sweeper',
   'audit',
+  // AI Assist (specs/002-ai-assist research R6): turns, routing and policy indexing. Kept apart so
+  // slow, rate-limited provider calls never delay notifications or email.
+  'ai',
 ] as const;
 
 export type QueueName = (typeof QUEUE_NAMES)[number];

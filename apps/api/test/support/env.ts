@@ -32,6 +32,10 @@ Object.assign(process.env, {
   FILE_SIGNING_KEY: 'test-file-signing-key',
   FILE_STORAGE: 'local',
   CLAMAV_HOST: '',
+  // AI Assist: fixed test key for sealed tenant secrets, and the scripted providers (never the network).
+  REPLYX_SECRETS_KEY: '0123456789abcdef'.repeat(4),
+  AI_PROVIDER: 'fake',
+  COMMERCE_PROVIDER: 'fake',
 });
 
 afterAll(closeTestApps);
