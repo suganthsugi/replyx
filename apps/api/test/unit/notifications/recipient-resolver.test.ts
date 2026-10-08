@@ -129,6 +129,10 @@ describe('resolveRecipients', () => {
     expect(recipients).toEqual([OWNER]);
   });
 
+  it('ai.paused is never resolved from a ticket (AiStatus picks its recipients)', async () => {
+    expect(await resolveRecipients(target('ai.paused'), fakeSources(), 'in_app')).toEqual([]);
+  });
+
   it.each<NotificationEventType>(['sla.warning', 'sla.breached'])('%s notifies the group viewers when the ticket is unassigned', async (eventType) => {
     const recipients = await resolveRecipients(target(eventType, { ticket: { groupId: GROUP, ownerId: null } }), fakeSources(), 'in_app');
     expect(recipients.sort()).toEqual([VIEWER_A, VIEWER_B].sort());

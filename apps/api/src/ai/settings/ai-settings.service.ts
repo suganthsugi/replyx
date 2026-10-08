@@ -168,7 +168,9 @@ export class AiSettingsService {
       const repo = new AiSettingsRepository(ctx);
       const before = await repo.lock(tx);
       if (before.keyLast4 === null) return;
-      await repo.update(tx, { key: null, paused: null }, this.editorOf(ctx), this.clock.now());
+      // A pause about this key no longer applies: resume first, so open banners clear too.
+      await this.status.resumeIn(tx, ctx);
+      await repo.update(tx, { key: null }, this.editorOf(ctx), this.clock.now());
       await this.audit.record(tx, { action: 'ai_settings.key_removed', resourceType: 'ai_settings', details: { last4: before.keyLast4 } });
       if (isActive(before)) await this.outbox.append(tx, { type: 'ai.responder_scope_changed', payload: {}, streams: ['tenant'] });
     });
@@ -176,7 +178,8 @@ export class AiSettingsService {
 
   /**
    * Checks the saved key with the provider. A good answer clears a pause; `auth`/`credit` pause AI
-   * as any other call would. The check is recorded as an `ai_runs` row (`connection_test`).
+   * as any other call would, but only while the tested key is still the saved one: a key replaced
+   * or removed during the check keeps its own state. The check is recorded as an `ai_runs` row.
    */
   async testKey(ctx: TenantContext): Promise<ConnectionTestDto> {
     const settings = await this.status.settings(ctx);
@@ -203,6 +206,8 @@ export class AiSettingsService {
         resourceType: 'ai_settings',
         details: { ok: result.ok, ...(result.error === undefined ? {} : { error: result.error }) },
       });
+      const current = await new AiSettingsRepository(ctx).lock(tx);
+      if (current.sealedKey !== settings.sealedKey) return;
       if (failure === undefined) {
         await this.status.resumeIn(tx, ctx);
       } else {

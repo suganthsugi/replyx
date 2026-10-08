@@ -6745,6 +6745,7 @@ components:
           type: number
           minimum: 0.5
           maximum: 0.99
+          multipleOf: 0.01
         models:
           type: object
           required:
@@ -6796,6 +6797,7 @@ components:
           type: number
           minimum: 0.5
           maximum: 0.99
+          multipleOf: 0.01
         models:
           type: object
           additionalProperties: false

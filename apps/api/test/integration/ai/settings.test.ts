@@ -138,7 +138,7 @@ describe('settings', () => {
     expect(wrongLevel.body).toMatchObject({ error: { code: 'VALIDATION_FAILED', details: [{ path: 'models.fast', issue: 'invalid_model' }] } });
     const unknown = await asUser(admin).patch('/ai/settings', { models: { standard: 'made/up-model' } });
     expect(unknown.status).toBe(400);
-    for (const routingThreshold of [0.49, 1]) {
+    for (const routingThreshold of [0.49, 1, 0.755]) {
       expect((await asUser(admin).patch('/ai/settings', { routingThreshold })).status).toBe(400);
     }
     expect((await asUser(admin).patch('/ai/settings', {})).status).toBe(400);
@@ -233,7 +233,8 @@ describe('pausing', () => {
     const agentItems = (await asUser(agent).get('/notifications')).body as { items: { eventType: string }[] };
     expect(agentItems.items.some((n) => n.eventType === 'ai.paused')).toBe(false);
 
-    // While paused, a customer message queues no AI work.
+    // While paused, a customer message queues no AI work. No AI consumer exists before US3, so this
+    // is a guard that US3's trigger tests (T026) must keep true with real consumers.
     const customer = await createUser(tenant, { roles: ['customer'] });
     expect((await asUser(customer).post('/customer/messages', { body: 'Where is my order?', clientMessageId: uuidv7() })).status).toBe(201);
     await drainOutbox();
@@ -255,6 +256,44 @@ describe('pausing', () => {
       'ai_settings.resumed',
       'ai_settings.key_tested',
     ]);
+  });
+
+  it('pauses once when two failing tests race (row lock)', async () => {
+    const tenant = await createTenant();
+    const admin = await createUser(tenant, { roles: ['admin'] });
+    await asUser(admin).put('/ai/settings/provider-key', { apiKey: 'fake-invalid' });
+    const results = await Promise.all([asUser(admin).post('/ai/settings/provider-key/test'), asUser(admin).post('/ai/settings/provider-key/test')]);
+    expect(results.map((r) => r.status)).toEqual([200, 200]);
+    expect(await countEventsOfType(tenant.id, 'ai.paused')).toBe(1);
+    const items = (await asUser(admin).get('/notifications')).body as { items: { eventType: string }[] };
+    expect(items.items.filter((n) => n.eventType === 'ai.paused')).toHaveLength(1);
+  });
+
+  it('removing the key clears a pause and tells open screens', async () => {
+    const tenant = await createTenant();
+    const admin = await createUser(tenant, { roles: ['admin'] });
+    await asUser(admin).put('/ai/settings/provider-key', { apiKey: 'fake-invalid' });
+    await asUser(admin).post('/ai/settings/provider-key/test');
+    expect((await asUser(admin).delete('/ai/settings/provider-key')).status).toBe(204);
+    expect((await asUser(admin).get('/ai/settings')).body).toMatchObject({ providerKey: null, paused: null });
+    expect(await countEventsOfType(tenant.id, 'ai.resumed')).toBe(1);
+    expect(await auditActions(tenant)).toContain('ai_settings.resumed');
+  });
+
+  it('respects an admin who turned off in-app AI pause notifications', async () => {
+    const tenant = await createTenant();
+    const admin = await createUser(tenant, { roles: ['admin'] });
+    const quiet = await createUser(tenant, { roles: ['admin'] });
+    const preferences = (await asUser(quiet).get('/notification-preferences')).body as { events: Record<string, object> };
+    expect(preferences.events['ai.paused']).toEqual({ inApp: true, push: false, email: false });
+    expect((await asUser(quiet).put('/notification-preferences', { enabled: true, events: { 'ai.paused': { inApp: false } } })).status).toBe(200);
+
+    await asUser(admin).put('/ai/settings/provider-key', { apiKey: 'fake-invalid' });
+    await asUser(admin).post('/ai/settings/provider-key/test');
+    const quietItems = (await asUser(quiet).get('/notifications')).body as { items: { eventType: string }[] };
+    expect(quietItems.items.some((n) => n.eventType === 'ai.paused')).toBe(false);
+    const adminItems = (await asUser(admin).get('/notifications')).body as { items: { eventType: string }[] };
+    expect(adminItems.items.some((n) => n.eventType === 'ai.paused')).toBe(true);
   });
 
   it('pauses with no_credit when the account is out of credit', async () => {

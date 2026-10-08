@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, HttpCode, Patch, Post, Put, Req } from '@nestjs/common';
 
 import { RequirePermission } from '../../authorization/registry/module-permissions.js';
+import { RateLimit } from '../../platform-kernel/http/rate-limit.js';
 import { tenantContextOf } from '../../platform-kernel/http/request-context.js';
 import { ZodValidationPipe } from '../../platform-kernel/http/validation.pipe.js';
 
@@ -41,6 +42,7 @@ export class AiSettingsController {
 
   @Post('settings/provider-key/test')
   @RequirePermission('ai_settings.manage')
+  @RateLimit('ai-key-test')
   @HttpCode(200)
   testKey(@Req() req: Request): Promise<ConnectionTestDto> {
     return this.settings.testKey(tenantContextOf(req));
