@@ -4,6 +4,11 @@ import { sql, type Kysely } from 'kysely';
  * Search (T230, research D14, data-model.md "tickets" indexes; module: Search). Numbered 0015
  * because 0013 and 0014 were taken by routing and SLA before search was built.
  *
+ * MAINTENANCE WINDOW on large installs: adding a STORED generated column rewrites the whole table
+ * (`tickets`, `ticket_messages`) under an ACCESS EXCLUSIVE lock, and the index builds below are
+ * not CONCURRENTLY, so they block writes while they run (the unaccent/tsvector work is CPU-bound).
+ * Instant on a small database; on one with millions of messages, deploy while traffic is stopped.
+ *
  * - `pg_trgm` and `unaccent` live in `public` and are normally created by `infra/postgres/init.sql`
  *   (superuser). `CREATE EXTENSION IF NOT EXISTS` is a no-op then; on a database that lacks them
  *   the owner role can still create them (both are trusted extensions).
