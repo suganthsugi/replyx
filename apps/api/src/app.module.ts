@@ -34,6 +34,7 @@ import { RetentionJobsModule } from './tenancy/retention/retention.module.js';
 import { TenancyHttpModule } from './tenancy/tenancy-http.module.js';
 import { TenancyModule } from './tenancy/tenant-provisioning.service.js';
 import { TicketsJobsModule } from './tickets/access-loss.consumer.js';
+import { PresenceHttpModule } from './tickets/presence.handler.js';
 import { TicketSweeperModule } from './tickets/sweeper.job.js';
 import { TicketsHttpModule, TicketsModule } from './tickets/tickets.module.js';
 import { ViewsJobsModule } from './views/counts-notifier.js';
@@ -82,6 +83,7 @@ export class AppModule {
       MessagingHttpModule,
       AttachmentsHttpModule,
       TicketsHttpModule,
+      PresenceHttpModule,
       TagsHttpModule,
       CustomersHttpModule,
       ViewsModule,

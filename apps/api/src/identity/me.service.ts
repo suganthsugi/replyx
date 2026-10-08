@@ -1,10 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import { Inject, Injectable, Optional } from '@nestjs/common';
 
 import { AuditService } from '../audit/audit.service.js';
 import { PolicyService } from '../authorization/policy.service.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
 import { unauthenticated, validationFailed } from '../platform-kernel/http/app-error.js';
+import { AVAILABILITY_LISTENER, type AvailabilityListener } from '../platform-kernel/realtime/presence.service.js';
 
 import { PasswordService } from './password.service.js';
 import { SessionService } from './session.service.js';
@@ -56,12 +57,13 @@ export class MeService {
     private readonly passwords: PasswordService,
     private readonly sessions: SessionService,
     private readonly audit: AuditService,
+    @Optional() @Inject(AVAILABILITY_LISTENER) private readonly availability?: AvailabilityListener,
   ) {}
 
   /** Own profile (FR-013, FR-015): name, avatar (clearing only until attachments), availability, time display. */
   async update(ctx: TenantContext, input: MeUpdate): Promise<MeDto> {
     const userId = actorId(ctx);
-    await this.unitOfWork.withTenant(ctx, async (tx) => {
+    const previous = await this.unitOfWork.withTenant(ctx, async (tx) => {
       const repo = new MeRepository(ctx);
       const current = await repo.user(tx, userId);
       if (current === undefined) throw unauthenticated();
@@ -73,7 +75,12 @@ export class MeService {
         ...(input.availability === undefined ? {} : { availability: input.availability }),
         ...(timeDisplay === undefined ? {} : { time_display: timeDisplay }),
       });
+      return current.availability;
     });
+    // After the commit, so nobody hears of a change that rolled back (T238).
+    if (input.availability !== undefined && input.availability !== previous) {
+      await this.availability?.changed(ctx, userId, input.availability);
+    }
     return this.me(ctx);
   }
 

@@ -4,6 +4,8 @@ import { Redis } from 'ioredis';
 import { Clock } from '../clock.js';
 import { REDIS } from '../redis/redis.module.js';
 
+import type { TenantContext } from '../db/tenant-context.js';
+
 /**
  * Ephemeral presence (research D8, realtime-events rule 7): who is viewing or typing on a ticket,
  * and staff availability. Lives only in Redis with a 30 s heartbeat TTL; never written to the
@@ -21,6 +23,15 @@ export const CONNECTION_REFRESH_MS = 20_000;
 export const CONNECTION_TTL_MS = 60_000;
 
 export type Availability = 'online' | 'away' | 'offline';
+
+/**
+ * Told when a staff user changes their availability, to broadcast `availability.changed`
+ * (tickets/presence.handler.ts, T238). Provided only where sockets are served (the api process).
+ */
+export interface AvailabilityListener {
+  changed(ctx: TenantContext, userId: string, availability: Availability): Promise<void>;
+}
+export const AVAILABILITY_LISTENER = Symbol('AVAILABILITY_LISTENER');
 export type PresenceKind = 'viewing' | 'typing';
 
 /** A staff user id, or `customer:{id}` for a customer typing in the conversation. */
