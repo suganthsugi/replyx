@@ -22,6 +22,7 @@ import { UserSelector } from '../../../components/inputs/UserSelector';
 import { ConfirmationDialog } from '../../../components/shell/ConfirmationDialog';
 import { useToast } from '../../../components/shell/Toast';
 import { HistoryTimeline } from '../../../components/tickets/HistoryTimeline';
+import { MergeTicketDialog, SplitTicketDialog } from '../../../components/tickets/MergeSplitDialogs';
 import { PresenceStack } from '../../../components/tickets/PresenceStack';
 import { PriorityMark } from '../../../components/tickets/PriorityMark';
 import { StatePill } from '../../../components/tickets/StatePill';
@@ -31,10 +32,13 @@ import { useAttachmentUploads } from '../../../data/attachments';
 import { useMe } from '../../../data/auth';
 import { mapError } from '../../../data/errors';
 import { useEligibleOwners, useGroupDestinations } from '../../../data/groups';
+import { mapMacroApplyError, useApplyMacro, useMacros } from '../../../data/macros';
+import { mapTicketActionError, useMergeTicket, useSplitTicket } from '../../../data/merge-split';
 import { useMentionCandidates, useSendTicketMessage, useTicketMessages, useTicketMessageEvents } from '../../../data/messages';
 import { useRealtime } from '../../../data/realtime';
 import { useCreateTag, useTags } from '../../../data/tags';
 import {
+  findTicketByNumber,
   useCreateTicketLink,
   useDeleteTicket,
   useDeleteTicketLink,
@@ -83,6 +87,8 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
   const [linkTargetId, setLinkTargetId] = useState('');
   const [mentionQuery, setMentionQuery] = useState<string | null>(null);
   const [linkKind, setLinkKind] = useState<CreateTicketLinkBodyKind>('related');
+  const [merging, setMerging] = useState(false);
+  const [splitting, setSplitting] = useState(false);
 
   useTicketRoom(client, ticketId);
   useTicketMessageEvents(client, ticketId);
@@ -117,6 +123,11 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
   const deleteTicket = useDeleteTicket();
   const createLink = useCreateTicketLink();
   const deleteLink = useDeleteTicketLink();
+  const merge = useMergeTicket(ticketId);
+  const split = useSplitTicket(ticketId);
+  const canUseMacros = meQuery.data?.permissions.includes('macro.view') === true;
+  const macros = useMacros(canUseMacros);
+  const applyMacro = useApplyMacro(ticketId);
 
   const groups = useGroupDestinations();
   const groupId = ticketQuery.data?.group?.id;
@@ -202,6 +213,46 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
     toast({ message: 'Assigned to you', severity: 'success' });
   };
 
+  const canMerge = allowed.has('merge') && ticket.mergedInto === null;
+  const canSplit = allowed.has('split') && ticket.mergedInto === null;
+  const splitCandidates = messages.items
+    .filter((message) => message.visibility === 'public')
+    .map((message) => ({ id: message.id, body: message.body, authorName: message.author?.name ?? ticket.customer.name, createdAt: message.createdAt }));
+
+  const mergeInto = async (targetNumber: number) => {
+    const target = await findTicketByNumber(targetNumber);
+    if (target === undefined) throw new Error(`There is no ticket #${targetNumber} you can see.`);
+    try {
+      await merge.mutateAsync(target.id);
+    } catch (error) {
+      throw new Error(mapTicketError(error));
+    }
+    setMerging(false);
+    toast({ message: `Merged into #${target.number}`, severity: 'success' });
+  };
+
+  const splitMessage = async (input: { messageId: string; title?: string }) => {
+    let created;
+    try {
+      created = await split.mutateAsync(input);
+    } catch (error) {
+      throw new Error(mapTicketError(error));
+    }
+    setSplitting(false);
+    toast({ message: `Split into new ticket #${created.number}`, severity: 'success' });
+  };
+
+  const sendMacro = async (macroId: string, bodyOverride: string | undefined) => {
+    stopTyping();
+    try {
+      await applyMacro.mutateAsync({ macroId, ...(bodyOverride === undefined ? {} : { bodyOverride }) });
+    } catch (error) {
+      toast({ message: mapMacroApplyError(error).message, severity: 'error' });
+      return;
+    }
+    announce('Macro applied', 'polite');
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       {removed !== null && (
@@ -236,6 +287,16 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
         </Box>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
           <PresenceStack users={presence} />
+          {canMerge && (
+            <Button size="small" variant="outlined" onClick={() => setMerging(true)}>
+              Merge
+            </Button>
+          )}
+          {canSplit && (
+            <Button size="small" variant="outlined" onClick={() => setSplitting(true)}>
+              Split
+            </Button>
+          )}
           {allowed.has('delete') && (
             <IconButton aria-label="Delete ticket" onClick={() => setConfirmingDelete(true)} size="small">
               <CloseIcon fontSize="small" />
@@ -380,6 +441,8 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
             mentionCandidates={mentionCandidates.data ?? []}
             onMentionQueryChange={setMentionQuery}
             disabled={!canReplyOrNote}
+            macros={canUseMacros ? (macros.data ?? []) : undefined}
+            onApplyMacro={canUseMacros ? (macroId, bodyOverride) => void sendMacro(macroId, bodyOverride) : undefined}
           />
         </Box>
       ) : (
@@ -393,6 +456,9 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
           )}
         </Box>
       )}
+
+      <MergeTicketDialog open={merging} sourceNumber={ticket.number} onClose={() => setMerging(false)} onMerge={mergeInto} />
+      <SplitTicketDialog open={splitting} messages={splitCandidates} onClose={() => setSplitting(false)} onSplit={splitMessage} />
 
       <ConfirmationDialog
         open={confirmingDelete}
@@ -491,6 +557,10 @@ function LinksPanel({
       )}
     </Box>
   );
+}
+
+function mapTicketError(error: unknown): string {
+  return mapTicketActionError(error).message;
 }
 
 function actorName(actor: HistoryEntryActor): string {
