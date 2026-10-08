@@ -65,7 +65,7 @@ description: "Task list for AI Assist (first cut)"
     - `groups.ai_description text null` (≤ 500 chars)
     - `ticket_history` kinds `ai_routing`, `ai_handoff`, `ai_takeover`, `ai_handback`
   - Update `MessageAuthorKind` in `apps/api/src/platform-kernel/db/tables/tickets.ts`.
-- [ ] T004 [P] Kernel helpers:
+- [X] T004 [P] Kernel helpers:
   - `apps/api/src/platform-kernel/crypto/secret-box.ts`: AES-256-GCM `seal`/`open`, stored as `v1:<iv>:<tag>:<ciphertext>`, key from `REPLYX_SECRETS_KEY`, plus `last4()`.
   - `apps/api/src/platform-kernel/http/outbound-guard.ts`: https only; the DNS-resolved IP must not be private, loopback or link-local; no redirects; `http`/localhost allowed only when `NODE_ENV=development`.
   - Add `'ai'` to `QUEUE_NAMES` in `apps/api/src/platform-kernel/jobs/queues.ts`.
