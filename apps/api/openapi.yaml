@@ -6149,6 +6149,8 @@ components:
               $ref: "#/components/schemas/NotificationChannels"
             ticket.reminder_reached:
               $ref: "#/components/schemas/NotificationChannels"
+            ai.paused:
+              $ref: "#/components/schemas/NotificationChannels"
     NotificationPreferencesInput:
       type: object
       additionalProperties: false
@@ -6183,6 +6185,8 @@ components:
             sla.breached:
               $ref: "#/components/schemas/NotificationChannelsInput"
             ticket.reminder_reached:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            ai.paused:
               $ref: "#/components/schemas/NotificationChannelsInput"
     RoutingConditions:
       type: object

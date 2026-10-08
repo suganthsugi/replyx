@@ -22,4 +22,5 @@ export type NotificationPreferencesInputEvents = {
   'sla.warning'?: NotificationChannelsInput;
   'sla.breached'?: NotificationChannelsInput;
   'ticket.reminder_reached'?: NotificationChannelsInput;
+  'ai.paused'?: NotificationChannelsInput;
 };
