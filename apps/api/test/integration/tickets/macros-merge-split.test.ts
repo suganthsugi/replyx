@@ -675,3 +675,131 @@ describe('POST /tickets/{id}/split', () => {
     expect([cross.status, cross.body]).toEqual([404, unknown.body]);
   });
 });
+
+interface BulkResponse {
+  results: { ticketId: string; ok: boolean; errorCode?: string }[];
+}
+
+class BulkInspect extends TenantRepository {
+  ticket(tx: TenantTransaction, ticketId: string) {
+    return this.selectFrom(tx, 'tickets').select(['state', 'priority', 'owner_id']).where('id', '=', ticketId).executeTakeFirstOrThrow();
+  }
+
+  tagIds(tx: TenantTransaction, ticketId: string) {
+    return this.selectFrom(tx, 'ticket_tags').select('tag_id').where('ticket_id', '=', ticketId).execute();
+  }
+
+  insertTag(tx: TenantTransaction, name: string) {
+    return this.insertInto(tx, 'tags', { id: uuidv7(), name }).returning('id').executeTakeFirstOrThrow();
+  }
+
+  tagTicket(tx: TenantTransaction, ticketId: string, tagId: string) {
+    return this.insertInto(tx, 'ticket_tags', { ticket_id: ticketId, tag_id: tagId }).execute();
+  }
+}
+
+async function inspectBulk<T>(tenant: TestTenant, fn: (tx: TenantTransaction, repo: BulkInspect) => Promise<T>): Promise<T> {
+  const ctx = TenantContext.create({ tenantId: tenant.id, actor: { kind: 'system' }, requestId: 'bulk-test' });
+  return (await service(UnitOfWork)).withTenant(ctx, (tx) => fn(tx, new BulkInspect(ctx)));
+}
+
+describe('POST /tickets/bulk', () => {
+  let tenant: TestTenant;
+  let admin: TestUser;
+  beforeAll(async () => {
+    tenant = await createTenant();
+    admin = await createUser(tenant, { roles: ['admin'] });
+  });
+
+  it('applies the changes to every ticket with history, and adds tags without replacing them (success)', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const a = await createTicket(tenant, { customer, state: 'open' });
+    const b = await createTicket(tenant, { customer, state: 'new' });
+    const kept = await inspectBulk(tenant, (tx, repo) => repo.insertTag(tx, `kept-${uuidv7().slice(-8)}`));
+    const added = await inspectBulk(tenant, (tx, repo) => repo.insertTag(tx, `added-${uuidv7().slice(-8)}`));
+    await inspectBulk(tenant, (tx, repo) => repo.tagTicket(tx, a.id, kept.id));
+
+    const response = await asUser(admin).post('/tickets/bulk', {
+      ticketIds: [a.id, b.id],
+      changes: { priority: 'urgent', ownerId: admin.id, addTagIds: [added.id] },
+    });
+    expect(response.status).toBe(200);
+    expect((response.body as BulkResponse).results).toEqual([
+      { ticketId: a.id, ok: true },
+      { ticketId: b.id, ok: true },
+    ]);
+    for (const id of [a.id, b.id]) {
+      expect(await inspectBulk(tenant, (tx, repo) => repo.ticket(tx, id))).toMatchObject({ priority: 'urgent', owner_id: admin.id });
+      const history = await inspect(tenant, (tx, repo) => repo.history(tx, id));
+      expect(history.map((entry) => entry.field)).toEqual(expect.arrayContaining(['priority', 'owner_id']));
+    }
+    const tagsOfA = (await inspectBulk(tenant, (tx, repo) => repo.tagIds(tx, a.id))).map((row) => row.tag_id);
+    expect(new Set(tagsOfA)).toEqual(new Set([kept.id, added.id]));
+  });
+
+  it('checks each ticket on its own: refusals do not block the others', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const editable = await createGroup(tenant);
+    const viewOnly = await createGroup(tenant);
+    const hidden = await createGroup(tenant);
+    const agent = await staffWithRole(tenant, ['ticket.view', 'ticket.edit', 'ticket.bulk_update'], [
+      { group: editable.id, flags: { view: true, edit: true } },
+      { group: viewOnly.id, flags: { view: true } },
+    ]);
+    const ok = await createTicket(tenant, { customer, group: editable.id, state: 'open' });
+    const closed = await createTicket(tenant, { customer, group: editable.id, state: 'closed' });
+    const readOnly = await createTicket(tenant, { customer, group: viewOnly.id, state: 'open' });
+    const invisible = await createTicket(tenant, { customer, group: hidden.id, state: 'open' });
+    const other = await createTenant();
+    const foreign = await createTicket(other, { customer: await createUser(other, { roles: ['customer'] }), state: 'open' });
+
+    const response = await asUser(agent).post('/tickets/bulk', {
+      ticketIds: [ok.id, closed.id, readOnly.id, invisible.id, foreign.id, UNKNOWN_ID, ok.id],
+      changes: { state: 'resolved' },
+    });
+    expect(response.status).toBe(200);
+    expect((response.body as BulkResponse).results).toEqual([
+      { ticketId: ok.id, ok: true },
+      { ticketId: closed.id, ok: false, errorCode: 'INVALID_TRANSITION' },
+      { ticketId: readOnly.id, ok: false, errorCode: 'PERMISSION_DENIED' },
+      { ticketId: invisible.id, ok: false, errorCode: 'TICKET_NOT_FOUND' },
+      { ticketId: foreign.id, ok: false, errorCode: 'TICKET_NOT_FOUND' },
+      { ticketId: UNKNOWN_ID, ok: false, errorCode: 'TICKET_NOT_FOUND' },
+    ]);
+    expect((await inspectBulk(tenant, (tx, repo) => repo.ticket(tx, ok.id))).state).toBe('resolved');
+    expect((await inspectBulk(tenant, (tx, repo) => repo.ticket(tx, readOnly.id))).state).toBe('open');
+    expect((await inspectBulk(other, (tx, repo) => repo.ticket(tx, foreign.id))).state).toBe('open');
+  });
+
+  it('reports OWNER_NOT_ELIGIBLE per ticket', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const group = await createGroup(tenant);
+    const outsider = await staffWithRole(tenant, ['ticket.view', 'ticket.edit'], []);
+    const ticket = await createTicket(tenant, { customer, group: group.id, state: 'open' });
+    const response = await asUser(admin).post('/tickets/bulk', { ticketIds: [ticket.id], changes: { ownerId: outsider.id } });
+    expect((response.body as BulkResponse).results).toEqual([{ ticketId: ticket.id, ok: false, errorCode: 'OWNER_NOT_ELIGIBLE' }]);
+  });
+
+  it('is 403 PERMISSION_DENIED without ticket.bulk_update', async () => {
+    const customer = await createUser(tenant, { roles: ['customer'] });
+    const ticket = await createTicket(tenant, { customer, state: 'open' });
+    const agent = await staffWithRole(tenant, ['ticket.view', 'ticket.edit'], [{ group: null, flags: { view: true, edit: true } }]);
+    const response = await asUser(agent).post('/tickets/bulk', { ticketIds: [ticket.id], changes: { priority: 'high' } });
+    expect([response.status, failure(response).error.code]).toEqual([403, 'PERMISSION_DENIED']);
+  });
+
+  it('validates the request body', async () => {
+    const ids = (n: number) => Array.from({ length: n }, () => uuidv7());
+    for (const body of [
+      { ticketIds: [], changes: { priority: 'high' } },
+      { ticketIds: ids(101), changes: { priority: 'high' } },
+      { ticketIds: ids(1), changes: {} },
+      { ticketIds: ids(1), changes: { title: 'nope' } },
+      { ticketIds: ['nope'], changes: { priority: 'high' } },
+      { ticketIds: ids(1) },
+    ]) {
+      const response = await asUser(admin).post('/tickets/bulk', body);
+      expect([response.status, failure(response).error.code]).toEqual([400, 'VALIDATION_FAILED']);
+    }
+  });
+});
