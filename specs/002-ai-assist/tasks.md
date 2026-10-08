@@ -157,7 +157,7 @@ description: "Task list for AI Assist (first cut)"
   - a list with Processing/Ready/Failed status chips that update live
   - a "type text" or "upload file" choice that reuses the existing attachment uploader
   - edit, rename, and delete with confirmation
-- [ ] T018 [US2] Web tests in `apps/web/test/ai/policies.test.tsx`: create by text, upload, live status change, delete, and an axe check.
+- [X] T018 [US2] Web tests in `apps/web/test/ai/policies.test.tsx`: create by text, upload, live status change, delete, and an axe check.
 
 **Checkpoint**: reviewer pass for US2; Jira Story to Done with a screenshot.
 
