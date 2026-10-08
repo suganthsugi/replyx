@@ -1,4 +1,5 @@
 import Box from '@mui/material/Box';
+import Checkbox from '@mui/material/Checkbox';
 import { useLayoutEffect, useRef, useState } from 'react';
 
 import { EmptyState } from '../foundations/EmptyState';
@@ -14,6 +15,10 @@ import type { FocusEvent, KeyboardEvent } from 'react';
  * Inbox" list pane): arrow keys move the active ticket, Enter/Space opens it. Loading and error
  * are the page's job (ui-components rule 2, it owns the query); this component only renders the
  * "all caught up" empty state for a view with no tickets right now.
+ *
+ * With `checkedIds`/`onToggleChecked` (bulk actions, US14) each row shows a checkbox and `x`
+ * checks or unchecks the active row; the row carries `aria-checked`, so the checkbox itself is not
+ * a separate tab stop inside the option.
  */
 
 export interface TicketListProps {
@@ -27,6 +32,9 @@ export interface TicketListProps {
   emptyMessage?: string;
   rowHeight?: number;
   height?: number | string;
+  /** Tickets checked for a bulk action; omit to hide the checkboxes. */
+  checkedIds?: ReadonlySet<string>;
+  onToggleChecked?: (ticket: TicketSummary) => void;
 }
 
 export function TicketList({
@@ -39,7 +47,10 @@ export function TicketList({
   emptyMessage = 'No tickets match this view right now.',
   rowHeight = TICKET_ROW_HEIGHT,
   height = '100%',
+  checkedIds,
+  onToggleChecked,
 }: TicketListProps) {
+  const checkable = checkedIds !== undefined && onToggleChecked !== undefined;
   const { containerRef, onScroll, range, scrollToRow } = useVirtualRows({ count: tickets.length, rowHeight });
   const [activeIndex, setActiveIndex] = useState(0);
   const rowRefs = useRef(new Map<number, HTMLDivElement>());
@@ -98,6 +109,12 @@ export function TicketList({
     } else if (event.key === 'End') {
       event.preventDefault();
       focusRow(tickets.length - 1);
+    } else if (checkable && (event.key === 'x' || event.key === 'X')) {
+      const ticket = tickets[activeIndex];
+      if (ticket !== undefined) {
+        event.preventDefault();
+        onToggleChecked(ticket);
+      }
     } else if (event.key === 'Enter' || event.key === ' ') {
       const ticket = tickets[activeIndex];
       if (ticket !== undefined) {
@@ -159,6 +176,7 @@ export function TicketList({
                 }}
                 role="option"
                 aria-selected={selected}
+                aria-checked={checkable ? checkedIds.has(ticket.id) : undefined}
                 aria-setsize={tickets.length}
                 aria-posinset={index + 1}
                 tabIndex={index === activeIndex ? 0 : -1}
@@ -177,7 +195,24 @@ export function TicketList({
                   '&:hover': { bgcolor: 'action.hover' },
                 }}
               >
-                <TicketRow ticket={ticket} unread={unreadIds?.has(ticket.id) ?? false} selected={selected} />
+                {checkable ? (
+                  <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
+                    <Checkbox
+                      size="small"
+                      checked={checkedIds.has(ticket.id)}
+                      tabIndex={-1}
+                      slotProps={{ input: { 'aria-label': `Select #${ticket.number}` } }}
+                      onClick={(event) => event.stopPropagation()}
+                      onChange={() => onToggleChecked(ticket)}
+                      sx={{ ml: 1 }}
+                    />
+                    <Box sx={{ flex: 1, minWidth: 0, height: '100%' }}>
+                      <TicketRow ticket={ticket} unread={unreadIds?.has(ticket.id) ?? false} selected={selected} />
+                    </Box>
+                  </Box>
+                ) : (
+                  <TicketRow ticket={ticket} unread={unreadIds?.has(ticket.id) ?? false} selected={selected} />
+                )}
               </Box>
             );
           })}

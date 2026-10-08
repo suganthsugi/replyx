@@ -2,14 +2,19 @@ import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router';
 
 import { EmptyState } from '../../../components/foundations/EmptyState';
+import { useAnnounce } from '../../../components/foundations/LiveRegion';
 import { Skeleton } from '../../../components/foundations/Skeleton';
 import { VisuallyHidden } from '../../../components/foundations/VisuallyHidden';
 import { Drawer } from '../../../components/shell/Drawer';
+import { useToast } from '../../../components/shell/Toast';
+import { BulkActionBar } from '../../../components/tickets/BulkActionBar';
 import { TicketList } from '../../../components/tickets/TicketList';
+import { useMe } from '../../../data/auth';
+import { BULK_LIMIT, mapTicketActionError, ticketActionMessage, useBulkUpdateTickets, type BulkChanges } from '../../../data/merge-split';
 import { useTickets } from '../../../data/tickets';
 import { useViews } from '../../../data/views';
 import { WORKSPACE_BASE } from '../../../routes/area';
@@ -275,6 +280,52 @@ function TicketListPane({
   hideNewTicketButton?: boolean;
 }) {
   const tickets = useTickets({ viewId });
+  const me = useMe();
+  const bulk = useBulkUpdateTickets();
+  const toast = useToast();
+  const announce = useAnnounce();
+  const canBulk = me.data?.permissions.includes('ticket.bulk_update') === true;
+  const [checked, setChecked] = useState<ReadonlySet<string>>(new Set());
+
+  // A view switch starts a fresh selection; tickets that left the list drop out of it.
+  useEffect(() => setChecked(new Set()), [viewId]);
+  const visibleIds = useMemo(() => new Set(tickets.items.map((ticket) => ticket.id)), [tickets.items]);
+  const checkedVisible = useMemo(() => new Set([...checked].filter((id) => visibleIds.has(id))), [checked, visibleIds]);
+
+  const toggle = (ticket: TicketSummary) => {
+    const next = new Set(checkedVisible);
+    if (next.has(ticket.id)) {
+      next.delete(ticket.id);
+      announce(`#${ticket.number} unselected, ${next.size} selected`, 'polite');
+    } else if (next.size >= BULK_LIMIT) {
+      announce(`You can select up to ${BULK_LIMIT} tickets at a time`, 'assertive');
+      return;
+    } else {
+      next.add(ticket.id);
+      announce(`#${ticket.number} selected, ${next.size} selected`, 'polite');
+    }
+    setChecked(next);
+  };
+
+  const apply = async (changes: BulkChanges) => {
+    let results;
+    try {
+      results = await bulk.mutateAsync([...checkedVisible], changes);
+    } catch (error) {
+      toast({ message: mapTicketActionError(error).message, severity: 'error' });
+      return;
+    }
+    const failed = results.filter((result) => !result.ok);
+    const updated = results.length - failed.length;
+    if (failed.length === 0) {
+      toast({ message: `Updated ${updated} ticket${updated === 1 ? '' : 's'}`, severity: 'success' });
+      setChecked(new Set());
+      return;
+    }
+    const reasons = [...new Set(failed.map((result) => ticketActionMessage(result.errorCode ?? '')))].join(' ');
+    toast({ message: `Updated ${updated} of ${results.length}. ${failed.length} not updated: ${reasons}`, severity: 'warning' });
+    setChecked(new Set(failed.map((result) => result.ticketId)));
+  };
 
   return (
     <>
@@ -288,6 +339,15 @@ function TicketListPane({
           </Button>
         )}
       </Box>
+      {canBulk && checkedVisible.size > 0 && (
+        <BulkActionBar
+          count={checkedVisible.size}
+          busy={bulk.isPending}
+          onApply={(changes) => void apply(changes)}
+          onAssignToMe={me.data === undefined ? undefined : () => void apply({ ownerId: me.data.id })}
+          onClear={() => setChecked(new Set())}
+        />
+      )}
       <Box sx={{ flex: 1, minHeight: 0 }}>
         {tickets.isPending ? (
           <Box sx={{ p: 3 }}>
@@ -296,7 +356,13 @@ function TicketListPane({
         ) : tickets.isError ? (
           <EmptyState variant="error" title="Couldn't load tickets" message={tickets.error?.message} onRetry={() => void tickets.refetch()} />
         ) : (
-          <TicketList tickets={tickets.items} label={`Tickets in ${viewName}`} selectedId={ticketId} onOpenTicket={onSelectTicket} />
+          <TicketList
+            tickets={tickets.items}
+            label={`Tickets in ${viewName}`}
+            selectedId={ticketId}
+            onOpenTicket={onSelectTicket}
+            {...(canBulk ? { checkedIds: checkedVisible, onToggleChecked: toggle } : {})}
+          />
         )}
       </Box>
     </>
