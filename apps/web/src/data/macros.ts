@@ -27,9 +27,9 @@ export const macroKeys = {
   list: () => [...macroKeys.all, 'list'] as const,
 };
 
-/** Macros visible to the current user (needs `macro.view`). */
-export function useMacros() {
-  const query = useListMacros<ListMacros200>({ query: { queryKey: macroKeys.list() } });
+/** Macros visible to the current user (needs `macro.view`; pass `enabled = false` without it). */
+export function useMacros(enabled = true) {
+  const query = useListMacros<ListMacros200>({ query: { queryKey: macroKeys.list(), enabled } });
   return { ...query, data: query.data?.items, error: query.error ? mapError(query.error) : undefined };
 }
 
