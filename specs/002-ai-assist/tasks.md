@@ -71,7 +71,7 @@ description: "Task list for AI Assist (first cut)"
   - Add `'ai'` to `QUEUE_NAMES` in `apps/api/src/platform-kernel/jobs/queues.ts`.
   - Add pino redaction paths `apiKey`, `authorization` and `x-spree-api-key` in `platform-kernel/observability`.
   - Unit tests in `apps/api/test/unit/kernel/`.
-- [ ] T005 [P] Provider layer in `apps/api/src/ai/providers/` (research R1, R5):
+- [X] T005 [P] Provider layer in `apps/api/src/ai/providers/` (research R1, R5):
   - `ports.ts`: `ChatModel`, `DecisionModel` and `EmbeddingModel`, with `ProviderError` kinds `auth|credit|rate_limit|timeout|unavailable|bad_request`.
   - `openrouter/`: `fetch` + zod for chat completions with tools and `json_schema`, `/api/v1/embeddings`, `/api/alpha/decisions` and `/api/v1/key`. Every call sends `provider:{data_collection:"deny"}` and `usage:{include:true}`. Timeouts: chat 20 s, decisions 5 s, embeddings 15 s.
   - `fake/`: scripted responses keyed by markers such as `[fake:handoff]` and `[fake:order R100200]`, plus deterministic embeddings.
