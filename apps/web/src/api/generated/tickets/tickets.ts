@@ -25,6 +25,8 @@ import type {
 import type {
   ApplyMacroRequest,
   AttachmentSummary,
+  BulkUpdateTickets200,
+  BulkUpdateTicketsBody,
   CreateTagBody,
   CreateTicketBody,
   CreateTicketLinkBody,
@@ -317,6 +319,100 @@ export const useCreateTicket = <
   TContext
 > => {
   const mutationOptions = getCreateTicketMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Each ticket is checked and written in its own transaction, through the same rules as updateTicket (state
+machine, owner eligibility, history, events), so a refusal for one ticket never blocks the others. The
+response has one result per distinct ticket id, in request order; a ticket the caller cannot see, or that
+does not exist, is TICKET_NOT_FOUND, and one without edit on its group is PERMISSION_DENIED. addTagIds adds
+to each ticket's tags rather than replacing them.
+ * @summary Apply the same changes to up to 100 tickets (ticket.bulk_update; each ticket checked on its own)
+ */
+export const getBulkUpdateTicketsUrl = () => {
+  return `/tickets/bulk`;
+};
+
+export const bulkUpdateTickets = async (
+  bulkUpdateTicketsBody: BulkUpdateTicketsBody,
+  options?: RequestInit,
+): Promise<BulkUpdateTickets200> => {
+  return http<BulkUpdateTickets200>(getBulkUpdateTicketsUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(bulkUpdateTicketsBody),
+  });
+};
+
+export const getBulkUpdateTicketsMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof bulkUpdateTickets>>,
+    TError,
+    { data: BulkUpdateTicketsBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof bulkUpdateTickets>>,
+  TError,
+  { data: BulkUpdateTicketsBody },
+  TContext
+> => {
+  const mutationKey = ['bulkUpdateTickets'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof bulkUpdateTickets>>,
+    { data: BulkUpdateTicketsBody }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return bulkUpdateTickets(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type BulkUpdateTicketsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof bulkUpdateTickets>>
+>;
+export type BulkUpdateTicketsMutationBody = BulkUpdateTicketsBody;
+export type BulkUpdateTicketsMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+
+/**
+ * @summary Apply the same changes to up to 100 tickets (ticket.bulk_update; each ticket checked on its own)
+ */
+export const useBulkUpdateTickets = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof bulkUpdateTickets>>,
+      TError,
+      { data: BulkUpdateTicketsBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof bulkUpdateTickets>>,
+  TError,
+  { data: BulkUpdateTicketsBody },
+  TContext
+> => {
+  const mutationOptions = getBulkUpdateTicketsMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
