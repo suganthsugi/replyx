@@ -34,7 +34,8 @@ const HISTORY_COLUMNS = [
 type HistoryRow = Selectable<Pick<Database['ticket_history'], 'id' | 'actor_id' | 'actor_kind' | 'field' | 'old_value' | 'new_value' | 'created_at'>>;
 
 export interface HistoryActorDto {
-  kind: 'user' | 'system' | 'automation' | 'routing';
+  /** `ai`: AI routing and assistant hand-offs (specs/002-ai-assist). */
+  kind: 'user' | 'system' | 'automation' | 'routing' | 'ai';
   user?: { id: string; name: string };
   ruleName?: string;
 }

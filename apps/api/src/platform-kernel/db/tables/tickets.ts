@@ -35,7 +35,13 @@ export interface TicketsTable {
   updated_at: GeneratedTimestamp;
 }
 
-export type MessageAuthorKind = 'customer' | 'staff' | 'system' | 'automation';
+/** `assistant`: AI Assist replies (0017, specs/002-ai-assist); `author_id` is null for them. */
+export type MessageAuthorKind = 'customer' | 'staff' | 'system' | 'automation' | 'assistant';
+
+/** `handoff`: the assistant's fixed hand-off notice, which never counts as a reply for SLA (FR-029). */
+export interface MessageMetadata {
+  handoff?: boolean;
+}
 export type MessageVisibility = 'public' | 'internal';
 
 /** Immutable except for moves (FR-042) and receipts; a trigger rejects edits of body/visibility. */
@@ -52,6 +58,8 @@ export interface TicketMessagesTable {
   moved_from_ticket_id: string | null;
   delivered_at: Timestamp | null;
   read_at: Timestamp | null;
+  /** Read as an object; written as a JSON string (the pg driver does not serialize objects for jsonb). */
+  metadata: ColumnType<MessageMetadata | null, string | null | undefined, string | null>;
   created_at: GeneratedTimestamp;
   updated_at: GeneratedTimestamp;
 }
@@ -70,7 +78,8 @@ export interface TicketLinksTable {
   created_at: GeneratedTimestamp;
 }
 
-export type HistoryActorKind = 'user' | 'operator' | 'system' | 'automation' | 'routing';
+/** `ai`: AI routing and assistant hand-offs (0017). */
+export type HistoryActorKind = 'user' | 'operator' | 'system' | 'automation' | 'routing' | 'ai';
 
 /** Append-only (the app role has SELECT and INSERT). */
 export interface TicketHistoryTable {

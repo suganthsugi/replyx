@@ -42,6 +42,8 @@ export interface GroupsTable {
   tenant_id: string;
   name: string;
   description: string | null;
+  /** Offered to AI routing only when set (0017, FR-023). */
+  ai_description: string | null;
   status: Generated<'active' | 'inactive'>;
   created_at: GeneratedTimestamp;
   updated_at: GeneratedTimestamp;

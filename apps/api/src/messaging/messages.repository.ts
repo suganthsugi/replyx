@@ -28,6 +28,7 @@ export const MESSAGE_COLUMNS = [
   'ticket_messages.moved_from_ticket_id',
   'ticket_messages.delivered_at',
   'ticket_messages.read_at',
+  'ticket_messages.metadata',
   'ticket_messages.created_at',
   'ticket_messages.updated_at',
 ] as const;

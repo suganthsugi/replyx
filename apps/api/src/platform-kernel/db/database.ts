@@ -4,6 +4,7 @@ import pg from 'pg';
 
 import { UnitOfWork } from './unit-of-work.js';
 
+import type { AiTables } from './tables/ai.js';
 import type { AuthorizationTables } from './tables/authorization.js';
 import type { IdentityTables } from './tables/identity.js';
 import type { MacroTables } from './tables/macros.js';
@@ -28,7 +29,8 @@ export type Database = TenancyTables &
   NotificationTables &
   RoutingTables &
   SlaTables &
-  MacroTables;
+  MacroTables &
+  AiTables;
 
 export type DB = Database;
 
