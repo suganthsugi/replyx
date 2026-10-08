@@ -57,7 +57,7 @@ Facts checked on 2026-10-08: the OpenRouter model and price lists (`/api/v1/mode
 
   - **Decision model**: pinned to `typesafe/jev-1.13`.
   - **Tenant settings**: store `{ level: modelId }`, validated against the catalog.
-  - **Costs**: taken from the response `usage.cost`. When it is missing, they are estimated from a Valkey-cached copy of `/api/v1/models` prices, refreshed daily.
+  - **Costs**: taken from the response `usage.cost`. When it is missing, they are estimated from static list prices in `catalog.ts` (implementation note: no Valkey price cache — OpenRouter returns `usage.cost` with `usage.include`, so the estimate is only a fallback).
 - **Rationale**: Tenants choose a level, never a provider, so new adapters only add catalog entries.
 
 ## R6 Async pipeline, burst coalescing, idempotency
