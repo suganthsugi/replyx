@@ -1515,7 +1515,8 @@ export const getRenamePolicyDocumentMutationOptions = <
     | ValidationFailedResponse
     | UnauthenticatedResponse
     | PermissionDeniedResponse
-    | NotFoundResponse,
+    | NotFoundResponse
+    | ConflictResponse,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1555,14 +1556,19 @@ export type RenamePolicyDocumentMutationResult = NonNullable<
 >;
 export type RenamePolicyDocumentMutationBody = RenamePolicyDocumentBody;
 export type RenamePolicyDocumentMutationError =
-  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+  | ValidationFailedResponse
+  | UnauthenticatedResponse
+  | PermissionDeniedResponse
+  | NotFoundResponse
+  | ConflictResponse;
 
 export const useRenamePolicyDocument = <
   TError =
     | ValidationFailedResponse
     | UnauthenticatedResponse
     | PermissionDeniedResponse
-    | NotFoundResponse,
+    | NotFoundResponse
+    | ConflictResponse,
   TContext = unknown,
 >(
   options?: {
@@ -1694,7 +1700,8 @@ export const getCreatePolicyVersionMutationOptions = <
     | ValidationFailedResponse
     | UnauthenticatedResponse
     | PermissionDeniedResponse
-    | NotFoundResponse,
+    | NotFoundResponse
+    | ConflictResponse,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1734,7 +1741,11 @@ export type CreatePolicyVersionMutationResult = NonNullable<
 >;
 export type CreatePolicyVersionMutationBody = PolicyVersionInput;
 export type CreatePolicyVersionMutationError =
-  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+  | ValidationFailedResponse
+  | UnauthenticatedResponse
+  | PermissionDeniedResponse
+  | NotFoundResponse
+  | ConflictResponse;
 
 /**
  * @summary Save a new version (text or uploaded attachment); becomes active once processed
@@ -1744,7 +1755,8 @@ export const useCreatePolicyVersion = <
     | ValidationFailedResponse
     | UnauthenticatedResponse
     | PermissionDeniedResponse
-    | NotFoundResponse,
+    | NotFoundResponse
+    | ConflictResponse,
   TContext = unknown,
 >(
   options?: {

@@ -4141,6 +4141,8 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
     delete:
       operationId: deletePolicyDocument
       tags:
@@ -4184,6 +4186,8 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /ai/runs:
     get:
       operationId: listAiRuns
@@ -6987,9 +6991,7 @@ components:
         attachmentId:
           type: string
           format: uuid
-          description: Uploaded via POST /attachments; txt
-          md or pdf: null
-          ≤ 10 MB: null
+          description: "Uploaded via POST /attachments by an admin: txt, md or pdf, at most 10 MB"
     PolicyStatus:
       type: string
       enum:
@@ -7209,6 +7211,4 @@ components:
         attachmentId:
           type: string
           format: uuid
-          description: Uploaded via POST /attachments; txt
-          md or pdf: null
-          ≤ 10 MB: null
+          description: "Uploaded via POST /attachments by an admin: txt, md or pdf, at most 10 MB"

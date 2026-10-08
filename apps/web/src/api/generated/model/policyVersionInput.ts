@@ -16,6 +16,6 @@ export interface PolicyVersionInput {
    * @maxLength 200000
    */
   text?: string;
-  /** Uploaded via POST /attachments; txt */
+  /** Uploaded via POST /attachments by an admin: txt, md or pdf, at most 10 MB */
   attachmentId?: string;
 }
