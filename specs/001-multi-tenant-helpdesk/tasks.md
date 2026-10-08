@@ -575,7 +575,7 @@ message, and open one ticket as two agents to see presence and typing (spec US14
 - [X] T238 [US14] Implement `POST /tickets/bulk` in `apps/api/src/tickets/bulk.service.ts` (`ticket.bulk_update`; max 100; each ticket checked individually; per-ticket results) and presence broadcasting (`viewing`, `typing`, availability) in `apps/api/src/tickets/presence.handler.ts`; merge all paths into `apps/api/openapi.yaml`
 - [X] T239 [P] [US14] Integration tests `apps/api/test/integration/tickets/macros-merge-split.test.ts` (macro effects and history; merge rules and single-copy customer thread; split linking; bulk per-ticket checks; `macro` fixture) and `apps/api/test/integration/realtime/presence.test.ts` (viewers and typing within 2 s; nothing written to history)
 - [ ] T240 [P] [US14] Add a macro picker (`/` command) to `MessageComposer.tsx`, merge/split actions and dialogs to `TicketFocus.tsx`, a bulk action bar to `TicketList.tsx`, `PresenceStack` in the status strip, and create `apps/web/src/pages/admin/macros/MacrosPage.tsx`
-- [ ] T241 [US14] Create `apps/web/src/data/macros.ts`, `apps/web/src/data/merge-split.ts`, `apps/web/src/data/presence.ts`
+- [X] T241 [US14] Create `apps/web/src/data/macros.ts`, `apps/web/src/data/merge-split.ts`, `apps/web/src/data/presence.ts`
 - [ ] T242 [P] [US14] Guide `apps/docs/src/content/docs/guides/macros-merge-split.md`
 
 ---
