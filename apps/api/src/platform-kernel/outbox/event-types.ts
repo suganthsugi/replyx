@@ -18,6 +18,7 @@ import type { FriendlyStatusCode } from '../../messaging/customer-projection.js'
 import type { MessageDto } from '../../messaging/message-dto.js';
 import type { NotificationDto } from '../../notifications/notification-dto.js';
 import type { TicketSummaryDto } from '../../tickets/ticket-dto.js';
+import type { AiPauseReason, PolicyVersionStatus } from '../db/tables/ai.js';
 import type { JsonValue } from '../db/tables/column-types.js';
 import type { SlaStatus, SlaTarget } from '../db/tables/sla.js';
 import type { TicketState } from '../db/tables/tickets.js';
@@ -118,7 +119,34 @@ export interface DomainEventMap {
   'notification.updated': { id: string; count: number };
   /** Marked read in one session; every session of the user updates (FR-083). */
   'notification.read': { ids: string[] | 'all'; unreadCount: number };
+  /**
+   * A policy version was saved (spec 002 US2); the AI consumer indexes it. Streams: the `user`
+   * streams of `ai_knowledge.manage` holders (`AiAudience`).
+   */
+  'ai.policy_version_created': { documentId: string; versionId: string };
+  /** Indexing moved a version to `active` or `failed`, or a newer one superseded it (Policies screen). */
+  'ai.policy_version_updated': { documentId: string; versionId: string; status: PolicyVersionStatus };
+  /** A draft reply is ready (drafts mode). Stream `ticket:{id}`; the client fetches `GET /tickets/{id}/ai-draft`. */
+  'ai.draft_ready': { ticketId: string; draftId: string };
+  /** AI paused on a bad key or no credit: the `user` streams of `ai_settings.manage` holders (banner). */
+  'ai.paused': { reason: AiPauseReason };
+  /** AI resumed after a successful test or a key replace; same streams as `ai.paused`. */
+  'ai.resumed': Record<string, never>;
+  /**
+   * Who answers the ticket's next customer message changed (take over, hand back, hand-off).
+   * Streams `ticket:{id}` and `conversation:{customerId}`; the customer projection drops `ticketId`.
+   */
+  'conversation.responder_changed': { ticketId: string; responder: Responder };
+  /**
+   * The reply mode or pause state changed, so every responder in the tenant may have changed. A
+   * control event on `tenant`: the gateways send the signal to every staff and customer socket of
+   * the tenant, which refetch the responder.
+   */
+  'ai.responder_scope_changed': Record<string, never>;
 }
+
+/** Who answers the next customer message (contracts/ai.yaml `Responder`). */
+export type Responder = { kind: 'assistant' } | { kind: 'agent'; name: string; avatarUrl: string | null } | { kind: 'team' };
 
 export interface TicketFieldChange {
   field: string;
@@ -148,6 +176,7 @@ export const CONTROL_EVENT_TYPES: ReadonlySet<DomainEventType> = new Set([
   'session.revoked',
   'tenant.suspended',
   'access.changed',
+  'ai.responder_scope_changed',
 ]);
 
 export type DomainEventPayload<T extends DomainEventType> = DomainEventMap[T];

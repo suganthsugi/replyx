@@ -39,6 +39,9 @@ import { SyncHandler } from './sync.handler.js';
 
 import type { Namespace, Server } from 'socket.io';
 
+/** Signal sent to every socket of a tenant when AI's reply mode or pause state changed (spec 002). */
+export const RESPONDER_SCOPE_EVENT = 'ai.responder_scope_changed';
+
 /**
  * The real-time gateway (research D8, contracts/realtime-events.md): Socket.IO on `/rt`, staff on
  * namespace `/`, customers on `/customer`.
@@ -54,7 +57,8 @@ import type { Namespace, Server } from 'socket.io';
  *   `sync` replays missed events (sync.handler.ts).
  * - Control events from the relay (`session.revoked`, `tenant.suspended`) send `closing { code }`
  *   and disconnect the affected sockets on this process; `access.changed` recomputes rooms
- *   (access-change.handler.ts). Sessions that idle out close with `SESSION_EXPIRED`
+ *   (access-change.handler.ts); `ai.responder_scope_changed` is passed on to every socket of the
+ *   tenant as a signal. Sessions that idle out close with `SESSION_EXPIRED`
  *   (session-expiry.ts).
  */
 
@@ -213,10 +217,19 @@ export class StaffGateway implements OnGatewayInit, OnGatewayConnection, OnGatew
         this.close(tenantRoom(message.tenantId), 'TENANT_SUSPENDED');
       } else if (message.type === 'access.changed' && this.server !== undefined) {
         await this.accessChange.handle(this.server, message);
+      } else if (message.type === 'ai.responder_scope_changed') {
+        this.signal(tenantRoom(message.tenantId), RESPONDER_SCOPE_EVENT);
       }
     } catch (error) {
       this.logger.error(`Control ${message.type} failed: ${error instanceof Error ? error.message : 'unknown'}`);
     }
+  }
+
+  /** An ephemeral signal (no seq, no sync) to local sockets of both namespaces in the room. */
+  private signal(room: string, event: string): void {
+    const server = this.server;
+    if (server === undefined) return;
+    for (const name of [STAFF_NAMESPACE, CUSTOMER_NAMESPACE]) server.of(name).local.in(room).emit(event, {});
   }
 
   /** Both namespaces, local sockets only: every api process receives the same control event. */
