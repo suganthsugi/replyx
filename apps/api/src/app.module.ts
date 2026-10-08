@@ -1,6 +1,6 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 
-import { AiModule } from './ai/ai.module.js';
+import { AiHttpModule, AiModule } from './ai/ai.module.js';
 import { ApiPipelineModule } from './api-pipeline.module.js';
 import { AttachmentsHttpModule, FileStorageModule } from './attachments/attachments.module.js';
 import { AttachmentJobsModule } from './attachments/scan.job.js';
@@ -95,6 +95,7 @@ export class AppModule {
       SlaHttpModule,
       MacrosHttpModule,
       NotificationsHttpModule,
+      AiHttpModule,
     ];
     // Outbox relay, queue consumers and sweepers (worker only).
     const workerOnly: ModuleImports = [

@@ -25,4 +25,5 @@ export const NotificationEventType = {
   slawarning: 'sla.warning',
   slabreached: 'sla.breached',
   ticketreminder_reached: 'ticket.reminder_reached',
+  aipaused: 'ai.paused',
 } as const;

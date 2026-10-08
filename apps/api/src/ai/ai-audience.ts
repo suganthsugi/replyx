@@ -16,9 +16,18 @@ import type { StreamKey } from '../platform-kernel/outbox/event-types.js';
 @Injectable()
 export class AiAudience {
   async streamsFor(tx: TenantTransaction, ctx: TenantContext, permission: PermissionKey): Promise<StreamKey[]> {
-    const ids = await new AudienceRepository(ctx).holderIds(tx, permission);
-    return ids.length === 0 ? ['tenant'] : ids.map((id): StreamKey => `user:${id}`);
+    return streamsOf(await this.holderIds(tx, ctx, permission));
   }
+
+  /** Active staff holding the permission, by id. */
+  holderIds(tx: TenantTransaction, ctx: TenantContext, permission: PermissionKey): Promise<string[]> {
+    return new AudienceRepository(ctx).holderIds(tx, permission);
+  }
+}
+
+/** `user` streams for the ids, or the `tenant` control stream when there are none. */
+export function streamsOf(userIds: readonly string[]): StreamKey[] {
+  return userIds.length === 0 ? ['tenant'] : userIds.map((id): StreamKey => `user:${id}`);
 }
 
 class AudienceRepository extends TenantRepository {

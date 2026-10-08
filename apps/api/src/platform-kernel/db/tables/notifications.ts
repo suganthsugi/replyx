@@ -14,6 +14,8 @@ export const NOTIFICATION_EVENT_TYPES = [
   'sla.warning',
   'sla.breached',
   'ticket.reminder_reached',
+  /** AI paused on a bad key or no credit (spec 002, migration 0018); no ticket. */
+  'ai.paused',
 ] as const;
 
 export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number];

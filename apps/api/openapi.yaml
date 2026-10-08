@@ -6051,6 +6051,7 @@ components:
         - sla.warning
         - sla.breached
         - ticket.reminder_reached
+        - ai.paused
       description: What a notification is about (FR-079)
     NotificationChannels:
       type: object
