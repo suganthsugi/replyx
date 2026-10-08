@@ -3,6 +3,7 @@ import { z } from 'zod';
 
 import { PolicyService } from '../authorization/policy.service.js';
 import { UnitOfWork } from '../platform-kernel/db/unit-of-work.js';
+import { validationFailed } from '../platform-kernel/http/app-error.js';
 import { decodeCursor, encodeCursor, type Page } from '../platform-kernel/http/pagination.js';
 import { TagsService } from '../tags/tags.service.js';
 import { TicketRefsRepository, toTicketSummary, type TicketSummaryDto } from '../tickets/ticket-dto.js';
@@ -72,6 +73,10 @@ export class PostgresSearchService extends SearchService {
 
   async search(ctx: TenantContext, query: SearchQuery): Promise<Page<SearchResult>> {
     const cursor = query.cursor === undefined ? undefined : decodeCursor(query.cursor, Cursor);
+    // A cursor belongs to the `type` it came from: one that points into a phase this type never reads is a bad cursor.
+    if (cursor !== undefined && ((query.type === 'tickets' && cursor.phase === 'customers') || (query.type === 'customers' && cursor.phase === 'tickets'))) {
+      throw validationFailed([{ path: 'cursor', issue: 'invalid_cursor' }]);
+    }
     const term = buildSearchTerm(query.q);
 
     return this.unitOfWork.withTenantReadOnly(ctx, async (tx) => {

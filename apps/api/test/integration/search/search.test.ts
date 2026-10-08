@@ -320,4 +320,14 @@ describe('GET /search query text that unaccent turns into tsquery syntax', () =>
     await createCustomer(tenant, { name: 'Xavier Single' });
     expect((await search(admin, q('x', '&type=customers'))).body.items).toEqual([]);
   });
+
+  it('rejects a cursor from the customers phase on a tickets-only search with 400', async () => {
+    const { tenant, admin } = await setup();
+    for (const n of ['A', 'B', 'C']) await createCustomer(tenant, { name: `Wombat ${n}` });
+    const first = await search(admin, q('wombat', '&type=customers&limit=2'));
+    const cursor = first.body.nextCursor as string;
+    const response = await asUser(admin).get(`/search?${q('wombat', `&type=tickets&cursor=${encodeURIComponent(cursor)}`)}`);
+    expect(response.status).toBe(400);
+    expect(failure(response).error.details).toEqual([{ path: 'cursor', issue: 'invalid_cursor' }]);
+  });
 });
