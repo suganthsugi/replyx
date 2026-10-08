@@ -43,11 +43,13 @@
     "nestjs-pino": "^4.4.0",
     "nodemailer": "^10.0.10",
     "pg": "^8.16.0",
+    "pgvector": "^0.3.0",
     "pino": "^9.7.0",
     "pino-http": "^10.5.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "socket.io": "^4.8.1",
+    "unpdf": "^1.8.1",
     "zod": "^4.1.0"
   },
   "devDependencies": {
