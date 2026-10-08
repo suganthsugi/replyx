@@ -178,6 +178,9 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       'TicketsController.triage': () => ({ groupId: uuidv7() }),
       // The ticket lookup 404s before the macro is looked up (T236).
       'MacroApplyController.apply': () => ({ macroId: uuidv7(), clientMessageId: uuidv7() }),
+      // The source ticket lookup 404s first (T237), so the body only has to validate.
+      'TicketsController.merge': (resource) => ({ targetTicketId: resource.ids[1] ?? uuidv7() }),
+      'TicketsController.split': () => ({ messageId: uuidv7() }),
     },
     // Both fixture messages contain "tenant", so tenant A's own search finds them (T232).
     queries: { 'SearchController.find': () => 'q=tenant&type=all' },
