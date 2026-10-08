@@ -43,14 +43,19 @@ export async function newestVersionId(admin: TestUser, documentId: string): Prom
   return id;
 }
 
-export async function uploadFile(user: TestUser, buffer: Buffer, fileName: string): Promise<string> {
+/** POST /attachments as , whatever the answer. */
+export async function uploadFileRaw(user: TestUser, buffer: Buffer, fileName: string): Promise<supertest.Response> {
   const { app } = await getTestApp();
-  const response = await supertest(app.getHttpServer())
+  return supertest(app.getHttpServer())
     .post(`/${API_PREFIX}/attachments`)
     .set('Host', user.tenant.host)
     .set('Cookie', [`rx_session=${user.sessionToken}`, `rx_csrf=${user.csrfToken}`].join('; '))
     .set('X-CSRF-Token', user.csrfToken)
     .attach('file', buffer, fileName);
+}
+
+export async function uploadFile(user: TestUser, buffer: Buffer, fileName: string): Promise<string> {
+  const response = await uploadFileRaw(user, buffer, fileName);
   if (response.status !== 201) throw new Error(`Upload failed: ${response.status} ${JSON.stringify(response.body)}`);
   return (response.body as { id: string }).id;
 }

@@ -8,6 +8,7 @@ import {
   CustomerApi,
   OperatorApi,
   Public,
+  RequireAnyPermission,
   RequirePermission,
   StaffApi,
 } from '../../../src/authorization/registry/module-permissions.js';
@@ -24,6 +25,8 @@ const customer = { kind: 'customer' as const, userId: USER, sessionId: 's2' };
 class Routes {
   @RequirePermission('group.create')
   staffRoute(this: void) {}
+  @RequireAnyPermission('ticket.edit', 'ai_knowledge.manage')
+  anyOfRoute(this: void) {}
   @CustomerApi()
   customerRoute(this: void) {}
   @StaffApi()
@@ -102,6 +105,42 @@ describe('PermissionGuard', () => {
   });
 });
 
+describe('PermissionGuard any-of routes', () => {
+  const asked: string[] = [];
+  function runAnyOf(decisions: Record<string, Decision>) {
+    asked.length = 0;
+    const policy = {
+      can: vi.fn((_ctx: unknown, key: string) => {
+        asked.push(key);
+        return Promise.resolve(decisions[key] ?? 'deny');
+      }),
+    };
+    const context = {
+      getType: () => 'http',
+      getHandler: () => Routes.prototype.anyOfRoute,
+      getClass: () => Routes,
+      switchToHttp: () => ({ getRequest: () => ({ id: 'req-1', headers: {}, tenant: TENANT, actor: staff }) }),
+    } as unknown as ExecutionContext;
+    return new PermissionGuard(policy as never).canActivate(context);
+  }
+
+  it('lets the caller in when the first key allows, without asking the others', async () => {
+    await expect(runAnyOf({ 'ticket.edit': 'allow' })).resolves.toBe(true);
+    expect(asked).toEqual(['ticket.edit']);
+  });
+
+  it('lets the caller in when only an alternative key allows', async () => {
+    await expect(runAnyOf({ 'ticket.edit': 'deny', 'ai_knowledge.manage': 'allow' })).resolves.toBe(true);
+    expect(asked).toEqual(['ticket.edit', 'ai_knowledge.manage']);
+  });
+
+  it('answers 403 when no key allows and any denies, 404 when every key says not found', async () => {
+    await expect(runAnyOf({ 'ticket.edit': 'not_found', 'ai_knowledge.manage': 'deny' })).rejects.toMatchObject({ code: 'PERMISSION_DENIED', httpStatus: 403 });
+    await expect(runAnyOf({ 'ticket.edit': 'deny', 'ai_knowledge.manage': 'deny' })).rejects.toMatchObject({ code: 'PERMISSION_DENIED' });
+    await expect(runAnyOf({ 'ticket.edit': 'not_found', 'ai_knowledge.manage': 'not_found' })).rejects.toMatchObject({ code: 'NOT_FOUND', httpStatus: 404 });
+  });
+});
+
 describe('auditRoutes', () => {
   const known = (key: string) => key === 'group.create';
 
@@ -118,6 +157,14 @@ describe('auditRoutes', () => {
         known,
       ),
     ).toEqual([]);
+  });
+
+  it('checks every key of an any-of route against the registry', () => {
+    const route = (alternatives: string[]) => [
+      { name: 'C.any', method: 'POST', path: '/groups', access: [{ kind: 'permission' as const, permission: 'group.create' as never, alternatives: alternatives as never[] }] },
+    ];
+    expect(auditRoutes(route([]), known)).toEqual([]);
+    expect(auditRoutes(route(['nope.view']), known).join(" ")).toMatch(/C.any .*unknown permission nope.view/);
   });
 
   it('reports missing, duplicate and unknown decorators and misplaced audiences', () => {
