@@ -7,4 +7,13 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export type PolicyVersionError = string | null;
+/**
+ * Why this version failed; null otherwise
+ */
+export type PolicyVersionError =
+  | 'no_extractable_text'
+  | 'blocked_by_scan'
+  | 'embedding_failed'
+  | 'too_large'
+  | 'unsupported_type'
+  | null;

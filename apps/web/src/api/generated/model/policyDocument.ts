@@ -16,6 +16,7 @@ export interface PolicyDocument {
   id: string;
   title: string;
   status: PolicyStatus;
+  /** Why the newest version failed; null otherwise */
   error?: PolicyDocumentError;
   source?: PolicyDocumentSource;
   fileName?: PolicyDocumentFileName;

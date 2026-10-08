@@ -29,6 +29,7 @@ import type {
   ComplexityConfig,
   ConflictResponse,
   ConnectionTest,
+  ErrorResponse,
   ListAiModels200,
   ListAiRuns200,
   ListAiRunsParams,
@@ -1294,7 +1295,8 @@ export const getCreatePolicyDocumentMutationOptions = <
     | ValidationFailedResponse
     | UnauthenticatedResponse
     | PermissionDeniedResponse
-    | ConflictResponse,
+    | ConflictResponse
+    | ErrorResponse,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1334,7 +1336,11 @@ export type CreatePolicyDocumentMutationResult = NonNullable<
 >;
 export type CreatePolicyDocumentMutationBody = PolicyDocumentInput;
 export type CreatePolicyDocumentMutationError =
-  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse;
+  | ValidationFailedResponse
+  | UnauthenticatedResponse
+  | PermissionDeniedResponse
+  | ConflictResponse
+  | ErrorResponse;
 
 /**
  * @summary Create a document with its first version (FR-006)
@@ -1344,7 +1350,8 @@ export const useCreatePolicyDocument = <
     | ValidationFailedResponse
     | UnauthenticatedResponse
     | PermissionDeniedResponse
-    | ConflictResponse,
+    | ConflictResponse
+    | ErrorResponse,
   TContext = unknown,
 >(
   options?: {
@@ -1701,7 +1708,8 @@ export const getCreatePolicyVersionMutationOptions = <
     | UnauthenticatedResponse
     | PermissionDeniedResponse
     | NotFoundResponse
-    | ConflictResponse,
+    | ConflictResponse
+    | ErrorResponse,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -1745,7 +1753,8 @@ export type CreatePolicyVersionMutationError =
   | UnauthenticatedResponse
   | PermissionDeniedResponse
   | NotFoundResponse
-  | ConflictResponse;
+  | ConflictResponse
+  | ErrorResponse;
 
 /**
  * @summary Save a new version (text or uploaded attachment); becomes active once processed
@@ -1756,7 +1765,8 @@ export const useCreatePolicyVersion = <
     | UnauthenticatedResponse
     | PermissionDeniedResponse
     | NotFoundResponse
-    | ConflictResponse,
+    | ConflictResponse
+    | ErrorResponse,
   TContext = unknown,
 >(
   options?: {

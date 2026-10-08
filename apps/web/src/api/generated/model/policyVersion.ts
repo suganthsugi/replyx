@@ -15,6 +15,7 @@ export interface PolicyVersion {
   id: string;
   status: PolicyVersionStatus;
   source: PolicyVersionSource;
+  /** Why this version failed; null otherwise */
   error?: PolicyVersionError;
   createdAt: string;
   createdBy?: UserRef;

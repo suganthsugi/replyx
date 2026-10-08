@@ -2015,7 +2015,7 @@ export const useDeleteTicketLink = <
   return useMutation(mutationOptions, queryClient);
 };
 /**
- * Anyone who may reply somewhere may upload (ticket.edit); sending the message checks the ticket.
+ * Anyone who may reply somewhere may upload (ticket.edit), and so may holders of ai_knowledge.manage (policy files); sending the message checks the ticket.
  * @summary Upload a file for a later message (25 MB max; allowed types only)
  */
 export const getUploadAttachmentUrl = () => {

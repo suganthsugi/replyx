@@ -2475,7 +2475,7 @@ paths:
       tags:
         - tickets
       summary: Upload a file for a later message (25 MB max; allowed types only)
-      description: Anyone who may reply somewhere may upload (ticket.edit); sending the message checks the ticket.
+      description: Anyone who may reply somewhere may upload (ticket.edit), and so may holders of ai_knowledge.manage (policy files); sending the message checks the ticket.
       requestBody:
         required: true
         content:
@@ -4085,6 +4085,12 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/PermissionDenied"
+        "413":
+          description: PAYLOAD_TOO_LARGE (request body over the limit)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           $ref: "#/components/responses/Conflict"
   /ai/policies/{id}:
@@ -4186,6 +4192,12 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+        "413":
+          description: PAYLOAD_TOO_LARGE (request body over the limit)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
         "409":
           $ref: "#/components/responses/Conflict"
   /ai/runs:
@@ -7017,6 +7029,14 @@ components:
           type:
             - string
             - "null"
+          description: Why the newest version failed; null otherwise
+          enum:
+            - no_extractable_text
+            - blocked_by_scan
+            - embedding_failed
+            - too_large
+            - unsupported_type
+            - null
         source:
           type:
             - string
@@ -7079,6 +7099,14 @@ components:
           type:
             - string
             - "null"
+          description: Why this version failed; null otherwise
+          enum:
+            - no_extractable_text
+            - blocked_by_scan
+            - embedding_failed
+            - too_large
+            - unsupported_type
+            - null
         createdAt:
           type: string
           format: date-time
