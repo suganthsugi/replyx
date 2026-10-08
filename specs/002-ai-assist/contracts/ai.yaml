@@ -1,0 +1,469 @@
+openapi: 3.1.0
+info:
+  title: ReplyX staff API — AI section
+  version: 0.1.0
+  description: >
+    AI settings, store connection, policy knowledge, complexity builder, usage and ticket drafts.
+    Merged into apps/api/openapi.yaml under tag `ai`. Keys are write-only: responses carry only
+    `last4`. Conventions (errors, CSRF, cursor pagination, 404 for other tenants) follow
+    specs/001-multi-tenant-helpdesk/contracts/README.md.
+servers:
+  - url: https://{tenant}.replyx.app/api/v1
+    variables: { tenant: { default: acme } }
+security:
+  - session: []
+tags:
+  - name: ai
+paths:
+  /ai/settings:
+    get:
+      operationId: getAiSettings
+      tags: [ai]
+      summary: AI settings (ai_settings.manage)
+      responses:
+        '200': { description: Settings, content: { application/json: { schema: { $ref: '#/components/schemas/AiSettings' } } } }
+        '403': { $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/responses/PermissionDenied' }
+    patch:
+      operationId: updateAiSettings
+      tags: [ai]
+      summary: Change reply mode, routing, models, thresholds (FR-002, FR-003, FR-023)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AiSettingsPatch' } } }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { $ref: '#/components/schemas/AiSettings' } } } }
+        '400': { $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/responses/ValidationFailed' }
+        '403': { $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/responses/PermissionDenied' }
+  /ai/settings/provider-key:
+    put:
+      operationId: setAiProviderKey
+      tags: [ai]
+      summary: Save or replace the tenant's provider key; clears a pause (FR-001, FR-005)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [apiKey]
+              properties:
+                apiKey: { type: string, minLength: 8, maxLength: 200, writeOnly: true }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { $ref: '#/components/schemas/AiSettings' } } } }
+    delete:
+      operationId: removeAiProviderKey
+      tags: [ai]
+      summary: Remove the key (AI stops)
+      responses:
+        '204': { description: Removed }
+  /ai/settings/provider-key/test:
+    post:
+      operationId: testAiProviderKey
+      tags: [ai]
+      summary: Check the saved key with the provider (FR-001)
+      responses:
+        '200': { description: Result, content: { application/json: { schema: { $ref: '#/components/schemas/ConnectionTest' } } } }
+        '409': { description: No key saved (`AI_KEY_MISSING`) }
+  /ai/models:
+    get:
+      operationId: listAiModels
+      tags: [ai]
+      summary: Selectable models per level, with prices (catalog, R5)
+      responses:
+        '200':
+          description: Catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [levels, decisionModel]
+                properties:
+                  decisionModel: { type: string, example: typesafe/jev-1.13 }
+                  levels:
+                    type: object
+                    required: [fast, standard, advanced]
+                    properties:
+                      fast: { type: array, items: { $ref: '#/components/schemas/ModelOption' } }
+                      standard: { type: array, items: { $ref: '#/components/schemas/ModelOption' } }
+                      advanced: { type: array, items: { $ref: '#/components/schemas/ModelOption' } }
+  /ai/store-connection:
+    get:
+      operationId: getStoreConnection
+      tags: [ai]
+      summary: Store connection or 404 STORE_CONNECTION_NOT_FOUND (FR-017)
+      responses:
+        '200': { description: Connection, content: { application/json: { schema: { $ref: '#/components/schemas/StoreConnection' } } } }
+        '404': { $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/responses/NotFound' }
+    put:
+      operationId: putStoreConnection
+      tags: [ai]
+      summary: Create or replace the store connection; the URL must pass the outbound guard (R9)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [kind, baseUrl]
+              properties:
+                kind: { type: string, enum: [spree] }
+                baseUrl: { type: string, format: uri, maxLength: 300 }
+                apiKey: { type: string, minLength: 8, maxLength: 200, writeOnly: true, description: Required when creating; omit to keep the saved key }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { $ref: '#/components/schemas/StoreConnection' } } } }
+        '400': { description: VALIDATION_FAILED or STORE_URL_NOT_ALLOWED }
+    delete:
+      operationId: deleteStoreConnection
+      tags: [ai]
+      responses:
+        '204': { description: Removed }
+  /ai/store-connection/test:
+    post:
+      operationId: testStoreConnection
+      tags: [ai]
+      responses:
+        '200': { description: Result, content: { application/json: { schema: { $ref: '#/components/schemas/ConnectionTest' } } } }
+  /ai/complexity:
+    get:
+      operationId: getComplexityConfig
+      tags: [ai]
+      responses:
+        '200': { description: Factors and thresholds, content: { application/json: { schema: { $ref: '#/components/schemas/ComplexityConfig' } } } }
+    put:
+      operationId: putComplexityConfig
+      tags: [ai]
+      summary: Replace all factors and thresholds atomically (FR-025)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/ComplexityConfig' } } }
+      responses:
+        '200': { description: Saved, content: { application/json: { schema: { $ref: '#/components/schemas/ComplexityConfig' } } } }
+        '400': { $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/responses/ValidationFailed' }
+  /ai/policies:
+    get:
+      operationId: listPolicyDocuments
+      tags: [ai]
+      summary: Policy documents (ai_knowledge.manage)
+      responses:
+        '200':
+          description: Documents
+          content:
+            application/json:
+              schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: '#/components/schemas/PolicyDocument' } } } }
+    post:
+      operationId: createPolicyDocument
+      tags: [ai]
+      summary: Create a document with its first version (FR-006)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              allOf:
+                - $ref: '#/components/schemas/PolicyVersionInput'
+                - type: object
+                  required: [title]
+                  properties: { title: { type: string, minLength: 1, maxLength: 200 } }
+      responses:
+        '201': { description: Created (status processing), content: { application/json: { schema: { $ref: '#/components/schemas/PolicyDocument' } } } }
+        '409': { description: POLICY_TITLE_TAKEN }
+  /ai/policies/{id}:
+    parameters:
+      - $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/parameters/IdPath'
+    get:
+      operationId: getPolicyDocument
+      tags: [ai]
+      summary: Document with its active text (text source) and recent versions
+      responses:
+        '200': { description: Document, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyDocumentDetail' } } } }
+        '404': { $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/responses/NotFound' }
+    patch:
+      operationId: renamePolicyDocument
+      tags: [ai]
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, additionalProperties: false, required: [title], properties: { title: { type: string, minLength: 1, maxLength: 200 } } } } }
+      responses:
+        '200': { description: Renamed, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyDocument' } } } }
+    delete:
+      operationId: deletePolicyDocument
+      tags: [ai]
+      summary: Delete the document and its passages (FR-008)
+      responses:
+        '204': { description: Deleted }
+  /ai/policies/{id}/versions:
+    parameters:
+      - $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/parameters/IdPath'
+    post:
+      operationId: createPolicyVersion
+      tags: [ai]
+      summary: Save a new version (text or uploaded attachment); becomes active once processed
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/PolicyVersionInput' } } }
+      responses:
+        '201': { description: Version created, content: { application/json: { schema: { $ref: '#/components/schemas/PolicyVersion' } } } }
+  /ai/runs:
+    get:
+      operationId: listAiRuns
+      tags: [ai]
+      summary: AI usage list, newest first (ai_usage.view, FR-021)
+      parameters:
+        - $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/parameters/Limit'
+        - $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/parameters/Cursor'
+        - { name: from, in: query, schema: { type: string, format: date-time } }
+        - { name: to, in: query, schema: { type: string, format: date-time } }
+        - { name: purpose, in: query, schema: { $ref: '#/components/schemas/AiPurpose' } }
+      responses:
+        '200':
+          description: Runs and totals for the filter
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/schemas/PageMeta'
+                  - type: object
+                    required: [items, totals]
+                    properties:
+                      items: { type: array, items: { $ref: '#/components/schemas/AiRun' } }
+                      totals: { type: object, properties: { runs: { type: integer }, costUsd: { type: number } } }
+  /tickets/{id}/ai-draft:
+    parameters:
+      - $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/parameters/IdPath'
+    get:
+      operationId: getTicketAiDraft
+      tags: [ai]
+      summary: Open AI draft for the ticket (ticket reply access), 404 AI_DRAFT_NOT_FOUND when none
+      responses:
+        '200': { description: Draft, content: { application/json: { schema: { $ref: '#/components/schemas/AiDraft' } } } }
+        '404': { $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/responses/NotFound' }
+  /tickets/{id}/ai-draft/discard:
+    parameters:
+      - $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/parameters/IdPath'
+    post:
+      operationId: discardTicketAiDraft
+      tags: [ai]
+      responses:
+        '204': { description: Discarded }
+  /tickets/{id}/ai/takeover:
+    parameters:
+      - $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/parameters/IdPath'
+    post:
+      operationId: takeOverTicketFromAi
+      tags: [ai]
+      summary: Stop the assistant on this ticket and make the caller the owner (FR-030, R17)
+      responses:
+        '200': { description: Responder now the caller, content: { application/json: { schema: { $ref: '#/components/schemas/Responder' } } } }
+        '403': { $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/responses/PermissionDenied' }
+        '404': { $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/responses/NotFound' }
+        '409': { description: OWNER_NOT_ALLOWED (caller cannot own tickets in this group) }
+  /tickets/{id}/ai/handback:
+    parameters:
+      - $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/parameters/IdPath'
+    post:
+      operationId: handTicketBackToAi
+      tags: [ai]
+      summary: Let the assistant answer again and clear the owner (FR-030, R17)
+      responses:
+        '200': { description: Responder now the assistant, content: { application/json: { schema: { $ref: '#/components/schemas/Responder' } } } }
+        '404': { $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/responses/NotFound' }
+        '409': { description: AI_NOT_IN_AUTO_MODE or AI_PAUSED }
+
+components:
+  securitySchemes:
+    session: { type: apiKey, in: cookie, name: rx_session }
+  schemas:
+    ReplyMode: { type: string, enum: [off, drafts, auto] }
+    ModelLevel: { type: string, enum: [fast, standard, advanced] }
+    AiPurpose: { type: string, enum: [routing, complexity, reply, draft, summary, embedding, connection_test] }
+    AiSettings:
+      type: object
+      required: [replyMode, routingEnabled, routingThreshold, models, provider, providerKey, paused]
+      properties:
+        replyMode: { $ref: '#/components/schemas/ReplyMode' }
+        routingEnabled: { type: boolean }
+        routingThreshold: { type: number, minimum: 0.5, maximum: 0.99 }
+        models:
+          type: object
+          required: [fast, standard, advanced]
+          properties: { fast: { type: string }, standard: { type: string }, advanced: { type: string } }
+        provider: { type: string, enum: [openrouter] }
+        providerKey:
+          type: [object, 'null']
+          properties: { last4: { type: string } }
+        paused:
+          type: [object, 'null']
+          description: Present while AI is paused (FR-005)
+          properties:
+            reason: { type: string, enum: [invalid_key, no_credit] }
+            since: { type: string, format: date-time }
+    AiSettingsPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        replyMode: { $ref: '#/components/schemas/ReplyMode' }
+        routingEnabled: { type: boolean }
+        routingThreshold: { type: number, minimum: 0.5, maximum: 0.99 }
+        models:
+          type: object
+          additionalProperties: false
+          properties: { fast: { type: string }, standard: { type: string }, advanced: { type: string } }
+    ModelOption:
+      type: object
+      required: [id, label, inputPerMillionUsd, outputPerMillionUsd, isDefault]
+      properties:
+        id: { type: string, example: anthropic/claude-haiku-5.5 }
+        label: { type: string }
+        inputPerMillionUsd: { type: number }
+        outputPerMillionUsd: { type: number }
+        isDefault: { type: boolean }
+    ConnectionTest:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        error: { type: string, enum: [invalid_key, no_credit, unreachable, timeout, not_allowed, unexpected_response] }
+        detail: { type: string, description: Plain-language reason shown to the admin }
+        creditRemainingUsd: { type: [number, 'null'] }
+    StoreConnection:
+      type: object
+      required: [kind, baseUrl, apiKey]
+      properties:
+        kind: { type: string, enum: [spree] }
+        baseUrl: { type: string }
+        apiKey: { type: object, properties: { last4: { type: string } } }
+        lastTest:
+          type: [object, 'null']
+          properties: { at: { type: string, format: date-time }, ok: { type: boolean }, error: { type: string } }
+    ComplexityConfig:
+      type: object
+      additionalProperties: false
+      required: [factors, thresholds]
+      properties:
+        thresholds:
+          type: object
+          required: [standard, advanced]
+          description: Score ≥ standard uses Standard, ≥ advanced uses Advanced (0 < standard < advanced < 1)
+          properties: { standard: { type: number }, advanced: { type: number } }
+        factors:
+          type: array
+          maxItems: 12
+          items: { $ref: '#/components/schemas/ComplexityFactor' }
+    ComplexityFactor:
+      type: object
+      required: [key, label, kind, weight]
+      properties:
+        key: { type: string, pattern: '^[a-z][a-z0-9_]{0,39}$' }
+        label: { type: string, maxLength: 80 }
+        weight: { type: number, minimum: 0, maximum: 10 }
+        kind: { type: string, enum: [noul, choice, score, customer_tag, reopen_count, sla_breached] }
+        instructions: { type: string, maxLength: 500, description: Required for noul, choice, score }
+        criteria:
+          type: object
+          description: noul only
+          properties: { 'true': { type: string }, 'false': { type: string } }
+        options:
+          type: array
+          description: choice only (2–8)
+          items:
+            type: object
+            required: [key, description, value]
+            properties:
+              key: { type: string, pattern: '^[a-z][a-z0-9_]{0,39}$' }
+              description: { type: string, maxLength: 200 }
+              value: { type: number, minimum: 0, maximum: 1 }
+        levels: { type: array, description: score only (2–7), items: { type: string, maxLength: 80 } }
+        tagId: { type: string, format: uuid, description: customer_tag only }
+    PolicyVersionInput:
+      type: object
+      additionalProperties: false
+      description: Exactly one of text or attachmentId
+      properties:
+        text: { type: string, minLength: 1, maxLength: 200000 }
+        attachmentId: { type: string, format: uuid, description: Uploaded via POST /attachments; txt, md or pdf, ≤ 10 MB }
+    PolicyStatus: { type: string, enum: [processing, ready, failed] }
+    PolicyDocument:
+      type: object
+      required: [id, title, status, updatedAt]
+      properties:
+        id: { type: string, format: uuid }
+        title: { type: string }
+        status: { $ref: '#/components/schemas/PolicyStatus' }
+        error: { type: [string, 'null'] }
+        source: { type: [string, 'null'], enum: [text, file, null] }
+        fileName: { type: [string, 'null'] }
+        activeSince: { type: [string, 'null'], format: date-time }
+        updatedAt: { type: string, format: date-time }
+    PolicyDocumentDetail:
+      allOf:
+        - $ref: '#/components/schemas/PolicyDocument'
+        - type: object
+          properties:
+            text: { type: [string, 'null'], description: Active text when the source is text }
+            versions: { type: array, maxItems: 10, items: { $ref: '#/components/schemas/PolicyVersion' } }
+    PolicyVersion:
+      type: object
+      required: [id, status, source, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        status: { type: string, enum: [processing, active, failed, superseded] }
+        source: { type: string, enum: [text, file] }
+        error: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        createdBy: { $ref: '../../001-multi-tenant-helpdesk/contracts/common.yaml#/components/schemas/UserRef' }
+    AiRun:
+      type: object
+      required: [id, purpose, model, inputTokens, outputTokens, durationMs, outcome, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        createdAt: { type: string, format: date-time }
+        ticket: { type: [object, 'null'], properties: { id: { type: string, format: uuid }, number: { type: integer } } }
+        purpose: { $ref: '#/components/schemas/AiPurpose' }
+        model: { type: string }
+        level: { oneOf: [{ $ref: '#/components/schemas/ModelLevel' }, { type: 'null' }] }
+        complexityScore: { type: [number, 'null'] }
+        inputTokens: { type: integer }
+        outputTokens: { type: integer }
+        costUsd: { type: [number, 'null'] }
+        costEstimated: { type: boolean }
+        durationMs: { type: integer }
+        outcome: { type: string, enum: [ok, auth, credit, rate_limit, timeout, unavailable, bad_request] }
+    Responder:
+      description: Who answers the next customer message (FR-031, R18)
+      oneOf:
+        - type: object
+          required: [kind]
+          properties: { kind: { const: assistant } }
+        - type: object
+          required: [kind, name]
+          properties:
+            kind: { const: agent }
+            name: { type: string }
+            avatarUrl: { type: [string, 'null'] }
+        - type: object
+          required: [kind]
+          properties: { kind: { const: team } }
+    AiDraft:
+      type: object
+      required: [id, ticketId, body, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        ticketId: { type: string, format: uuid }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+x-changes-to-existing:
+  - path: POST /tickets/{id}/messages
+    change: optional request field `aiDraftId` (uuid) — marks the draft `sent` (R13)
+  - path: PATCH /groups/{id} and Group schema
+    change: optional `aiDescription` (string ≤ 500, nullable); editing it needs `ai_settings.manage` in addition to group edit
+  - path: Message schema (staff and customer)
+    change: '`authorKind` enum adds `assistant`; author name "Assistant", customer projection adds `isAi: true`'
+  - path: GET /tickets/{id} (TicketDetail)
+    change: "adds `responder` ($ref Responder) and `ai` { stopped: boolean, stoppedReason, canTakeOver, canHandBack }"
+  - path: GET /customer/conversation (customer projection)
+    change: "adds `responder` ($ref Responder) for the customer's current conversation; agent name only, never ticket concepts"
+  - path: SLA
+    change: "public assistant answers count as replies for SLA (FR-029); the hand-off notice does not"
