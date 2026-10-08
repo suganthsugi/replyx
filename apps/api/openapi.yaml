@@ -1773,6 +1773,93 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /tickets/bulk:
+    post:
+      operationId: bulkUpdateTickets
+      tags:
+        - tickets
+      summary: Apply the same changes to up to 100 tickets (ticket.bulk_update; each ticket checked on its own)
+      description: |-
+        Each ticket is checked and written in its own transaction, through the same rules as updateTicket (state
+        machine, owner eligibility, history, events), so a refusal for one ticket never blocks the others. The
+        response has one result per distinct ticket id, in request order; a ticket the caller cannot see, or that
+        does not exist, is TICKET_NOT_FOUND, and one without edit on its group is PERMISSION_DENIED. addTagIds adds
+        to each ticket's tags rather than replacing them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - ticketIds
+                - changes
+              additionalProperties: false
+              properties:
+                ticketIds:
+                  type: array
+                  minItems: 1
+                  maxItems: 100
+                  items:
+                    type: string
+                    format: uuid
+                changes:
+                  type: object
+                  minProperties: 1
+                  additionalProperties: false
+                  properties:
+                    state:
+                      $ref: "#/components/schemas/TicketState"
+                    pendingUntil:
+                      type:
+                        - string
+                        - "null"
+                      format: date-time
+                    priority:
+                      $ref: "#/components/schemas/Priority"
+                    ownerId:
+                      type:
+                        - string
+                        - "null"
+                      format: uuid
+                    addTagIds:
+                      type: array
+                      maxItems: 50
+                      items:
+                        type: string
+                        format: uuid
+      responses:
+        "200":
+          description: One result per ticket
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - results
+                properties:
+                  results:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - ticketId
+                        - ok
+                      properties:
+                        ticketId:
+                          type: string
+                          format: uuid
+                        ok:
+                          type: boolean
+                        errorCode:
+                          type: string
+                          description: Set when ok is false (TICKET_NOT_FOUND, PERMISSION_DENIED, INVALID_TRANSITION, OWNER_NOT_ELIGIBLE, ...)
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
   /tickets/{id}:
     parameters:
       - $ref: "#/components/parameters/IdPath"
