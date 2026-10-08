@@ -138,6 +138,21 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       return { params: {}, ids: ['ZQXW'] };
     },
   },
+  // Policy documents (T016): tenant B must get the unknown-id 404 for A's document on every
+  // `/ai/policies/{id}` route and no A id in the list. The bodies are valid, so the request reaches
+  // the tenant-scoped lookup instead of failing validation.
+  ai_knowledge: {
+    async create(tenant) {
+      const admin = await createUser(tenant, { roles: ['admin'] });
+      const response = await asUser(admin).post('/ai/policies', { title: `Returns policy ${tenant.slug}`, text: 'Items can be returned within 30 days.' });
+      const id = (response.body as { id: string }).id;
+      return { params: { id }, ids: [id] };
+    },
+    bodies: {
+      'AiPoliciesController.rename': () => ({ title: 'Renamed by another tenant' }),
+      'AiPoliciesController.createVersion': () => ({ text: 'New text from another tenant' }),
+    },
+  },
   routing_rule: {
     async create(tenant) {
       const group = await createGroup(tenant);
