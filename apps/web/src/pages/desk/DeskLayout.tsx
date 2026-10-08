@@ -17,6 +17,7 @@ import { useToast } from '../../components/shell/Toast';
 import { useMe, useUpdateMe } from '../../data/auth';
 import { mapError } from '../../data/errors';
 import { useNotificationEvents } from '../../data/notifications';
+import { useAvailabilityUpdates } from '../../data/presence';
 import { useRealtime } from '../../data/realtime';
 import { findTicketByNumber, useTicketListEvents } from '../../data/tickets';
 import { useViewCountEvents } from '../../data/view-counts';
@@ -55,6 +56,7 @@ export default function DeskLayout() {
   const permissions = useMemo(() => new Set(meQuery.data?.permissions ?? []), [meQuery.data]);
 
   useTicketListEvents(client);
+  useAvailabilityUpdates(client);
   useViewCountEvents(client);
   useNotificationEvents(client);
 
