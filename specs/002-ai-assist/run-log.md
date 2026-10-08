@@ -2,11 +2,11 @@
 
 ## Resume here (2026-10-09)
 
-**Next: US3, starting with T019** (commerce connector; T020 can run alongside). US1 (T009–T013) and US2 (T014–T018) are built, reviewed and fixed. To close Stories RX-32 (US1) and RX-39 (US2), someone must apply migration 0018 to the dev DB (`docker compose run --rm -T tools sh -c "cd apps/api && pnpm migrate"`), restart api/worker/web, check `/desk/admin/ai` and `/desk/admin/ai/policies` in the browser and attach screenshots. **Ask the user before migrating or restarting**: they rejected doing it unprompted.
+**Next: US3, starting with T019** (commerce connector; T020 can run alongside). US1 (T009–T013) and US2 (T014–T018) are built, reviewed, fixed and closed in Jira with screenshots. Migration 0018 is applied to the dev DB. After an `.env` change, recreate containers with `docker compose up -d api worker web` (`restart` keeps the old env, and the api then fails on `REPLYX_SECRETS_KEY`). The dev tenant `acme` has a dummy key `fake-dev-key-0001` (fake provider only) and one policy "Returns and refunds"; replace the key with a real one in the UI before T034. **Ask the user before migrating or restarting.**
 
 **Jira**:
-- RX-23 (Phases 1–2) is Done. RX-32 is the US1 Story (In Progress, needs the screenshot); its tasks RX-33 to RX-37 are Done.
-- RX-39 is the US2 Story (In Progress, needs the screenshot); its tasks RX-40 (T014), RX-41 (T015), RX-44 (T016), RX-42 (T017), RX-43 (T018) are Done.
+- RX-23 (Phases 1–2) is Done. RX-32 is the US1 Story (Done, screenshot attached); its tasks RX-33 to RX-37 are Done.
+- RX-39 is the US2 Story (Done, screenshots attached); its tasks RX-40 (T014), RX-41 (T015), RX-44 (T016), RX-42 (T017), RX-43 (T018) are Done.
 - Tasks so far: RX-24 (T001), RX-25 (T002), RX-26 (T003), RX-27 (T004), RX-28 (T005), RX-29 (T006), RX-30 (T007), RX-31 (T008), all Done.
 - Screenshots: `uploadAttachmentToJiraIssue` via `executeWrite` (phase 1 returns a curl command; run it, then embed the returned id inline in an html comment).
 - RX is team-managed: a Task **cannot have a Story as parent** (the API rejects it). Write "Story: RX-n" in the description instead.
