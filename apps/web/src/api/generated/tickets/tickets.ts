@@ -45,6 +45,7 @@ import type {
   ListViews200,
   Macro,
   MacroInput,
+  MergeTicketBody,
   Message,
   MoveTicketMessageBody,
   NotFoundResponse,
@@ -55,6 +56,7 @@ import type {
   ReorderViewsBody,
   SearchTickets200,
   SearchTicketsParams,
+  SplitTicketBody,
   TagRef,
   Ticket,
   TicketLink,
@@ -1364,6 +1366,220 @@ export const useMoveTicketMessage = <
   TContext
 > => {
   const mutationOptions = getMoveTicketMessageMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Folds this ticket (the source) into targetTicketId. The source is closed with mergedInto set to the target and
+gets a merged_into link; its messages are not copied: the target's timeline (listTicketMessages) includes them,
+and the customer's conversation still shows each message once. Tickets already merged into the source are
+repointed to the target. Needs ticket.merge on both groups; a ticket outside the caller's groups is 404.
+Repeating the same merge returns the target again without changing anything.
+ * @summary Merge this ticket into another of the same customer (ticket.merge, edit on both tickets' groups)
+ */
+export const getMergeTicketUrl = (id: string) => {
+  return `/tickets/${id}/merge`;
+};
+
+export const mergeTicket = async (
+  id: string,
+  mergeTicketBody: MergeTicketBody,
+  options?: RequestInit,
+): Promise<Ticket> => {
+  return http<Ticket>(getMergeTicketUrl(id), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(mergeTicketBody),
+  });
+};
+
+export const getMergeTicketMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof mergeTicket>>,
+    TError,
+    { id: string; data: MergeTicketBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof mergeTicket>>,
+  TError,
+  { id: string; data: MergeTicketBody },
+  TContext
+> => {
+  const mutationKey = ['mergeTicket'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof mergeTicket>>,
+    { id: string; data: MergeTicketBody }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return mergeTicket(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type MergeTicketMutationResult = NonNullable<Awaited<ReturnType<typeof mergeTicket>>>;
+export type MergeTicketMutationBody = MergeTicketBody;
+export type MergeTicketMutationError =
+  | ValidationFailedResponse
+  | UnauthenticatedResponse
+  | PermissionDeniedResponse
+  | NotFoundResponse
+  | ErrorResponse;
+
+/**
+ * @summary Merge this ticket into another of the same customer (ticket.merge, edit on both tickets' groups)
+ */
+export const useMergeTicket = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof mergeTicket>>,
+      TError,
+      { id: string; data: MergeTicketBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof mergeTicket>>,
+  TError,
+  { id: string; data: MergeTicketBody },
+  TContext
+> => {
+  const mutationOptions = getMergeTicketMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Moves one public message of this ticket (or of a ticket merged into it) into a new ticket of the same customer
+and group. The new ticket has origin split, starts as new and unassigned, and has a split_from link to this
+ticket. Being the most recently updated active ticket, it receives the customer's next message. The title
+defaults to the first line of the message. Internal notes cannot be split (409 MESSAGE_NOT_SPLITTABLE).
+Repeating the request for a message already split from this ticket returns that ticket.
+ * @summary Split a message into a new ticket (ticket.split, edit on the group)
+ */
+export const getSplitTicketUrl = (id: string) => {
+  return `/tickets/${id}/split`;
+};
+
+export const splitTicket = async (
+  id: string,
+  splitTicketBody: SplitTicketBody,
+  options?: RequestInit,
+): Promise<Ticket> => {
+  return http<Ticket>(getSplitTicketUrl(id), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(splitTicketBody),
+  });
+};
+
+export const getSplitTicketMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof splitTicket>>,
+    TError,
+    { id: string; data: SplitTicketBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof splitTicket>>,
+  TError,
+  { id: string; data: SplitTicketBody },
+  TContext
+> => {
+  const mutationKey = ['splitTicket'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof splitTicket>>,
+    { id: string; data: SplitTicketBody }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return splitTicket(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type SplitTicketMutationResult = NonNullable<Awaited<ReturnType<typeof splitTicket>>>;
+export type SplitTicketMutationBody = SplitTicketBody;
+export type SplitTicketMutationError =
+  | ValidationFailedResponse
+  | UnauthenticatedResponse
+  | PermissionDeniedResponse
+  | NotFoundResponse
+  | ErrorResponse;
+
+/**
+ * @summary Split a message into a new ticket (ticket.split, edit on the group)
+ */
+export const useSplitTicket = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse
+    | ErrorResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof splitTicket>>,
+      TError,
+      { id: string; data: SplitTicketBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof splitTicket>>,
+  TError,
+  { id: string; data: SplitTicketBody },
+  TContext
+> => {
+  const mutationOptions = getSplitTicketMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
