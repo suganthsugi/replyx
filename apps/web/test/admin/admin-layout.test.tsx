@@ -3,7 +3,7 @@ import { http, HttpResponse } from 'msw';
 import { Route, Routes } from 'react-router';
 import { describe, expect, it } from 'vitest';
 
-import AdminLayout, { visibleSections } from '../../src/pages/admin/AdminLayout';
+import AdminLayout, { ADMIN_SECTIONS, sectionFor, visibleSections } from '../../src/pages/admin/AdminLayout';
 import { API, errorResponse } from '../msw/handlers';
 import { renderWithProviders } from '../render';
 import { expectNoAxeViolations, server } from '../setup';
@@ -38,6 +38,9 @@ function renderAdmin(route: string, permissions: string[]) {
         <Route path="groups" element={<p>Groups page</p>} />
         <Route path="routing" element={<p>Routing page</p>} />
         <Route path="support-access" element={<p>Support access page</p>} />
+        <Route path="ai" element={<p>AI settings page</p>} />
+        <Route path="ai/policies" element={<p>Policies page</p>} />
+        <Route path="ai/usage" element={<p>Usage page</p>} />
       </Route>
       <Route path="/desk/sign-in" element={<p>Sign-in page</p>} />
     </Routes>,
@@ -101,6 +104,32 @@ describe('AdminLayout', () => {
       { route: '/desk/admin/roles' },
     );
     expect(await screen.findByText('Sign-in page')).toBeInTheDocument();
+  });
+
+  it('lists the AI pages under their own heading, each by its permission', async () => {
+    const { container } = renderAdmin('/desk/admin/ai/policies', ['group.view', 'ai_settings.manage', 'ai_knowledge.manage', 'ai_usage.view']);
+    expect(await railLinks()).toEqual(['Groups', 'AI settings', 'Policies', 'Complexity', 'Usage']);
+    const ai = within(screen.getByRole('list', { name: 'AI' }));
+    expect(ai.getAllByRole('link').map((link) => link.textContent)).toEqual(['AI settings', 'Policies', 'Complexity', 'Usage']);
+    expect(screen.getByText('Policies page')).toBeInTheDocument();
+    // Only the open page is current: AI settings (`ai`) is not highlighted on `ai/policies`.
+    expect(screen.getByRole('link', { name: 'Policies' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'AI settings' })).not.toHaveAttribute('aria-current');
+    await expectNoAxeViolations(container);
+  });
+
+  it('answers an AI page without its own permission as not found', async () => {
+    renderAdmin('/desk/admin/ai/usage', ['ai_settings.manage']);
+    expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+    expect(screen.queryByText('AI settings page')).not.toBeInTheDocument();
+    expect(await railLinks()).toEqual(['AI settings', 'Complexity']);
+  });
+
+  it('sectionFor picks the longest matching section', () => {
+    expect(sectionFor(ADMIN_SECTIONS, 'ai')?.path).toBe('ai');
+    expect(sectionFor(ADMIN_SECTIONS, 'ai/usage')?.path).toBe('ai/usage');
+    expect(sectionFor(ADMIN_SECTIONS, 'roles/123')?.path).toBe('roles');
+    expect(sectionFor(ADMIN_SECTIONS, 'airplane')).toBeUndefined();
   });
 
   it('visibleSections keeps the section order', () => {

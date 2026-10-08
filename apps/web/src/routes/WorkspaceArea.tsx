@@ -32,6 +32,10 @@ const AuditLogPage = lazy(() => import('../pages/admin/audit/AuditLogPage'));
 const MacrosPage = lazy(() => import('../pages/admin/macros/MacrosPage'));
 const SlaPoliciesPage = lazy(() => import('../pages/admin/sla/SlaPoliciesPage'));
 const BusinessHoursPage = lazy(() => import('../pages/admin/sla/BusinessHoursPage'));
+const AiSettingsPage = lazy(() => import('../pages/admin/ai/AiSettingsPage'));
+const AiPoliciesPage = lazy(() => import('../pages/admin/ai/PoliciesPage'));
+const AiComplexityPage = lazy(() => import('../pages/admin/ai/ComplexityPage'));
+const AiUsagePage = lazy(() => import('../pages/admin/ai/AiUsagePage'));
 // The inbox (US6) is most of the workspace's code; its own chunk keeps admin-only visits light.
 const InboxPage = lazy(() => import('../pages/desk/inbox/InboxPage'));
 const NotificationsPage = lazy(() => import('../pages/desk/notifications/NotificationsPage'));
@@ -105,6 +109,10 @@ export default function WorkspaceArea() {
               <Route path="support-access" element={<SupportAccessPage />} />
               <Route path="settings" element={<OrganizationSettingsPage />} />
               <Route path="audit" element={<AuditLogPage />} />
+              <Route path="ai" element={<AiSettingsPage />} />
+              <Route path="ai/policies" element={<AiPoliciesPage />} />
+              <Route path="ai/complexity" element={<AiComplexityPage />} />
+              <Route path="ai/usage" element={<AiUsagePage />} />
             </Route>
           </Route>
           <Route path="*" element={<NotFoundPage />} />

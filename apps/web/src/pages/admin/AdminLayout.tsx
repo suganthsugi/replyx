@@ -17,9 +17,12 @@ import { WORKSPACE_BASE } from '../../routes/area';
  */
 
 export interface AdminSection {
+  /** Relative to the admin base; may be nested (`ai/policies`). */
   path: string;
   label: string;
   permission: string;
+  /** Listed under this heading in the rail, after the ungrouped sections. */
+  group?: string;
 }
 
 export const ADMIN_SECTIONS: readonly AdminSection[] = [
@@ -33,6 +36,10 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   { path: 'support-access', label: 'Support access', permission: 'support_access.view' },
   { path: 'settings', label: 'Organization', permission: 'tenant_settings.view' },
   { path: 'audit', label: 'Audit log', permission: 'audit_log.view' },
+  { path: 'ai', label: 'AI settings', permission: 'ai_settings.manage', group: 'AI' },
+  { path: 'ai/policies', label: 'Policies', permission: 'ai_knowledge.manage', group: 'AI' },
+  { path: 'ai/complexity', label: 'Complexity', permission: 'ai_settings.manage', group: 'AI' },
+  { path: 'ai/usage', label: 'Usage', permission: 'ai_usage.view', group: 'AI' },
 ];
 
 const ADMIN_BASE = `${WORKSPACE_BASE}/admin`;
@@ -40,6 +47,30 @@ const ADMIN_BASE = `${WORKSPACE_BASE}/admin`;
 export function visibleSections(permissions: readonly string[]): AdminSection[] {
   const held = new Set(permissions);
   return ADMIN_SECTIONS.filter((section) => held.has(section.permission));
+}
+
+/** The section a path below the admin base belongs to: the longest matching section path. */
+export function sectionFor(sections: readonly AdminSection[], subPath: string): AdminSection | undefined {
+  return sections
+    .filter((section) => subPath === section.path || subPath.startsWith(`${section.path}/`))
+    .sort((a, b) => b.path.length - a.path.length)[0];
+}
+
+/** `ai` must not stay highlighted on `ai/policies`; `roles` must on `roles/:id`. */
+function hasNestedSections(section: AdminSection): boolean {
+  return ADMIN_SECTIONS.some((other) => other.path.startsWith(`${section.path}/`));
+}
+
+/** Ungrouped sections first, then each group in order of first appearance. */
+function railGroups(sections: readonly AdminSection[]): { heading?: string; sections: AdminSection[] }[] {
+  const groups: { heading?: string; sections: AdminSection[] }[] = [{ sections: sections.filter((s) => s.group === undefined) }];
+  for (const section of sections) {
+    if (section.group === undefined) continue;
+    const existing = groups.find((g) => g.heading === section.group);
+    if (existing === undefined) groups.push({ heading: section.group, sections: [section] });
+    else existing.sections.push(section);
+  }
+  return groups.filter((g) => g.sections.length > 0);
 }
 
 export default function AdminLayout() {
@@ -61,7 +92,7 @@ export default function AdminLayout() {
   }
 
   const sections = visibleSections(meQuery.data.permissions);
-  const current = pathname.slice(ADMIN_BASE.length + 1).split('/')[0] ?? '';
+  const subPath = pathname.slice(ADMIN_BASE.length + 1).replace(/\/$/, '');
 
   if (sections.length === 0) {
     return (
@@ -70,9 +101,12 @@ export default function AdminLayout() {
       </Box>
     );
   }
-  if (current === '') return <Navigate to={`${ADMIN_BASE}/${sections[0]?.path ?? ''}`} replace />;
+  if (subPath === '') return <Navigate to={`${ADMIN_BASE}/${sections[0]?.path ?? ''}`} replace />;
 
-  const allowed = sections.some((section) => section.path === current);
+  // Matched against every section, not just the visible ones, so `ai/usage` without its
+  // permission is not found rather than falling back to `ai`.
+  const current = sectionFor(ADMIN_SECTIONS, subPath);
+  const allowed = current !== undefined && sections.includes(current);
 
   return (
     <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, minHeight: '100vh' }}>
@@ -93,35 +127,44 @@ export default function AdminLayout() {
             py: { xs: 2, md: 4 },
           }}
         >
-          <Typography variant="overline" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' }, px: 2, mb: 2 }}>
-            Admin
-          </Typography>
-          <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: { xs: 'row', md: 'column' }, gap: 1, overflowX: 'auto' }}>
-            {sections.map((section) => (
-              <Box component="li" key={section.path} sx={{ flexShrink: 0 }}>
-                <Box
-                  component={NavLink}
-                  to={`${ADMIN_BASE}/${section.path}`}
-                  sx={{
-                    display: 'block',
-                    px: 3,
-                    py: 2,
-                    borderRadius: 1,
-                    color: 'text.primary',
-                    textDecoration: 'none',
-                    fontWeight: 500,
-                    whiteSpace: 'nowrap',
-                    '&:hover': { bgcolor: 'action.hover' },
-                    // Primary text on primarySoft is under 4.5:1; the soft fill alone marks the section.
-                    '&.active': { bgcolor: 'action.selected', fontWeight: 600 },
-                    '&:focus-visible': { outline: 2, outlineColor: 'primary.main', outlineOffset: 2 },
-                  }}
-                >
-                  {section.label}
-                </Box>
+          {railGroups(sections).map((group) => (
+            <Box key={group.heading ?? ''} sx={{ '& + &': { mt: { xs: 1, md: 4 } } }}>
+              <Typography variant="overline" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' }, px: 2, mb: 2 }}>
+                {group.heading ?? 'Admin'}
+              </Typography>
+              <Box
+                component="ul"
+                aria-label={group.heading}
+                sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: { xs: 'row', md: 'column' }, gap: 1, overflowX: 'auto' }}
+              >
+                {group.sections.map((section) => (
+                  <Box component="li" key={section.path} sx={{ flexShrink: 0 }}>
+                    <Box
+                      component={NavLink}
+                      to={`${ADMIN_BASE}/${section.path}`}
+                      end={hasNestedSections(section)}
+                      sx={{
+                        display: 'block',
+                        px: 3,
+                        py: 2,
+                        borderRadius: 1,
+                        color: 'text.primary',
+                        textDecoration: 'none',
+                        fontWeight: 500,
+                        whiteSpace: 'nowrap',
+                        '&:hover': { bgcolor: 'action.hover' },
+                        // Primary text on primarySoft is under 4.5:1; the soft fill alone marks the section.
+                        '&.active': { bgcolor: 'action.selected', fontWeight: 600 },
+                        '&:focus-visible': { outline: 2, outlineColor: 'primary.main', outlineOffset: 2 },
+                      }}
+                    >
+                      {section.label}
+                    </Box>
+                  </Box>
+                ))}
               </Box>
-            ))}
-          </Box>
+            </Box>
+          ))}
         </Box>
       </DesignSystemScope>
       <Box sx={{ flex: 1, minWidth: 0 }}>
