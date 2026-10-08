@@ -153,7 +153,7 @@ description: "Task list for AI Assist (first cut)"
   - a deleted document is never returned
   - tenant A's search never returns tenant B's chunks
   - a PDF with no text fails with `no_extractable_text`
-- [ ] T017 [P] [US2] Data hooks `apps/web/src/data/ai/policies.ts` (with an `ai.policy_version_updated` handler), plus `apps/web/src/pages/admin/ai/PoliciesPage.tsx` and `PolicyEditor.tsx`:
+- [X] T017 [P] [US2] Data hooks `apps/web/src/data/ai/policies.ts` (with an `ai.policy_version_updated` handler), plus `apps/web/src/pages/admin/ai/PoliciesPage.tsx` and `PolicyEditor.tsx`:
   - a list with Processing/Ready/Failed status chips that update live
   - a "type text" or "upload file" choice that reuses the existing attachment uploader
   - edit, rename, and delete with confirmation
