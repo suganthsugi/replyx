@@ -593,3 +593,12 @@ Start commit: b4afe6b
 - US14: T236 done; T239 macros part and T241 macros hooks committed. T237 merge/split backend-agent in progress (uncommitted). Remaining: T237 rest, T238, T239 merge/split/bulk/presence, T240, T241 merge-split+presence, T242.
 - Untracked apps/web/test/search/search.test.tsx has lint errors and a failing test; owner unknown, review before committing.
 - Migrations are numbered 0015_search, 0016_macros (tasks.md numbers are taken).
+
+### Session 2026-10-08 (continued, single session): US13 fixes and US14 complete
+- US13: search reviewer majors fixed. tsquery syntax is stripped after unaccent and one-character text skips substring matches (041d69e), a cursor from the other result type returns 400 (a95eb66), and migration 0015 has a maintenance-window note (97afa06). Regression tests fail without the fix and pass with it (33/33). Jira RX-9 Done.
+- US14: T237 merge/split (e595943..043c743, RX-17), T238 bulk + availability broadcast (5283b81..093cfdc, RX-18), T239 tests (RX-19), T241 hooks (189278e..67cdd11, RX-20), T240 UI (fbaabec..5f1f650, RX-21), T242 guide (d72154b, RX-22).
+- P17-1 Viewing/typing presence already existed from T143. T238's remaining presence work was `availability.changed`: `PATCH /me` → `AVAILABILITY_LISTENER` (kernel token) → `AvailabilityBroadcaster` (tickets/presence.handler.ts, api only), one emit to the user's `tickets:group:*` view rooms.
+- P17-2 Bulk: one transaction per ticket through `TicketsService.applyLocked`; `changes` also accepts `pendingUntil` (not in the contract sketch), and `addTagIds` adds tags rather than replacing them.
+- P17-3 Checked in the real app: macro created, `/` picker applied (reply and Resolved), bulk priority on 2 tickets, merge DIFFERENT_CUSTOMER message. Found and fixed: the bulk bar shifted rows under the pointer (moved below the list, b1b2d72), and the merge dialog did not focus its field (ffa40ff).
+- End-of-phase checks: `pnpm turbo run lint typecheck test` 8/8 tasks; API 1164/1164, web 667/667; docs build 21 pages.
+- Not done: the reviewer agent on the US14 diff, and the US12 end of story (reviewer, Jira RX-1/RX-6/RX-7). Not started: an open bug from US12 (mobile business-hours drawer).
