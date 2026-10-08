@@ -2171,6 +2171,106 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorResponse"
+  /tickets/{id}/merge:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    post:
+      operationId: mergeTicket
+      tags:
+        - tickets
+      summary: Merge this ticket into another of the same customer (ticket.merge, edit on both tickets' groups)
+      description: |-
+        Folds this ticket (the source) into targetTicketId. The source is closed with mergedInto set to the target and
+        gets a merged_into link; its messages are not copied: the target's timeline (listTicketMessages) includes them,
+        and the customer's conversation still shows each message once. Tickets already merged into the source are
+        repointed to the target. Needs ticket.merge on both groups; a ticket outside the caller's groups is 404.
+        Repeating the same merge returns the target again without changing anything.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - targetTicketId
+              additionalProperties: false
+              properties:
+                targetTicketId:
+                  type: string
+                  format: uuid
+      responses:
+        "200":
+          description: The target ticket after the merge
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: DIFFERENT_CUSTOMER, ALREADY_MERGED (either ticket is merged into another) or SAME_TICKET
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /tickets/{id}/split:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    post:
+      operationId: splitTicket
+      tags:
+        - tickets
+      summary: Split a message into a new ticket (ticket.split, edit on the group)
+      description: |-
+        Moves one public message of this ticket (or of a ticket merged into it) into a new ticket of the same customer
+        and group. The new ticket has origin split, starts as new and unassigned, and has a split_from link to this
+        ticket. Being the most recently updated active ticket, it receives the customer's next message. The title
+        defaults to the first line of the message. Internal notes cannot be split (409 MESSAGE_NOT_SPLITTABLE).
+        Repeating the request for a message already split from this ticket returns that ticket.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - messageId
+              additionalProperties: false
+              properties:
+                messageId:
+                  type: string
+                  format: uuid
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+      responses:
+        "201":
+          description: The new ticket, linked split_from
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Ticket"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: MESSAGE_NOT_SPLITTABLE (the message is an internal note)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
   /tickets/{id}/history:
     parameters:
       - $ref: "#/components/parameters/IdPath"
