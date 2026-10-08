@@ -15,4 +15,5 @@ export const MessageAuthorKind = {
   staff: 'staff',
   system: 'system',
   automation: 'automation',
+  assistant: 'assistant',
 } as const;

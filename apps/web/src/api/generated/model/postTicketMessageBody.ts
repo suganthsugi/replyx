@@ -18,6 +18,8 @@ export type PostTicketMessageBody = {
   clientMessageId: string;
   /** @maxItems 10 */
   attachmentIds?: string[];
+  /** The AI draft this reply was sent from; marks it sent (spec 002 R13) */
+  aiDraftId?: string;
   /**
    * Internal notes only
    * @maxItems 20

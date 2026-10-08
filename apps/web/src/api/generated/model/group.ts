@@ -6,12 +6,18 @@
 
  * OpenAPI spec version: 0.1.0
  */
+import type { GroupAiDescription } from './groupAiDescription';
 import type { GroupStatus } from './groupStatus';
 
 export interface Group {
   id: string;
   name: string;
   description?: string;
+  /**
+   * What the group handles, for AI routing; editing it also needs ai_settings.manage
+   * @maxLength 500
+   */
+  aiDescription?: GroupAiDescription;
   status: GroupStatus;
   openTicketCount: number;
 }

@@ -6,6 +6,7 @@
 
  * OpenAPI spec version: 0.1.0
  */
+import type { GroupCreateInputAiDescription } from './groupCreateInputAiDescription';
 import type { GroupCreateInputStatus } from './groupCreateInputStatus';
 
 export interface GroupCreateInput {
@@ -16,5 +17,10 @@ export interface GroupCreateInput {
   name: string;
   /** @maxLength 300 */
   description?: string;
+  /**
+   * What the group handles, for AI routing; editing it also needs ai_settings.manage
+   * @maxLength 500
+   */
+  aiDescription?: GroupCreateInputAiDescription;
   status?: GroupCreateInputStatus;
 }

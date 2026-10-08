@@ -16,6 +16,8 @@ import type { TicketAllOfMergedInto } from './ticketAllOfMergedInto';
 import type { TicketLink } from './ticketLink';
 import type { TicketAllOfCsat } from './ticketAllOfCsat';
 import type { TicketAllOfAllowedActionsItem } from './ticketAllOfAllowedActionsItem';
+import type { Responder } from './responder';
+import type { TicketAllOfAi } from './ticketAllOfAi';
 
 export type TicketAllOf = {
   pendingUntil: TicketAllOfPendingUntil;
@@ -29,4 +31,7 @@ export type TicketAllOf = {
   csat: TicketAllOfCsat;
   /** What the caller may do now (drives UI; server re-checks) */
   allowedActions: TicketAllOfAllowedActionsItem[];
+  responder?: Responder;
+  /** Assistant state on this ticket (spec 002 FR-030); absent when AI is off for the tenant */
+  ai?: TicketAllOfAi;
 };

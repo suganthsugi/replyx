@@ -9,6 +9,7 @@
 import type { ThreadItem } from './threadItem';
 import type { GetConversation200OlderCursor } from './getConversation200OlderCursor';
 import type { FriendlyStatus } from './friendlyStatus';
+import type { Responder } from './responder';
 
 export type GetConversation200 = {
   items: ThreadItem[];
@@ -17,4 +18,5 @@ export type GetConversation200 = {
   pendingRating?: null;
   /** Latest seq of the conversation stream, for real-time catch-up */
   streamSeq: number;
+  responder?: Responder;
 };

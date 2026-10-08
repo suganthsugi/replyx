@@ -115,7 +115,7 @@ HTTP API rules for `apps/api`. Loaded by backend-agent, frontend-connector and r
 
 14. **`apps/api/openapi.yaml` is the single source of truth** (orval builds the web client).
     Per operation: camelCase `operationId` (`listGroups`), exactly one tag from `identity`,
-    `access`, `tickets`, `operations`, `customer` (`platform` is added with T081), shared
+    `access`, `tickets`, `operations`, `customer`, `platform`, `ai` (spec 002), shared
     `$ref`s (`parameters`: `Limit`, `Cursor`, `IdPath`, `IdempotencyKey`; `responses`:
     `ValidationFailed`, `Unauthenticated`, `PermissionDenied`, `NotFound`, `Conflict`,
     `RateLimited`), `additionalProperties: false` on request bodies, `security: []` only for

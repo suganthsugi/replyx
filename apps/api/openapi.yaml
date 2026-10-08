@@ -33,6 +33,8 @@ tags:
     description: Customer-facing conversation API under /customer
   - name: platform
     description: Platform console API on the console host; operators belong to no tenant
+  - name: ai
+    description: "AI Assist: settings, store connection, policy knowledge, complexity, usage and drafts"
 paths:
   /auth/password-reset:
     post:
@@ -383,6 +385,8 @@ paths:
                   streamSeq:
                     type: integer
                     description: Latest seq of the conversation stream, for real-time catch-up
+                  responder:
+                    $ref: "#/components/schemas/Responder"
         "401":
           $ref: "#/components/responses/Unauthenticated"
   /customer/messages:
@@ -2146,6 +2150,10 @@ paths:
                   items:
                     type: string
                     format: uuid
+                aiDraftId:
+                  type: string
+                  format: uuid
+                  description: The AI draft this reply was sent from; marks it sent (spec 002 R13)
                 mentionIds:
                   type: array
                   maxItems: 20
@@ -3751,6 +3759,559 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+  /ai/settings:
+    get:
+      operationId: getAiSettings
+      tags:
+        - ai
+      summary: AI settings (ai_settings.manage)
+      responses:
+        "200":
+          description: Settings
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSettings"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    patch:
+      operationId: updateAiSettings
+      tags:
+        - ai
+      summary: Change reply mode, routing, models, thresholds (FR-002, FR-003, FR-023)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiSettingsPatch"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSettings"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+  /ai/settings/provider-key:
+    put:
+      operationId: setAiProviderKey
+      tags:
+        - ai
+      summary: Save or replace the tenant's provider key; clears a pause (FR-001, FR-005)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - apiKey
+              properties:
+                apiKey:
+                  type: string
+                  minLength: 8
+                  maxLength: 200
+                  writeOnly: true
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiSettings"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    delete:
+      operationId: removeAiProviderKey
+      tags:
+        - ai
+      summary: Remove the key (AI stops)
+      responses:
+        "204":
+          description: Removed
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+  /ai/settings/provider-key/test:
+    post:
+      operationId: testAiProviderKey
+      tags:
+        - ai
+      summary: Check the saved key with the provider (FR-001)
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionTest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /ai/models:
+    get:
+      operationId: listAiModels
+      tags:
+        - ai
+      summary: Selectable models per level, with prices (catalog, R5)
+      responses:
+        "200":
+          description: Catalog
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - levels
+                  - decisionModel
+                properties:
+                  decisionModel:
+                    type: string
+                    example: typesafe/jev-1.13
+                  levels:
+                    type: object
+                    required:
+                      - fast
+                      - standard
+                      - advanced
+                    properties:
+                      fast:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ModelOption"
+                      standard:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ModelOption"
+                      advanced:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/ModelOption"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+  /ai/store-connection:
+    get:
+      operationId: getStoreConnection
+      tags:
+        - ai
+      summary: Store connection or 404 STORE_CONNECTION_NOT_FOUND (FR-017)
+      responses:
+        "200":
+          description: Connection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreConnection"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    put:
+      operationId: putStoreConnection
+      tags:
+        - ai
+      summary: Create or replace the store connection; the URL must pass the outbound guard (R9)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - kind
+                - baseUrl
+              properties:
+                kind:
+                  type: string
+                  enum:
+                    - spree
+                baseUrl:
+                  type: string
+                  format: uri
+                  maxLength: 300
+                apiKey:
+                  type: string
+                  minLength: 8
+                  maxLength: 200
+                  writeOnly: true
+                  description: Required when creating; omit to keep the saved key
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreConnection"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    delete:
+      operationId: deleteStoreConnection
+      tags:
+        - ai
+      responses:
+        "204":
+          description: Removed
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+  /ai/store-connection/test:
+    post:
+      operationId: testStoreConnection
+      tags:
+        - ai
+      responses:
+        "200":
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConnectionTest"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+  /ai/complexity:
+    get:
+      operationId: getComplexityConfig
+      tags:
+        - ai
+      responses:
+        "200":
+          description: Factors and thresholds
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplexityConfig"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    put:
+      operationId: putComplexityConfig
+      tags:
+        - ai
+      summary: Replace all factors and thresholds atomically (FR-025)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComplexityConfig"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplexityConfig"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+  /ai/policies:
+    get:
+      operationId: listPolicyDocuments
+      tags:
+        - ai
+      summary: Policy documents (ai_knowledge.manage)
+      responses:
+        "200":
+          description: Documents
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/PolicyDocument"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    post:
+      operationId: createPolicyDocument
+      tags:
+        - ai
+      summary: Create a document with its first version (FR-006)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyDocumentInput"
+      responses:
+        "201":
+          description: Created (status processing)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyDocument"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /ai/policies/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: getPolicyDocument
+      tags:
+        - ai
+      summary: Document with its active text (text source) and recent versions
+      responses:
+        "200":
+          description: Document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyDocumentDetail"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      operationId: renamePolicyDocument
+      tags:
+        - ai
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                  minLength: 1
+                  maxLength: 200
+      responses:
+        "200":
+          description: Renamed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyDocument"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deletePolicyDocument
+      tags:
+        - ai
+      summary: Delete the document and its passages (FR-008)
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /ai/policies/{id}/versions:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    post:
+      operationId: createPolicyVersion
+      tags:
+        - ai
+      summary: Save a new version (text or uploaded attachment); becomes active once processed
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PolicyVersionInput"
+      responses:
+        "201":
+          description: Version created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PolicyVersion"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /ai/runs:
+    get:
+      operationId: listAiRuns
+      tags:
+        - ai
+      summary: AI usage list, newest first (ai_usage.view, FR-021)
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+        - name: from
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: to
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: purpose
+          in: query
+          schema:
+            $ref: "#/components/schemas/AiPurpose"
+      responses:
+        "200":
+          description: Runs and totals for the filter
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PageMeta"
+                  - type: object
+                    required:
+                      - items
+                      - totals
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/AiRun"
+                      totals:
+                        type: object
+                        properties:
+                          runs:
+                            type: integer
+                          costUsd:
+                            type: number
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+  /tickets/{id}/ai-draft:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: getTicketAiDraft
+      tags:
+        - ai
+      summary: Open AI draft for the ticket (ticket reply access), 404 AI_DRAFT_NOT_FOUND when none
+      responses:
+        "200":
+          description: Draft
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiDraft"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /tickets/{id}/ai-draft/discard:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    post:
+      operationId: discardTicketAiDraft
+      tags:
+        - ai
+      responses:
+        "204":
+          description: Discarded
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /tickets/{id}/ai/takeover:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    post:
+      operationId: takeOverTicketFromAi
+      tags:
+        - ai
+      summary: Stop the assistant on this ticket and make the caller the owner (FR-030, R17)
+      responses:
+        "200":
+          description: Responder now the caller
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Responder"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /tickets/{id}/ai/handback:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    post:
+      operationId: handTicketBackToAi
+      tags:
+        - ai
+      summary: Let the assistant answer again and clear the owner (FR-030, R17)
+      responses:
+        "200":
+          description: Responder now the assistant
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Responder"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
 components:
   securitySchemes:
     session:
@@ -4738,6 +5299,12 @@ components:
         description:
           type: string
           maxLength: 300
+        aiDescription:
+          type:
+            - string
+            - "null"
+          maxLength: 500
+          description: What the group handles, for AI routing; editing it also needs ai_settings.manage
         status:
           type: string
           enum:
@@ -4754,6 +5321,12 @@ components:
         description:
           type: string
           maxLength: 300
+        aiDescription:
+          type:
+            - string
+            - "null"
+          maxLength: 500
+          description: What the group handles, for AI routing; editing it also needs ai_settings.manage
         status:
           type: string
           enum:
@@ -4774,6 +5347,12 @@ components:
           type: string
         description:
           type: string
+        aiDescription:
+          type:
+            - string
+            - "null"
+          maxLength: 500
+          description: What the group handles, for AI routing; editing it also needs ai_settings.manage
         status:
           type: string
           enum:
@@ -4842,6 +5421,9 @@ components:
             - delivered
             - read
           description: For the customer's own messages; support replies are always delivered
+        isAi:
+          type: boolean
+          description: Written by the assistant (support messages only; spec 002 FR-012)
         createdAt:
           type: string
           format: date-time
@@ -5060,6 +5642,7 @@ components:
                 - system
                 - automation
                 - routing
+                - ai
             user:
               $ref: "#/components/schemas/UserRef"
             ruleName:
@@ -5145,6 +5728,31 @@ components:
                   - merge
                   - split
                   - move_message
+            responder:
+              $ref: "#/components/schemas/Responder"
+            ai:
+              type: object
+              description: Assistant state on this ticket (spec 002 FR-030); absent when AI is off for the tenant
+              required:
+                - stopped
+                - stoppedReason
+                - canTakeOver
+                - canHandBack
+              properties:
+                stopped:
+                  type: boolean
+                stoppedReason:
+                  type:
+                    - string
+                    - "null"
+                  enum:
+                    - handoff
+                    - takeover
+                    - null
+                canTakeOver:
+                  type: boolean
+                canHandBack:
+                  type: boolean
     Message:
       type: object
       required:
@@ -5177,6 +5785,7 @@ components:
             - staff
             - system
             - automation
+            - assistant
         visibility:
           type: string
           enum:
@@ -6090,3 +6699,509 @@ components:
                 - "null"
             responses:
               type: integer
+    ReplyMode:
+      type: string
+      enum:
+        - off
+        - drafts
+        - auto
+    ModelLevel:
+      type: string
+      enum:
+        - fast
+        - standard
+        - advanced
+    AiPurpose:
+      type: string
+      enum:
+        - routing
+        - complexity
+        - reply
+        - draft
+        - summary
+        - embedding
+        - connection_test
+    AiSettings:
+      type: object
+      required:
+        - replyMode
+        - routingEnabled
+        - routingThreshold
+        - models
+        - provider
+        - providerKey
+        - paused
+      properties:
+        replyMode:
+          $ref: "#/components/schemas/ReplyMode"
+        routingEnabled:
+          type: boolean
+        routingThreshold:
+          type: number
+          minimum: 0.5
+          maximum: 0.99
+        models:
+          type: object
+          required:
+            - fast
+            - standard
+            - advanced
+          properties:
+            fast:
+              type: string
+            standard:
+              type: string
+            advanced:
+              type: string
+        provider:
+          type: string
+          enum:
+            - openrouter
+        providerKey:
+          type:
+            - object
+            - "null"
+          properties:
+            last4:
+              type: string
+        paused:
+          type:
+            - object
+            - "null"
+          description: Present while AI is paused (FR-005)
+          properties:
+            reason:
+              type: string
+              enum:
+                - invalid_key
+                - no_credit
+            since:
+              type: string
+              format: date-time
+    AiSettingsPatch:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        replyMode:
+          $ref: "#/components/schemas/ReplyMode"
+        routingEnabled:
+          type: boolean
+        routingThreshold:
+          type: number
+          minimum: 0.5
+          maximum: 0.99
+        models:
+          type: object
+          additionalProperties: false
+          properties:
+            fast:
+              type: string
+            standard:
+              type: string
+            advanced:
+              type: string
+    ModelOption:
+      type: object
+      required:
+        - id
+        - label
+        - inputPerMillionUsd
+        - outputPerMillionUsd
+        - isDefault
+      properties:
+        id:
+          type: string
+          example: anthropic/claude-haiku-5.5
+        label:
+          type: string
+        inputPerMillionUsd:
+          type: number
+        outputPerMillionUsd:
+          type: number
+        isDefault:
+          type: boolean
+    ConnectionTest:
+      type: object
+      required:
+        - ok
+      properties:
+        ok:
+          type: boolean
+        error:
+          type: string
+          enum:
+            - invalid_key
+            - no_credit
+            - unreachable
+            - timeout
+            - not_allowed
+            - unexpected_response
+        detail:
+          type: string
+          description: Plain-language reason shown to the admin
+        creditRemainingUsd:
+          type:
+            - number
+            - "null"
+    StoreConnection:
+      type: object
+      required:
+        - kind
+        - baseUrl
+        - apiKey
+      properties:
+        kind:
+          type: string
+          enum:
+            - spree
+        baseUrl:
+          type: string
+        apiKey:
+          type: object
+          properties:
+            last4:
+              type: string
+        lastTest:
+          type:
+            - object
+            - "null"
+          properties:
+            at:
+              type: string
+              format: date-time
+            ok:
+              type: boolean
+            error:
+              type: string
+    ComplexityConfig:
+      type: object
+      additionalProperties: false
+      required:
+        - factors
+        - thresholds
+      properties:
+        thresholds:
+          type: object
+          required:
+            - standard
+            - advanced
+          description: Score ≥ standard uses Standard, ≥ advanced uses Advanced (0 < standard < advanced < 1)
+          properties:
+            standard:
+              type: number
+            advanced:
+              type: number
+        factors:
+          type: array
+          maxItems: 12
+          items:
+            $ref: "#/components/schemas/ComplexityFactor"
+    ComplexityFactor:
+      type: object
+      required:
+        - key
+        - label
+        - kind
+        - weight
+      properties:
+        key:
+          type: string
+          pattern: ^[a-z][a-z0-9_]{0,39}$
+        label:
+          type: string
+          maxLength: 80
+        weight:
+          type: number
+          minimum: 0
+          maximum: 10
+        kind:
+          type: string
+          enum:
+            - noul
+            - choice
+            - score
+            - customer_tag
+            - reopen_count
+            - sla_breached
+        instructions:
+          type: string
+          maxLength: 500
+          description: Required for noul
+          choice: null
+          score: null
+        criteria:
+          type: object
+          description: noul only
+          properties:
+            "true":
+              type: string
+            "false":
+              type: string
+        options:
+          type: array
+          description: choice only (2–8)
+          items:
+            type: object
+            required:
+              - key
+              - description
+              - value
+            properties:
+              key:
+                type: string
+                pattern: ^[a-z][a-z0-9_]{0,39}$
+              description:
+                type: string
+                maxLength: 200
+              value:
+                type: number
+                minimum: 0
+                maximum: 1
+        levels:
+          type: array
+          description: score only (2–7)
+          items:
+            type: string
+            maxLength: 80
+        tagId:
+          type: string
+          format: uuid
+          description: customer_tag only
+    PolicyVersionInput:
+      type: object
+      additionalProperties: false
+      description: Exactly one of text or attachmentId
+      properties:
+        text:
+          type: string
+          minLength: 1
+          maxLength: 200000
+        attachmentId:
+          type: string
+          format: uuid
+          description: Uploaded via POST /attachments; txt
+          md or pdf: null
+          ≤ 10 MB: null
+    PolicyStatus:
+      type: string
+      enum:
+        - processing
+        - ready
+        - failed
+    PolicyDocument:
+      type: object
+      required:
+        - id
+        - title
+        - status
+        - updatedAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          $ref: "#/components/schemas/PolicyStatus"
+        error:
+          type:
+            - string
+            - "null"
+        source:
+          type:
+            - string
+            - "null"
+          enum:
+            - text
+            - file
+            - null
+        fileName:
+          type:
+            - string
+            - "null"
+        activeSince:
+          type:
+            - string
+            - "null"
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+    PolicyDocumentDetail:
+      allOf:
+        - $ref: "#/components/schemas/PolicyDocument"
+        - type: object
+          properties:
+            text:
+              type:
+                - string
+                - "null"
+              description: Active text when the source is text
+            versions:
+              type: array
+              maxItems: 10
+              items:
+                $ref: "#/components/schemas/PolicyVersion"
+    PolicyVersion:
+      type: object
+      required:
+        - id
+        - status
+        - source
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum:
+            - processing
+            - active
+            - failed
+            - superseded
+        source:
+          type: string
+          enum:
+            - text
+            - file
+        error:
+          type:
+            - string
+            - "null"
+        createdAt:
+          type: string
+          format: date-time
+        createdBy:
+          $ref: "#/components/schemas/UserRef"
+    AiRun:
+      type: object
+      required:
+        - id
+        - purpose
+        - model
+        - inputTokens
+        - outputTokens
+        - durationMs
+        - outcome
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+        ticket:
+          type:
+            - object
+            - "null"
+          properties:
+            id:
+              type: string
+              format: uuid
+            number:
+              type: integer
+        purpose:
+          $ref: "#/components/schemas/AiPurpose"
+        model:
+          type: string
+        level:
+          oneOf:
+            - $ref: "#/components/schemas/ModelLevel"
+            - type: "null"
+        complexityScore:
+          type:
+            - number
+            - "null"
+        inputTokens:
+          type: integer
+        outputTokens:
+          type: integer
+        costUsd:
+          type:
+            - number
+            - "null"
+        costEstimated:
+          type: boolean
+        durationMs:
+          type: integer
+        outcome:
+          type: string
+          enum:
+            - ok
+            - auth
+            - credit
+            - rate_limit
+            - timeout
+            - unavailable
+            - bad_request
+    Responder:
+      description: Who answers the next customer message (FR-031, R18)
+      oneOf:
+        - type: object
+          required:
+            - kind
+          properties:
+            kind:
+              const: assistant
+        - type: object
+          required:
+            - kind
+            - name
+          properties:
+            kind:
+              const: agent
+            name:
+              type: string
+            avatarUrl:
+              type:
+                - string
+                - "null"
+        - type: object
+          required:
+            - kind
+          properties:
+            kind:
+              const: team
+    AiDraft:
+      type: object
+      required:
+        - id
+        - ticketId
+        - body
+        - createdAt
+      properties:
+        id:
+          type: string
+          format: uuid
+        ticketId:
+          type: string
+          format: uuid
+        body:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    PolicyDocumentInput:
+      type: object
+      additionalProperties: false
+      required:
+        - title
+      description: A title plus exactly one of text or attachmentId
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        text:
+          type: string
+          minLength: 1
+          maxLength: 200000
+        attachmentId:
+          type: string
+          format: uuid
+          description: Uploaded via POST /attachments; txt
+          md or pdf: null
+          ≤ 10 MB: null

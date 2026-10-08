@@ -16,4 +16,5 @@ export const HistoryEntryActorKind = {
   system: 'system',
   automation: 'automation',
   routing: 'routing',
+  ai: 'ai',
 } as const;

@@ -23,5 +23,7 @@ export interface ConversationMessage {
   clientMessageId: ConversationMessageClientMessageId;
   /** For the customer's own messages; support replies are always delivered */
   delivery: ConversationMessageDelivery;
+  /** Written by the assistant (support messages only; spec 002 FR-012) */
+  isAi?: boolean;
   createdAt: string;
 }
