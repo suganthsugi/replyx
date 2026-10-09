@@ -91,14 +91,11 @@ export class AiTurnJob extends JobProcessor<AiTurnJobData> {
     const snapshot = await this.read(ctx, data.ticketId);
     if (snapshot.kind === 'skip') return snapshot.reason === 'duplicate' ? 'duplicate' : 'skipped';
 
+    const attempt = { number: job.attemptsMade + 1, last: job.attemptsMade + 1 >= (job.opts.attempts ?? DEFAULT_ATTEMPTS) };
     let decision: TurnDecision;
     try {
-      const summary = await this.summary.refresh(ctx, snapshot.summary, snapshot.input.settings, snapshot.input.credentials);
-      decision = await this.brain.think({
-        ...snapshot.input,
-        summary,
-        attempt: { number: job.attemptsMade + 1, last: job.attemptsMade + 1 >= (job.opts.attempts ?? DEFAULT_ATTEMPTS) },
-      });
+      const summary = await this.refreshSummary(ctx, snapshot, attempt.last);
+      decision = await this.brain.think({ ...snapshot.input, summary, attempt });
     } catch (error) {
       // A rejected key or an empty account pauses the tenant's AI (research R10); nothing to retry.
       if (error instanceof ProviderError && error.pausesTenant) {
@@ -108,6 +105,20 @@ export class AiTurnJob extends JobProcessor<AiTurnJobData> {
       throw error;
     }
     return this.write(ctx, snapshot.input.ticketId, snapshot.input.trigger.id, normalise(decision));
+  }
+
+  /**
+   * The summary for the brain. On the last attempt a failure that does not pause the tenant (say, a
+   * database error) falls back to the stored summary, so the brain still runs and can hand off
+   * with `ai_unavailable` instead of the turn failing silently.
+   */
+  private async refreshSummary(ctx: TenantContext, snapshot: Extract<Snapshot, { kind: 'ready' }>, last: boolean): Promise<string | null> {
+    try {
+      return await this.summary.refresh(ctx, snapshot.summary, snapshot.input.settings, snapshot.input.credentials);
+    } catch (error) {
+      if (!last || (error instanceof ProviderError && error.pausesTenant)) throw error;
+      return snapshot.summary.summary;
+    }
   }
 
   // --- Phase 1 -------------------------------------------------------------------------------------
