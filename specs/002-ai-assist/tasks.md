@@ -261,7 +261,7 @@ description: "Task list for AI Assist (first cut)"
 **Goal**: Tickets that no rule matched are routed by Jev to groups with AI descriptions. The complexity score picks the model level.
 **Independent test**: quickstart scenario 9, and the usage list shows the chosen levels.
 
-- [ ] T030 [US4] Backend:
+- [X] T030 [US4] Backend:
   - **Group AI description**: `aiDescription` on groups (≤ 500 chars, nullable; editing needs `ai_settings.manage`) in `apps/api/src/groups/`.
   - **`ai-route` job** in `apps/api/src/ai/decisions/` (job id `route:{ticketId}`, from `ticket.created`) runs only when:
     - routing is enabled and AI is active
