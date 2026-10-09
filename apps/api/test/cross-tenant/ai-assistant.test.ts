@@ -2,12 +2,13 @@ import { beforeAll, describe, expect, it } from 'vitest';
 
 import { uuidv7 } from '../../src/platform-kernel/ids.js';
 import { customerSays, draftsOf, runTurn, setUpAiTenant, type AiTenant } from '../support/assistant.js';
-import { createGroup, createTenant, createUser, type TestUser } from '../support/factories.js';
+import { createGroup, createRole, createTenant, createUser, type TestUser } from '../support/factories.js';
 import { asUser } from '../support/http.js';
 
 /**
  * The assistant's routes across tenants and permissions (specs/002-ai-assist T026): success, 403
- * for a same-tenant user without the permission (or without edit/reply on the ticket's group), and
+ * for a same-tenant user without the permission (or without edit/reply on the ticket's group), the
+ * unknown-id 404 for a same-tenant user who cannot see the ticket, and
  * for tenant B's admin, who holds every permission, the same 404 as an unknown id. The generated
  * suite (cross-tenant.test.ts, fixtures `ai_settings`, `ai_usage` and `ticket`) walks these routes
  * too; this file pins the full triad and the turn job's tenant boundary.
@@ -50,6 +51,14 @@ describe('ticket routes: AI draft, take over, hand back', () => {
   it.each(ROUTES)('%s: 403 without edit or reply on the group', async (_name, method, path) => {
     const response = await asUser(viewer)[method](path(ticketId));
     expect([response.status, codeOf(response)]).toEqual([403, 'PERMISSION_DENIED']);
+  });
+
+  it.each(ROUTES)('%s: the unknown-id 404 for a same-tenant user who cannot see the ticket', async (_name, method, path) => {
+    const role = await createRole(a.tenant, { permissions: ['ticket.view', 'ticket.edit'] });
+    const outsider = await createUser(a.tenant, { roles: [{ id: role.id }] });
+    const hidden = await asUser(outsider)[method](path(ticketId));
+    const unknown = await asUser(outsider)[method](path(uuidv7()));
+    expect([hidden.status, hidden.body]).toEqual([404, unknown.body]);
   });
 
   it.each(ROUTES)("%s: tenant B's admin gets the unknown-id 404", async (_name, method, path) => {
