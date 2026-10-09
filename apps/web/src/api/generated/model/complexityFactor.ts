@@ -22,7 +22,7 @@ export interface ComplexityFactor {
   weight: number;
   kind: ComplexityFactorKind;
   /**
-   * Required for noul
+   * Required for noul, choice and score
    * @maxLength 500
    */
   instructions?: string;

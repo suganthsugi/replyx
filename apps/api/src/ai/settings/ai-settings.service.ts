@@ -6,6 +6,7 @@ import { last4, SecretBox } from '../../platform-kernel/crypto/secret-box.js';
 import { UnitOfWork } from '../../platform-kernel/db/unit-of-work.js';
 import { conflict, validationFailed, type ErrorDetail } from '../../platform-kernel/http/app-error.js';
 import { OutboxService } from '../../platform-kernel/outbox/outbox.service.js';
+import { ComplexityRepository } from '../complexity/complexity.repository.js';
 import { DECISION_MODEL, DEFAULT_LEVEL_MODELS, isSelectableModel, LEVEL_MODELS, MODEL_LEVELS, modelForLevel } from '../providers/catalog.js';
 import { AI_PROVIDER, ProviderError, type AiProvider, type ProviderErrorKind } from '../providers/ports.js';
 import { AiRunsRecorder } from '../runs/ai-runs.recorder.js';
@@ -133,6 +134,9 @@ export class AiSettingsService {
 
       await repo.update(tx, change, this.editorOf(ctx), this.clock.now());
       const after = { ...before, ...change, models: change.models ?? before.models } as AiSettingsRow;
+      // First switched on (a reply mode or routing): a tenant that never set complexity factors gets the defaults (R12).
+      const switchedOn = (before.replyMode === 'off' && after.replyMode !== 'off') || (!before.routingEnabled && after.routingEnabled);
+      if (switchedOn) await new ComplexityRepository(ctx).seedDefaults(tx);
       if (change.replyMode !== undefined || isActive(after) !== isActive(before)) {
         await this.outbox.append(tx, { type: 'ai.responder_scope_changed', payload: {}, streams: ['tenant'] });
       }

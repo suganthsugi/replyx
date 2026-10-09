@@ -8,6 +8,7 @@ import { JobProcessor } from '../../platform-kernel/jobs/job-processor.js';
 import { DEFAULT_ATTEMPTS } from '../../platform-kernel/jobs/queues.js';
 import { runWithLogContext } from '../../platform-kernel/observability/logger.js';
 import { TicketsRepository } from '../../tickets/tickets.repository.js';
+import { ComplexityRepository } from '../complexity/complexity.repository.js';
 import { ProviderError } from '../providers/ports.js';
 import { AiStatus, isActive } from '../settings/ai-status.js';
 
@@ -138,6 +139,8 @@ export class AiTurnJob extends JobProcessor<AiTurnJobData> {
 
       const customer = await conversation.customer(tx, ticket.customer_id);
       if (customer === undefined) return { kind: 'skip', reason: 'gone' };
+      const complexityRepo = new ComplexityRepository(ctx);
+      const complexity = { config: await complexityRepo.config(tx), facts: await complexityRepo.facts(tx, ticketId, ticket.customer_id) };
 
       return {
         kind: 'ready',
@@ -151,6 +154,7 @@ export class AiTurnJob extends JobProcessor<AiTurnJobData> {
           trigger,
           messages,
           state: { awaiting: state?.awaiting ?? null, unresolvedTurns: state?.unresolvedTurns ?? 0 },
+          complexity,
         },
         summary: { ticketId, summary: state?.summary ?? null, unsummarised },
       };

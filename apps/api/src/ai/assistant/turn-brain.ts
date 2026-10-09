@@ -1,6 +1,7 @@
 import type { TurnCustomer, TurnMessage } from './assistant.repositories.js';
 import type { AiAwaiting, AiModelLevel } from '../../platform-kernel/db/tables/ai.js';
 import type { TenantContext } from '../../platform-kernel/db/tenant-context.js';
+import type { ComplexityConfig, ComplexityFacts } from '../complexity/complexity-scorer.js';
 import type { ProviderCredentials } from '../providers/ports.js';
 import type { AiSettingsRow } from '../settings/ai-settings.repository.js';
 
@@ -31,6 +32,8 @@ export interface TurnInput {
   summary: string | null;
   /** What earlier turns left open on this ticket. */
   state: { awaiting: AiAwaiting | null; unresolvedTurns: number };
+  /** The tenant's complexity factors and what the database knows for them (US4, research R12). */
+  complexity: { config: ComplexityConfig; facts: ComplexityFacts };
   /** `last` is true on the final BullMQ attempt: the brain should hand off with `ai_unavailable` instead of throwing. */
   attempt: { number: number; last: boolean };
 }

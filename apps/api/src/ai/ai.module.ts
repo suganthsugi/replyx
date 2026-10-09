@@ -24,6 +24,8 @@ import { commerceFromEnv } from './commerce/commerce-from-env.js';
 import { COMMERCE_CONNECTOR } from './commerce/ports.js';
 import { StoreConnectionController } from './commerce/store-connection.controller.js';
 import { StoreConnectionService } from './commerce/store-connection.service.js';
+import { ComplexityController } from './complexity/complexity.controller.js';
+import { ComplexityService } from './complexity/complexity.service.js';
 import { AiDraftWriter } from './drafts/ai-draft-writer.js';
 import { AiDraftsController } from './drafts/ai-drafts.controller.js';
 import { AiDraftsService } from './drafts/ai-drafts.service.js';
@@ -81,7 +83,7 @@ export class AiModule {}
 /** AI HTTP routes (api process only). */
 @Module({
   imports: [TicketsHttpModule],
-  controllers: [AiSettingsController, StoreConnectionController, AiPoliciesController, AiRunsController, AiDraftsController, AiTakeoverController],
-  providers: [AiSettingsService, AiPoliciesService, AiRunsService, AiDraftsService, AiTakeoverService],
+  controllers: [AiSettingsController, StoreConnectionController, AiPoliciesController, AiRunsController, AiDraftsController, AiTakeoverController, ComplexityController],
+  providers: [AiSettingsService, AiPoliciesService, AiRunsService, AiDraftsService, AiTakeoverService, ComplexityService],
 })
 export class AiHttpModule {}

@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 
+import { factorQuestions, scoreComplexity, type ComplexityResult } from '../complexity/complexity-scorer.js';
 import { modelForLevel } from '../providers/catalog.js';
 import { AI_PROVIDER, ProviderError, type AiProvider, type ChatMessage } from '../providers/ports.js';
 import { AiRunsRecorder } from '../runs/ai-runs.recorder.js';
@@ -33,15 +34,15 @@ const Answer = z.object({
  * The assistant's decision logic (specs/002-ai-assist research R7, R8), bound to `TURN_BRAIN`:
  *
  * 1. The decision model screens the last 6 messages for a wish for a person, a refund or exception
- *    request, or anger (`HandoffScreen`). Any of them hands off without a chat call.
- * 2. The chat model at the Fast level answers with the tools `search_policies`, `lookup_order` and
+ *    request, or anger (`HandoffScreen`). Any of them hands off without a chat call. The same call
+ *    answers the tenant's complexity factors (US4), whose score picks the model level (R12).
+ * 2. The chat model at that level answers with the tools `search_policies`, `lookup_order` and
  *    `handoff`, at most 3 tool rounds, and returns `{ reply, confidence, awaiting, resolved }`.
  * 3. Low confidence, or a second unresolved turn in a row, hands off instead of answering.
  *
  * It opens no database transaction of its own (tools use their own short reads). Provider
  * `auth`/`credit` errors are rethrown for the job to pause the tenant; on the last attempt any other
  * failure becomes a hand-off with reason `ai_unavailable`, earlier ones are retried by BullMQ.
- * Level selection by complexity (US4) replaces the fixed `fast` level below.
  */
 @Injectable()
 export class AssistantBrain implements TurnBrain {
@@ -64,39 +65,43 @@ export class AssistantBrain implements TurnBrain {
   }
 
   private async decide(input: TurnInput): Promise<TurnDecision> {
-    const screened = await this.screen.run(input);
-    if (screened.handoffReason !== null) return { kind: 'handoff', reason: screened.handoffReason, level: null };
+    const { config, facts } = input.complexity;
+    const screened = await this.screen.run(input, factorQuestions(config.factors));
+    const complexity = scoreComplexity(config, screened.answers, facts);
+    const meta = { level: complexity.level, complexityScore: complexity.score };
+    if (screened.handoffReason !== null) return { kind: 'handoff', reason: screened.handoffReason, ...meta };
 
     const outcome = await this.typing.while(
       { ctx: input.ctx, ticketId: input.ticketId, customerId: input.customer.id, showToCustomer: input.mode === 'auto' },
-      () => this.chat(input),
+      () => this.chat(input, complexity),
     );
-    if (outcome.kind === 'handoff') return { kind: 'handoff', reason: outcome.reason, level: 'fast' };
+    if (outcome.kind === 'handoff') return { kind: 'handoff', reason: outcome.reason, ...meta };
 
     const { answer } = outcome;
-    if (answer.reply.trim().length === 0) return { kind: 'handoff', reason: 'empty_reply', level: 'fast' };
-    if (answer.confidence < MIN_CONFIDENCE) return { kind: 'handoff', reason: 'low_confidence', level: 'fast' };
-    if (!answer.resolved && input.state.unresolvedTurns + 1 >= MAX_UNRESOLVED_TURNS) return { kind: 'handoff', reason: 'unresolved', level: 'fast' };
+    if (answer.reply.trim().length === 0) return { kind: 'handoff', reason: 'empty_reply', ...meta };
+    if (answer.confidence < MIN_CONFIDENCE) return { kind: 'handoff', reason: 'low_confidence', ...meta };
+    if (!answer.resolved && input.state.unresolvedTurns + 1 >= MAX_UNRESOLVED_TURNS) return { kind: 'handoff', reason: 'unresolved', ...meta };
 
     return {
       kind: input.mode === 'auto' ? 'answer' : 'draft',
       reply: answer.reply,
-      level: 'fast',
+      ...meta,
       awaiting: answer.awaiting,
       resolved: answer.resolved,
     };
   }
 
   /** The tool loop. Returns the parsed final answer, or the model's own hand-off. */
-  private async chat(input: TurnInput): Promise<{ kind: 'answer'; answer: z.infer<typeof Answer> } | { kind: 'handoff'; reason: string }> {
-    const model = modelForLevel(input.settings.models, 'fast');
+  private async chat(input: TurnInput, complexity: ComplexityResult): Promise<{ kind: 'answer'; answer: z.infer<typeof Answer> } | { kind: 'handoff'; reason: string }> {
+    const { level, score } = complexity;
+    const model = modelForLevel(input.settings.models, level);
     const messages: ChatMessage[] = [{ role: 'system', content: SYSTEM_PROMPT }, renderConversation({ summary: input.summary, messages: input.messages, awaiting: input.state.awaiting })];
     const purpose = input.mode === 'auto' ? 'reply' : 'draft';
 
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
       // After the last round the tools are withdrawn, so the model has to answer.
       const withTools = round < MAX_TOOL_ROUNDS;
-      const result = await this.runs.track(input.ctx, { purpose, model, level: 'fast', ticketId: input.ticketId }, () =>
+      const result = await this.runs.track(input.ctx, { purpose, model, level, complexityScore: score, ticketId: input.ticketId }, () =>
         this.provider.complete(input.credentials, {
           model,
           messages,

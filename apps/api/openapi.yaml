@@ -6967,9 +6967,7 @@ components:
         instructions:
           type: string
           maxLength: 500
-          description: Required for noul
-          choice: null
-          score: null
+          description: Required for noul, choice and score
         criteria:
           type: object
           description: noul only
