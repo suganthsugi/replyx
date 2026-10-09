@@ -22,6 +22,7 @@ import {
   type StoreConnection,
   type StoreConnectionFormError,
 } from '../../../data/ai/storeConnection';
+import { mapError } from '../../../data/errors';
 
 import { AiSection } from './AiSection';
 
@@ -184,7 +185,13 @@ function ConnectedView({ connection, focusOnMount }: { connection: StoreConnecti
         destructive
         onClose={() => setConfirmRemove(false)}
         onConfirm={async () => {
-          await removeConnection.mutateAsync();
+          try {
+            await removeConnection.mutateAsync();
+          } catch (error) {
+            setConfirmRemove(false);
+            toast({ message: mapError(error).message, severity: 'error' });
+            return;
+          }
           setResult(undefined);
           setConfirmRemove(false);
           toast({ message: 'Store connection removed', severity: 'success' });
