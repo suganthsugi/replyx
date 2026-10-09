@@ -23,11 +23,17 @@ export class SpreeAdminConnector implements CommerceConnector {
 
   async getOrder(credentials: CommerceCredentials, number: string): Promise<CommerceOrder | null> {
     if (!ORDER_NUMBER.test(number)) return null;
+    const found = await this.find(credentials, number);
+    // `number_eq` is case-sensitive and Spree numbers are upper case, but customers type "r100200".
+    if (found === null && number !== number.toUpperCase()) return this.find(credentials, number.toUpperCase());
+    return found;
+  }
+
+  private async find(credentials: CommerceCredentials, number: string): Promise<CommerceOrder | null> {
     const body = await this.get(credentials, `q[number_eq]=${encodeURIComponent(number)}&expand=${SPREE_ORDER_EXPAND}&limit=2`);
     const orders = parseOrders(body);
     if (orders === undefined) throw new CommerceError('bad_response', 'The store answered with an unexpected shape');
-    // A filter the store does not recognise is dropped silently (Ransack), which would return
-    // unrelated orders: only an order whose own number matches counts.
+    // Defensive: should the store ever ignore the filter, only an order whose own number matches counts.
     return orders.find((order) => order.number.toLowerCase() === number.toLowerCase()) ?? null;
   }
 
