@@ -72,7 +72,7 @@ export interface PresenceUserRef {
   avatarUrl: string | null;
 }
 
-export type PresenceMemberRef = PresenceUserRef | { kind: 'customer'; name: string };
+export type PresenceMemberRef = PresenceUserRef | { kind: 'customer'; name: string } | { kind: 'assistant'; name: string };
 
 /** Names for presence members: staff by id, customers by the id after the `customer:` prefix. */
 class PresenceNamesRepository extends TenantRepository {
@@ -95,9 +95,12 @@ async function resolvePresence(
   presence: TicketPresence,
 ): Promise<{ viewers: PresenceUserRef[]; typing: PresenceMemberRef[] }> {
   const customerPrefix = 'customer:';
+  // The AI assistant is a pseudo-member (spec 002): not a user row.
+  const assistant = 'assistant';
   const staffIds = new Set(presence.viewers);
   const customerIds = new Set<string>();
   for (const member of presence.typing) {
+    if (member === assistant) continue;
     if (member.startsWith(customerPrefix)) customerIds.add(member.slice(customerPrefix.length));
     else staffIds.add(member);
   }
@@ -105,10 +108,12 @@ async function resolvePresence(
   const staffRef = (id: string): PresenceUserRef => ({ id, name: names.get(id) ?? 'Unknown', avatarUrl: null });
   return {
     viewers: presence.viewers.map(staffRef),
-    typing: presence.typing.map((member) =>
-      member.startsWith(customerPrefix)
-        ? { kind: 'customer' as const, name: names.get(member.slice(customerPrefix.length)) ?? 'Customer' }
-        : staffRef(member),
+    typing: presence.typing.map((member): PresenceMemberRef =>
+      member === assistant
+        ? { kind: 'assistant', name: 'Assistant' }
+        : member.startsWith(customerPrefix)
+          ? { kind: 'customer', name: names.get(member.slice(customerPrefix.length)) ?? 'Customer' }
+          : staffRef(member),
     ),
   };
 }

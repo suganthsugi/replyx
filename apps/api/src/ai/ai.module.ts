@@ -4,14 +4,19 @@ import { permissionsProvider } from '../authorization/registry/module-permission
 import { MessagingModule } from '../messaging/messaging.module.js';
 import { DirectNotifier } from '../notifications/direct-notifier.js';
 import { SecretBox } from '../platform-kernel/crypto/secret-box.js';
+import { PresenceService } from '../platform-kernel/realtime/presence.service.js';
 
 import { AiAudience } from './ai-audience.js';
 import { AiPermissions } from './ai.permissions.js';
 import { AiTicketStatus } from './assistant/ai-ticket-status.js';
+import { AssistantBrain } from './assistant/assistant-brain.js';
+import { AssistantTools } from './assistant/assistant-tools.js';
+import { AssistantTyping } from './assistant/assistant-typing.js';
 import { DRAFT_WRITER, PlaceholderDraftWriter } from './assistant/draft-writer.js';
+import { HandoffScreen } from './assistant/handoff-screen.js';
 import { HandoffWriter } from './assistant/handoff-writer.js';
 import { ResponderService } from './assistant/responder.js';
-import { PlaceholderTurnBrain, TURN_BRAIN } from './assistant/turn-brain.js';
+import { TURN_BRAIN } from './assistant/turn-brain.js';
 import { commerceFromEnv } from './commerce/commerce-from-env.js';
 import { COMMERCE_CONNECTOR } from './commerce/ports.js';
 import { StoreConnectionController } from './commerce/store-connection.controller.js';
@@ -54,8 +59,13 @@ import { AiStatus } from './settings/ai-status.js';
     AiTicketStatus,
     ResponderService,
     HandoffWriter,
-    // T022 / T023 replace these two bindings; the turn job only knows the interfaces.
-    { provide: TURN_BRAIN, useClass: PlaceholderTurnBrain },
+    HandoffScreen,
+    AssistantTools,
+    AssistantTyping,
+    PresenceService,
+    AssistantBrain,
+    // The turn job only knows these two interfaces; T023 replaces the draft writer.
+    { provide: TURN_BRAIN, useExisting: AssistantBrain },
     { provide: DRAFT_WRITER, useClass: PlaceholderDraftWriter },
   ],
   exports: [AI_PROVIDER, COMMERCE_CONNECTOR, SecretBox, AiRunsRecorder, AiAudience, AiStatus, PolicySearch, StoreConnectionService, AiTicketStatus, ResponderService, HandoffWriter, TURN_BRAIN, DRAFT_WRITER],

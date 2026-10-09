@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { sql } from 'kysely';
 
 import { AuditService } from '../audit/audit.service.js';
 import { TenantContext } from '../platform-kernel/db/tenant-context.js';
@@ -93,6 +94,27 @@ export class TagsService {
     await new TagsRepository(requireScope(tx)).replaceCustomerTags(tx, userId, [...new Set(tagIds)]);
   }
 
+  /**
+   * The tag with this name (case-insensitive), created when the tenant has none. Used by system
+   * actors such as the AI assistant's hand-off tag, so it never fails on a concurrent create.
+   */
+  async findOrCreate(tx: TenantTransaction, name: string): Promise<TagDto> {
+    const repo = new TagsRepository(requireScope(tx));
+    const created = await repo.insertIfAbsent(tx, name);
+    if (created !== undefined) {
+      await this.audit.record(tx, { action: 'tag.created', resourceType: 'tag', resourceId: created, details: { name } });
+      return { id: created, name };
+    }
+    const row = await repo.byName(tx, name);
+    if (row === undefined) throw notFound('tag');
+    return toDto(row);
+  }
+
+  /** Adds one tag to a ticket, keeping its other tags; adding it twice changes nothing. */
+  async addToTicket(tx: TenantTransaction, ticketId: string, tagId: string): Promise<void> {
+    await new TagsRepository(requireScope(tx)).addTicketTag(tx, ticketId, tagId);
+  }
+
   /** Tags per ticket id, for building `TicketSummary.tags`; ticket ids without any are absent. */
   tagsByTicketIds(tx: TenantTransaction, ticketIds: readonly string[]): Promise<Map<string, TagDto[]>> {
     return new TagsRepository(requireScope(tx)).tagsByTicketIds(tx, ticketIds);
@@ -141,6 +163,28 @@ class TagsRepository extends TenantRepository {
   byIds(tx: TenantTransaction, tagIds: readonly string[]): Promise<TagRow[]> {
     if (tagIds.length === 0) return Promise.resolve([]);
     return this.selectFrom(tx, 'tags').select(['id', 'name']).where('id', 'in', tagIds as string[]).execute();
+  }
+
+  byName(tx: TenantTransaction, name: string): Promise<TagRow | undefined> {
+    return this.selectFrom(tx, 'tags')
+      .select(['id', 'name'])
+      .where(sql<boolean>`lower(tags.name) = lower(${name})`)
+      .executeTakeFirst();
+  }
+
+  /** The new id, or undefined when a tag with this name (any case) exists. */
+  async insertIfAbsent(tx: TenantTransaction, name: string): Promise<string | undefined> {
+    const row = await this.insertInto(tx, 'tags', { name })
+      .onConflict((oc) => oc.doNothing())
+      .returning('id')
+      .executeTakeFirst();
+    return row?.id;
+  }
+
+  async addTicketTag(tx: TenantTransaction, ticketId: string, tagId: string): Promise<void> {
+    await this.insertInto(tx, 'ticket_tags', { ticket_id: ticketId, tag_id: tagId })
+      .onConflict((oc) => oc.doNothing())
+      .execute();
   }
 
   async insert(tx: TenantTransaction, row: { name: string }): Promise<string> {

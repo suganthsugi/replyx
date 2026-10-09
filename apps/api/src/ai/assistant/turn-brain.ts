@@ -1,5 +1,3 @@
-import { Injectable } from '@nestjs/common';
-
 import type { TurnCustomer, TurnMessage } from './assistant.repositories.js';
 import type { AiAwaiting, AiModelLevel } from '../../platform-kernel/db/tables/ai.js';
 import type { TenantContext } from '../../platform-kernel/db/tenant-context.js';
@@ -62,10 +60,3 @@ export interface TurnBrain {
 
 export const TURN_BRAIN = Symbol('TURN_BRAIN');
 
-/** Until T022: never answers, hands every turn to staff, so nothing is posted that was not thought through. */
-@Injectable()
-export class PlaceholderTurnBrain implements TurnBrain {
-  think(): Promise<TurnDecision> {
-    return Promise.resolve({ kind: 'handoff', reason: 'not_ready' });
-  }
-}

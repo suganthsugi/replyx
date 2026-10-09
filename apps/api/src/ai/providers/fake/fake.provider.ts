@@ -25,10 +25,15 @@ import {
  * else works. Markers in the customer's text steer answers:
  * - decisions: `[fake:<question>]` makes a yes/no question 0.95 (else 0.05); `[fake:<question>=<n>]`
  *   puts a score at level n; choices pick the option whose description shares the most words with
- *   the text (or `none` when nothing matches);
+ *   the text (or `none` when nothing matches). The assistant's hand-off check asks `wants_human`,
+ *   `refund_or_exception` (yes/no) and `frustration` (score 0 calm, 1 annoyed, 2 angry), so
+ *   `[fake:wants_human]`, `[fake:handoff]` (same), `[fake:refund_or_exception]` and
+ *   `[fake:frustration=2]` drive the hand-off paths;
  * - chat: an order number (`R100200`) calls `lookup_order`, return/refund/policy words call
  *   `search_policies`, "order" without a number asks for it, `[fake:lowconf]` answers with
- *   confidence 0.2, `[fake:unresolved]` marks the turn unresolved.
+ *   confidence 0.2, `[fake:unresolved]` marks the turn unresolved, `[fake:toolhandoff]` makes the
+ *   model call the `handoff` tool. A policy search with no passages, an unavailable store or an
+ *   unknown tool result lowers the confidence to 0.3, so the turn hands off.
  * Tests can replace the chat behaviour with `script` and read every call in `calls`.
  */
 
@@ -93,7 +98,8 @@ function decideFake(request: DecisionRequest): DecisionResult {
   const answers: Record<string, DecisionAnswer> = {};
   for (const [key, question] of Object.entries(request.questions)) {
     if (question.type === 'noul') {
-      answers[key] = { type: 'noul', noul: text.includes(`[fake:${key}]`) ? 0.95 : 0.05 };
+      const marked = text.includes(`[fake:${key}]`) || (key === 'wants_human' && text.includes('[fake:handoff]'));
+      answers[key] = { type: 'noul', noul: marked ? 0.95 : 0.05 };
     } else if (question.type === 'score') {
       const level = Number(new RegExp(`\\[fake:${key}=(\\d+)\\]`).exec(text)?.[1] ?? 0);
       const top = Math.min(level, question.criteria.length - 1);
@@ -168,7 +174,11 @@ function defaultChat(request: ChatRequest): Omit<ChatResult, 'usage' | 'model'> 
   const text = customerText(request.messages);
 
   if (last?.role === 'tool') {
-    return final(request, replyFromToolResult(last.content));
+    const { reply, confidence } = replyFromToolResult(last.content);
+    return final(request, reply, confidence === undefined ? {} : { confidence });
+  }
+  if (text.includes('[fake:toolhandoff]') && toolNames.has('handoff')) {
+    return { content: null, toolCalls: [{ id: 'call_handoff', name: 'handoff', arguments: JSON.stringify({ reason: 'needs_a_person' }) }] };
   }
   const orderNumber = /\b[A-Z]?\d{5,}\b/.exec(text)?.[0];
   if (orderNumber !== undefined && toolNames.has('lookup_order')) {
@@ -187,22 +197,27 @@ function defaultChat(request: ChatRequest): Omit<ChatResult, 'usage' | 'model'> 
   return final(request, 'Thanks for getting in touch. How can I help with your order today?');
 }
 
-function replyFromToolResult(content: string): string {
+/** What the fake says after a tool result; `confidence` is set when the result gave it little to go on. */
+function replyFromToolResult(content: string): { reply: string; confidence?: number } {
   let result: unknown;
   try {
-    result = JSON.parse(content);
+    // Tool results arrive as a tagged block of JSON (`<order>{...}</order>`); the JSON escapes `</`.
+    const inner = content.replace(/^\s*<[a-z_]+>/, '').replace(/<\/[a-z_]+>\s*$/, '');
+    result = JSON.parse(inner.replaceAll('<\\/', '</'));
   } catch {
-    return 'Here is what I found.';
+    return { reply: 'Here is what I found.' };
   }
   const record = result as Record<string, unknown>;
-  if (record.found === false) return "I couldn't find an order with that number for your account. Could you check the number?";
+  if (record.found === false) return { reply: "I couldn't find an order with that number for your account. Could you check the number?" };
+  if (record.status === 'not_available' || record.status === 'unavailable') return { reply: "I can't check orders right now, so I'll pass this to our team.", confidence: 0.3 };
   if (typeof record.number === 'string') {
     const tracking = Array.isArray(record.shipments) && record.shipments.length > 0 ? (record.shipments[0] as Record<string, unknown>).tracking : null;
-    return `Your order ${record.number} is ${typeof record.status === 'string' ? record.status : 'being processed'}${typeof tracking === 'string' ? `, tracking number ${tracking}` : ''}.`;
+    return { reply: `Your order ${record.number} is ${typeof record.status === 'string' ? record.status : 'being processed'}${typeof tracking === 'string' ? `, tracking number ${tracking}` : ''}.` };
   }
-  if (Array.isArray(record.passages) && record.passages.length > 0) {
+  if (Array.isArray(record.passages)) {
+    if (record.passages.length === 0) return { reply: "I couldn't find that in our policies, so I'll pass it to our team.", confidence: 0.3 };
     const passage = record.passages[0] as Record<string, unknown>;
-    return `According to our policy: ${String(passage.content).slice(0, 300)}`;
+    return { reply: `According to our policy: ${String(passage.content).slice(0, 300)}` };
   }
-  return "I'm not sure about that one, so I'll pass it to our team.";
+  return { reply: "I'm not sure about that one, so I'll pass it to our team.", confidence: 0.3 };
 }
