@@ -24,6 +24,8 @@ export interface ChatMessage {
   from: 'me' | 'support' | 'system';
   /** The agent's display name and avatar on support messages. */
   sender?: { name: string; avatarUrl?: string | null };
+  /** A support message written by the assistant (shown with an "Assistant · AI" chip). */
+  isAi?: boolean;
   body: string;
   attachments: ChatAttachment[];
   delivery: ChatDelivery;

@@ -6,6 +6,7 @@ import Typography from '@mui/material/Typography';
 
 import { VisuallyHidden } from '../foundations/VisuallyHidden';
 
+import { AiAuthorChip } from './AiAuthorChip';
 import { formatFileSize } from './attachment-rules';
 import { formatChatTime } from './format';
 
@@ -14,7 +15,8 @@ import type { ChatAttachment, ChatDelivery, ChatMessage } from './types';
 /**
  * One message in the customer chat (docs/design-system "Customer chat"): the customer's own
  * messages on the right in the accent color with their delivery status (✓ sent, ✓✓ delivered or
- * read), support replies on the left with the agent's name and avatar. System messages sit in
+ * read), support replies on the left with the agent's name and avatar, or an "Assistant · AI"
+ * chip when the assistant wrote them. System messages sit in
  * the middle as plain text. A message that failed to send offers "Try again".
  */
 
@@ -79,6 +81,8 @@ export function ChatBubble({ message, onRetry }: ChatBubbleProps) {
       >
         {mine ? (
           <VisuallyHidden>You:</VisuallyHidden>
+        ) : message.isAi === true ? (
+          <AiAuthorChip />
         ) : (
           <Typography variant="caption" component="p" sx={{ fontWeight: 600, mb: 0.5 }}>
             {name}

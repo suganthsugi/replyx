@@ -6,10 +6,12 @@ import { useState } from 'react';
 
 import { ChatComposer } from '../../components/chat/ChatComposer';
 import { ChatThread } from '../../components/chat/ChatThread';
+import { ResponderBadge } from '../../components/data-display/ResponderBadge';
 import { EmptyState } from '../../components/foundations/EmptyState';
 import { ChatIcon, MoreIcon } from '../../components/foundations/icons';
 import { Skeleton } from '../../components/foundations/Skeleton';
 import { DesignSystemScope } from '../../components/shell/DesignSystemScope';
+import { useConversationResponderEvents } from '../../data/ai/responder';
 import { useAttachmentUploads } from '../../data/attachments';
 import {
   useConnection,
@@ -20,6 +22,7 @@ import {
   useSupportTyping,
   useTypingSignal,
 } from '../../data/conversation';
+import { useRealtime } from '../../data/realtime';
 
 import { ProfileSheet } from './ProfileSheet';
 
@@ -27,14 +30,16 @@ import type { Branding, CustomerMe } from '../../api/generated/model';
 
 /**
  * The customer's chat (spec US1, docs/design-system "Customer Chat"): the workspace's name and
- * logo on top, one continuous conversation, and the composer. Full height on a phone, a centered
+ * logo on top with who is replying now, one continuous conversation, and the composer. Full height on a phone, a centered
  * 720 px column on a desktop. There is no ticket anywhere in it (constitution XI): the thread
  * comes only from the customer conversation projection.
  */
 export default function ChatPage({ me, branding }: { me: CustomerMe; branding: Branding }) {
   const [profileOpen, setProfileOpen] = useState(false);
   useConversationEvents();
+  useConversationResponderEvents(useRealtime());
   const connected = useConnection();
+  const conversation = useConversation();
 
   return (
     <DesignSystemScope tenantColor={branding.colors?.primary ?? null}>
@@ -65,6 +70,7 @@ export default function ChatPage({ me, branding }: { me: CustomerMe; branding: B
                 {connected ? `Signed in as ${me.name}` : 'Reconnecting…'}
               </Typography>
             </Box>
+            {conversation.responder !== undefined && <ResponderBadge responder={conversation.responder} />}
             <IconButton aria-label="Your profile" onClick={() => setProfileOpen(true)} sx={{ bgcolor: 'action.hover' }}>
               <MoreIcon fontSize="small" />
             </IconButton>
@@ -87,7 +93,7 @@ export default function ChatPage({ me, branding }: { me: CustomerMe; branding: B
             </Typography>
           )}
 
-          <Conversation welcomeMessage={branding.welcomeMessage ?? null} />
+          <Conversation conversation={conversation} welcomeMessage={branding.welcomeMessage ?? null} />
         </Box>
       </Box>
       <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)} me={me} />
@@ -95,8 +101,7 @@ export default function ChatPage({ me, branding }: { me: CustomerMe; branding: B
   );
 }
 
-function Conversation({ welcomeMessage }: { welcomeMessage: string | null }) {
-  const conversation = useConversation();
+function Conversation({ conversation, welcomeMessage }: { conversation: ReturnType<typeof useConversation>; welcomeMessage: string | null }) {
   const typing = useSupportTyping();
   const { send, retry, rateLimitedUntil } = useSendMessage();
   const uploads = useAttachmentUploads();

@@ -9,6 +9,7 @@ import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+import { ResponderBadge } from '../../../components/data-display/ResponderBadge';
 import { EmptyState } from '../../../components/foundations/EmptyState';
 import { CloseIcon } from '../../../components/foundations/icons';
 import { useAnnounce } from '../../../components/foundations/LiveRegion';
@@ -30,6 +31,8 @@ import { StatePill } from '../../../components/tickets/StatePill';
 import { TicketConversation } from '../../../components/tickets/TicketConversation';
 import { TriageBar } from '../../../components/tickets/TriageBar';
 import { useAiDraft, useAiDraftEvents, useDiscardAiDraft } from '../../../data/ai/drafts';
+import { useTicketResponderEvents } from '../../../data/ai/responder';
+import { mapTakeoverError, useHandBack, useTakeOver } from '../../../data/ai/takeover';
 import { useAttachmentUploads } from '../../../data/attachments';
 import { useMe } from '../../../data/auth';
 import { mapError } from '../../../data/errors';
@@ -94,6 +97,7 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
 
   useTicketRoom(client, ticketId);
   useTicketMessageEvents(client, ticketId);
+  useTicketResponderEvents(client, ticketId);
   const connected = useSocketConnected(client);
   const presenceRaw = useTicketPresence(client, ticketId);
   const typingRaw = useTicketTypingIndicator(client, ticketId);
@@ -147,6 +151,8 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
   const canUseMacros = meQuery.data?.permissions.includes('macro.view') === true;
   const macros = useMacros(canUseMacros);
   const applyMacro = useApplyMacro(ticketId);
+  const takeOver = useTakeOver(ticketId);
+  const handBack = useHandBack(ticketId);
 
   const groups = useGroupDestinations();
   const groupId = ticketQuery.data?.group?.id;
@@ -282,6 +288,25 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
     setInjection({ key: crypto.randomUUID() });
   };
 
+  const takeOverFromAi = async () => {
+    try {
+      await takeOver.mutateAsync();
+    } catch (error) {
+      toast({ message: mapTakeoverError(error).message, severity: 'error' });
+      return;
+    }
+    toast({ message: 'You took over this conversation. The assistant has stopped.', severity: 'success' });
+  };
+  const handBackToAi = async () => {
+    try {
+      await handBack.mutateAsync();
+    } catch (error) {
+      toast({ message: mapTakeoverError(error).message, severity: 'error' });
+      return;
+    }
+    toast({ message: 'Handed back to the assistant', severity: 'success' });
+  };
+
   const sendMacro = async (macroId: string, bodyOverride: string | undefined) => {
     stopTyping();
     try {
@@ -325,7 +350,18 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
             {ticket.customer.name}
           </Button>
         </Box>
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end', gap: 3 }}>
+          {ticket.responder !== undefined && <ResponderBadge responder={ticket.responder} />}
+          {ticket.ai?.canTakeOver === true && (
+            <Button size="small" variant="contained" onClick={() => void takeOverFromAi()} disabled={takeOver.isPending} aria-busy={takeOver.isPending}>
+              Take over
+            </Button>
+          )}
+          {ticket.ai?.canHandBack === true && (
+            <Button size="small" variant="outlined" onClick={() => void handBackToAi()} disabled={handBack.isPending} aria-busy={handBack.isPending}>
+              Hand back to AI
+            </Button>
+          )}
           <PresenceStack users={presence} />
           {canMerge && (
             <Button size="small" variant="outlined" onClick={() => setMerging(true)}>

@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Link from '@mui/material/Link';
 import Typography from '@mui/material/Typography';
 
+import { AiAuthorChip } from '../chat/AiAuthorChip';
 import { formatFileSize } from '../chat/attachment-rules';
 import { formatChatTime } from '../chat/format';
 
@@ -10,7 +11,7 @@ import type { AttachmentSummary, Message } from '../../data/messages';
 /**
  * One public message in the ticket's conversation (docs/design-system "Workspace Inbox" bubbles):
  * the customer's messages on the left in a bordered surface, staff and automation replies on the
- * right in the soft accent, and a system message as centered plain text. Internal notes are
+ * right in the soft accent (the assistant's with an "Assistant · AI" chip), and a system message as centered plain text. Internal notes are
  * `InternalNoteCard`, never this component.
  */
 
@@ -30,6 +31,7 @@ export function MessageBubble({ message }: MessageBubbleProps) {
   }
 
   const fromCustomer = message.authorKind === 'customer';
+  const fromAssistant = message.authorKind === 'assistant';
   const name = message.author?.name ?? (fromCustomer ? 'Customer' : message.authorKind === 'automation' ? 'Automation' : 'Agent');
   const time = formatChatTime(message.createdAt);
 
@@ -55,9 +57,13 @@ export function MessageBubble({ message }: MessageBubbleProps) {
             : { bgcolor: 'primary.light', color: 'text.primary', borderBottomRightRadius: '4px' }),
         }}
       >
-        <Typography variant="caption" component="p" sx={{ fontWeight: 600, mb: 0.5, opacity: 0.75 }}>
-          {name}
-        </Typography>
+        {fromAssistant ? (
+          <AiAuthorChip />
+        ) : (
+          <Typography variant="caption" component="p" sx={{ fontWeight: 600, mb: 0.5, opacity: 0.75 }}>
+            {name}
+          </Typography>
+        )}
         <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
           {message.body}
         </Typography>

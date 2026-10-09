@@ -77,6 +77,8 @@ export function useConversation() {
 
   const items = useMemo(() => buildItems(query.data, outbox), [query.data, outbox]);
   const status: ChatStatus | undefined = query.data?.pages[0]?.status;
+  // Who is answering now (specs/002-ai-assist US3); kept live by `useConversationResponderEvents`.
+  const responder = query.data?.pages[0]?.responder;
 
   // Once the thread actually contains a `sent` entry's message, `buildItems` already dedupes it;
   // drop it from the outbox too so it doesn't linger forever in memory.
@@ -93,6 +95,7 @@ export function useConversation() {
   return {
     items,
     status,
+    responder,
     isPending: query.isPending,
     isError: query.isError,
     error: query.error ? mapError(query.error) : undefined,
@@ -373,6 +376,7 @@ function toChatMessage(message: ConversationMessage): ChatMessage {
     id: message.clientMessageId ?? message.id,
     from: message.from.kind,
     ...(message.from.kind === 'support' ? { sender: { name: message.from.name ?? 'Support', avatarUrl: message.from.avatarUrl ?? null } } : {}),
+    ...(message.isAi === true ? { isAi: true } : {}),
     body: message.body,
     attachments: message.attachments.map(toChatAttachment),
     delivery: message.delivery,
