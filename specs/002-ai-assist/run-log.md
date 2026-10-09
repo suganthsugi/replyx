@@ -1,8 +1,25 @@
 # Run log: 002 AI Assist
 
-## Resume here (2026-10-09)
+## Resume here (2026-10-10)
 
-**Next: finish US3.** Done and ticked: T019–T025, T027. T028 part 1 is committed (65a07db: store connection section, AI usage page, AI draft bar); **part 2 is not started**: `ResponderBadge` (animated Assistant sheen, static under reduced motion, contrast ≥ 4.5:1 on every stop, polite "Now replying" announcement), the badge in `pages/desk/inbox/TicketFocus.tsx` (mount `useTicketResponderEvents`) and the customer chat header (mount `useConversationResponderEvents`), the Take over / Hand back buttons (`data/ai/takeover.ts`), and the "Assistant · AI" author chip. T026 part 1 is committed (8e355ca: cross-tenant fixtures, outbound-guard DNS mock); **the integration tests are still to write**: assistant turns (orders, policies, idempotency, debounce, stop rules), take over / hand back / responder, drafts, store connection, runs, SLA, notifications and message details. Then T029 (web + e2e), the US3 review, the RX-45 screenshots. Both agents stopped on 2026-10-09 when the account hit its session limit.
+**Next: T031 (US4 API tests), then T032–T033.** US3 code and tests are done; T019–T028 are ticked and so is T026. **T029 is open**: the web tests pass (573da7d), and the e2e spec `apps/web/e2e/ai-assist.spec.ts` (project `desktop-ai`, after every other spec) is committed but has never run. Running it needs `docker compose restart api worker web`, because the dev api build predates T024. The user deferred that restart on 2026-10-10. After the restart: run only `--project desktop-ai`, then take the RX-45 screenshots (badge, draft, chat), close RX-56 (T029) and RX-45 (US3). T030 is committed (bf73b46 groups `aiDescription`, b64b065 complexity, ed9329d `ai-route`) and ticked.
+
+**US3 review (2026-10-10)**: the reviewer's pass was partial, because it hit its turn limit. Verdict FAIL with 1 major and 7 minors. Fixed:
+- the major: badge caption opacity could drop contrast below 4.5:1 (42da0cf, plus a contrast test over light and dark themes and near-threshold accents)
+- the customer responder event coming from a non-active ticket (0e8c897)
+- the summary failure on the last attempt (a3c80e6)
+- the outbound guard resolver injected, with the rebinding and mixed-address tests restored (b8410fa)
+- the store removal toast (f0539d3)
+- the same-tenant 404 tests (32da95d)
+
+Open:
+- **#6**: the Spree key scopes listed in the UI (`read_orders`, `read_customers`, `read_fulfillments`) need confirming against the live store.
+- **#8 (declined)**: `COMMERCE_PROVIDER` defaults to fake outside production. This is the same rule as `AI_PROVIDER`; prod compose pins `NODE_ENV=production`, and dev runs with `NODE_ENV` unset.
+- Nits not taken: take over replaces a hand-off reason, so drafts resume in Drafts mode; discard writes no audit entry or event; `access-loss.consumer` builds `ResponderService` inline.
+
+Not reviewed: AiUsagePage, the runs and store connection hooks, and the e2e spec.
+
+**US4 decisions (T030)**: factor questions go into the turn's single Jev call as `cx_<key>`, so they never collide with the hand-off questions (the default `frustration` factor is asked separately from the hand-off `frustration`). PUT validation is a strict union per kind. Cross-field issues: `duplicate`, `no_positive_weight` (on `factors`), `not_above_standard` (on `thresholds.advanced`), and `not_found` (on `factors.i.tagId`). Defaults are seeded when the reply mode leaves Off or routing turns on, if the tenant has no factors. The VIP factor is seeded only if a tag named "VIP" exists. The `ai-route` consumer name is `ai-route-trigger`, because consumer and job names share a registry. The route job moves the ticket through `applyLocked` with the `SUPPORT` viewer (moving out of Ungrouped needs no group permission). The group-change history entry is by `system`, plus an `ai_routing` entry by `ai`. `TicketsService` is provided in `AiJobsModule` for the worker.
 
 **US3 decisions**: "customer on unassigned" notifications are suppressed only while the assistant answers in auto mode (`isAssistantAnswering`); drafts mode still pings. Changing the store's origin requires re-entering its key. Spree: expand `items,fulfillments`; `status` is not reliable for completion. A stop after a staff reply shows `stoppedReason: null` (the contract enum has no `agent_replied`). The hand-off notice is English only. The scope signal `ai.responder_scope_changed` is a bare socket event, received through `RealtimeClient.onSignal`. Local Spree has test order R100200 for customer@acme.test, but Spree's Rails host authorization blocks `host.docker.internal` (403), so the running app can't reach it until the user allows that host in `ecom`. A client regeneration once left `apps/web/src/api/generated/` deleted: after regenerating, check for `D` lines.
 
