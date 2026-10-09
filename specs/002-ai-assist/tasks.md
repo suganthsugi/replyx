@@ -173,7 +173,7 @@ description: "Task list for AI Assist (first cut)"
   - **`SpreeAdminConnector`**: `GET {baseUrl}/api/v3/admin/orders?q[number_eq]=…&expand=line_items,shipments` with header `X-Spree-API-Key`, mapped through zod, 5 s timeout. **Verify the field and expand names against the live Spree 5.5.4 store (`https://store.example.com`) with the owner's read-only key before finishing.**
   - **`FakeCommerceConnector`**: fixtures `R100200` (seeded customer) and `R999999` (another email). Selected by `COMMERCE_PROVIDER`.
   - **Store connection endpoints** `GET/PUT/DELETE /ai/store-connection` and `POST /ai/store-connection/test` (`ai_settings.manage`): the URL must pass the outbound guard (400 `STORE_URL_NOT_ALLOWED`); the key is sealed and shown as last4.
-- [ ] T020 [US3] Assistant author and SLA in `apps/api/src/messaging/` and `apps/api/src/sla/` (FR-012, FR-029):
+- [X] T020 [US3] Assistant author and SLA in `apps/api/src/messaging/` and `apps/api/src/sla/` (FR-012, FR-029):
   - **Messages**: add `authorKind 'assistant'` to the message DTOs, with author name "Assistant", and `isAi: true` in the customer projection (`customer-projection.ts`).
   - **Writer**: add an assistant message writer that reuses the staff reply path. A public answer sets `first_agent_reply_at` (if null) and `last_agent_reply_at` and moves `waiting_on` to `customer`. A message with `metadata.handoff=true` skips those.
   - **SLA**: the SLA consumer treats `authorKind in ('staff','assistant') && !metadata.handoff` as a reply.
