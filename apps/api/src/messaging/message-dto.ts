@@ -57,6 +57,15 @@ export function userRef(author: AuthorRef): UserRefDto {
   return { id: author.id, name: author.name, avatarUrl: null };
 }
 
+/** Display name of the AI assistant, for staff and customers (spec 002 FR-012). */
+export const ASSISTANT_NAME = 'Assistant';
+
+/**
+ * The assistant has no `users` row (`author_id` is null), but `UserRef.id` is required by the
+ * contract, so staff DTOs carry this nil uuid. It is never a real user: don't link or look it up.
+ */
+export const ASSISTANT_AUTHOR_ID = '00000000-0000-0000-0000-000000000000';
+
 export function toMessageDto(
   row: MessageRow,
   refs: { authors: ReadonlyMap<string, AuthorRef>; attachments: ReadonlyMap<string, AttachmentRow[]> },
@@ -65,7 +74,12 @@ export function toMessageDto(
   return {
     id: row.id,
     ticketId: row.ticket_id,
-    author: author === undefined ? null : userRef(author),
+    author:
+      row.author_kind === 'assistant'
+        ? { id: ASSISTANT_AUTHOR_ID, name: ASSISTANT_NAME, avatarUrl: null }
+        : author === undefined
+          ? null
+          : userRef(author),
     authorKind: row.author_kind,
     visibility: row.visibility,
     body: row.body,

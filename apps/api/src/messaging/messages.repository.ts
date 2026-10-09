@@ -65,6 +65,20 @@ export class MessagesRepository extends TenantRepository {
       .executeTakeFirst();
   }
 
+  /**
+   * The assistant message already written on a ticket with this idempotency key, if any. Assistant
+   * messages have no author, and the unique key on `(author_id, client_message_id)` ignores nulls,
+   * so a retry is detected here instead.
+   */
+  findAssistantByClientMessageId(tx: TenantTransaction, ticketId: string, clientMessageId: string): Promise<MessageRow | undefined> {
+    return this.selectFrom(tx, 'ticket_messages')
+      .select(MESSAGE_COLUMNS)
+      .where('ticket_messages.ticket_id', '=', ticketId)
+      .where('ticket_messages.author_kind', '=', 'assistant')
+      .where('ticket_messages.client_message_id', '=', clientMessageId)
+      .executeTakeFirst();
+  }
+
   find(tx: TenantTransaction, id: string): Promise<MessageRow | undefined> {
     return this.selectFrom(tx, 'ticket_messages').select(MESSAGE_COLUMNS).where('ticket_messages.id', '=', id).executeTakeFirst();
   }
@@ -141,7 +155,7 @@ export class MessagesRepository extends TenantRepository {
     return this.updateTable(tx, 'ticket_messages')
       .set({ read_at: at, delivered_at: sql`COALESCE(delivered_at, ${at})` })
       .where('ticket_messages.visibility', '=', 'public')
-      .where('ticket_messages.author_kind', 'in', ['staff', 'system', 'automation'])
+      .where('ticket_messages.author_kind', 'in', ['staff', 'system', 'automation', 'assistant'])
       .where('ticket_messages.read_at', 'is', null)
       .where(upTo)
       .where((eb) =>

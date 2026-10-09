@@ -4,10 +4,12 @@ import { RealtimeModule } from '../platform-kernel/realtime/gateway.js';
 import { RoutingModule } from '../routing/routing.module.js';
 import { RuleBasedRouter } from '../routing/rule-based-router.js';
 
+import { AssistantMessageWriter } from './assistant-message.writer.js';
 import { ConversationTyping, CustomerTypingGateway, StaffTypingGateway } from './conversation-events.js';
 import { CustomerConversationService } from './customer-conversation.service.js';
 import { CustomerMessageRouter } from './customer-message-router.js';
 import { CustomerController } from './customer.controller.js';
+import { PublicReplyService } from './public-reply.service.js';
 import { StaffMessagesController } from './staff-messages.controller.js';
 import { StaffMessagesService } from './staff-messages.service.js';
 import { TICKET_ROUTER } from './ticket-router.js';
@@ -18,8 +20,8 @@ import { TICKET_ROUTER } from './ticket-router.js';
  */
 @Module({
   imports: [RoutingModule],
-  providers: [CustomerMessageRouter, { provide: TICKET_ROUTER, useExisting: RuleBasedRouter }],
-  exports: [CustomerMessageRouter, TICKET_ROUTER],
+  providers: [CustomerMessageRouter, { provide: TICKET_ROUTER, useExisting: RuleBasedRouter }, PublicReplyService, AssistantMessageWriter],
+  exports: [CustomerMessageRouter, TICKET_ROUTER, PublicReplyService, AssistantMessageWriter],
 })
 export class MessagingModule {}
 

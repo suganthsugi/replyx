@@ -4,6 +4,7 @@ import { tenantScopeOf, UnitOfWork, type TenantTransaction } from '../platform-k
 import { IdempotentHandler, type DomainEvent } from '../platform-kernel/jobs/idempotent-handler.js';
 
 import { SlaRecomputeService } from './sla-recompute.service.js';
+import { SlaRepository } from './sla.repository.js';
 
 import type { MessageDto } from '../messaging/message-dto.js';
 import type { DomainEventPayload, DomainEventType } from '../platform-kernel/outbox/event-types.js';
@@ -32,7 +33,11 @@ import type { DomainEventPayload, DomainEventType } from '../platform-kernel/out
  *    response starts at the first public customer message after the last public staff reply and
  *    ends at the next public staff reply; later customer messages don't restart it, internal notes
  *    never count, and it only exists after the first reply (before it, first response covers the
- *    customer). Staff-started tickets have a first reply from the start.
+ *    customer). Staff-started tickets have a first reply from the start. A public assistant
+ *    answer is a staff reply (FR-029): `AssistantMessageWriter` sets the same reply timestamps, so
+ *    this stays derived from the ticket row. The assistant's hand-off notice
+ *    (`authorKind = 'assistant'`, `metadata.handoff`) is not a reply: it moves no timestamp and
+ *    the consumer skips it.
  * 4. Resolution ends when the ticket is resolved or closed: then no timer runs and the status is
  *    `ok`. A reopened ticket gets its resolution times rebuilt from CREATION, not from the reopen
  *    (an old ticket may breach at once; a breach already recorded does not repeat).
@@ -85,9 +90,15 @@ export class SlaConsumer extends IdempotentHandler<Handled> {
   }
 
   protected async handle(tx: TenantTransaction, event: DomainEvent<Handled>): Promise<void> {
-    if (tenantScopeOf(tx) === undefined) throw new Error('SlaConsumer.handle must run inside withTenant');
+    const ctx = tenantScopeOf(tx);
+    if (ctx === undefined) throw new Error('SlaConsumer.handle must run inside withTenant');
     const ticketId = ticketIdOf(event);
     if (ticketId === undefined) return;
+    // The assistant's hand-off notice answers nothing: no reply timestamp moved, so nothing to recompute.
+    if (event.type === 'message.created') {
+      const message = event.payload as MessageDto;
+      if (message.authorKind === 'assistant' && (await new SlaRepository(ctx).isHandoffMessage(tx, message.id))) return;
+    }
     await this.recompute.recompute(tx, ticketId);
   }
 }

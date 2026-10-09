@@ -1,5 +1,7 @@
 import { createHash } from 'node:crypto';
 
+import { ASSISTANT_NAME } from './message-dto.js';
+
 import type { AttachmentRow, AuthorRef, MessageRow } from './messages.repository.js';
 import type { CustomerProjection } from '../platform-kernel/outbox/event-types.js';
 
@@ -45,6 +47,8 @@ export type ConversationMessage = {
   attachments: CustomerAttachment[];
   clientMessageId: string | null;
   delivery: Delivery;
+  /** `true` only for the AI assistant's messages (FR-012); omitted for everyone else. */
+  isAi?: true;
   createdAt: string;
 };
 
@@ -88,10 +92,13 @@ export function toConversationMessage(
   if (row.author_id === customerId) from = { kind: 'me' };
   else if (row.author_kind === 'staff' && row.author_id !== null) {
     from = { kind: 'support', name: refs.authors.get(row.author_id)?.name ?? 'Support', avatarUrl: null };
+  } else if (row.author_kind === 'assistant') {
+    from = { kind: 'support', name: ASSISTANT_NAME, avatarUrl: null };
   } else from = { kind: 'system' };
   return {
     id: row.id,
     from,
+    ...(row.author_kind === 'assistant' ? { isAi: true as const } : {}),
     body: row.body,
     attachments: (refs.attachments.get(row.id) ?? []).map(customerAttachment),
     // Only the customer's own messages carry their idempotency key (optimistic send matching).

@@ -104,6 +104,15 @@ export class SlaRepository extends TenantRepository {
     };
   }
 
+  /** True for the assistant's hand-off notice (`metadata.handoff`), which is not a reply (FR-029). */
+  async isHandoffMessage(tx: TenantTransaction, messageId: string): Promise<boolean> {
+    const row = await this.selectFrom(tx, 'ticket_messages')
+      .select('ticket_messages.metadata')
+      .where('ticket_messages.id', '=', messageId)
+      .executeTakeFirst();
+    return row?.metadata?.handoff === true;
+  }
+
   /** The earliest public customer message after `after` (any, when null): the unanswered one. */
   async unansweredSince(tx: TenantTransaction, ticketId: string, after: Date | null): Promise<Date | null> {
     let query = this.selectFrom(tx, 'ticket_messages')

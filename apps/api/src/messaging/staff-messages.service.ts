@@ -9,17 +9,13 @@ import { notFound, permissionDenied, validationFailed } from '../platform-kernel
 import { decodeCursor, toPage, type Page } from '../platform-kernel/http/pagination.js';
 import { uuidv7 } from '../platform-kernel/ids.js';
 import { OutboxService } from '../platform-kernel/outbox/outbox.service.js';
-import { TenantSettingsRepository } from '../tenancy/tenant-settings.js';
-import { transition } from '../tickets/state-machine.js';
 import { allowedActions, TicketRefsRepository, toTicketDto, type TicketDto } from '../tickets/ticket-dto.js';
-import { groupStream, summaryOf, ticketStream } from '../tickets/ticket-events.js';
-import { TicketHistoryService, historyValue, type FieldChange } from '../tickets/ticket-history.service.js';
-import { TicketsRepository, type TicketPatch, type TicketRow } from '../tickets/tickets.repository.js';
+import { ticketStream } from '../tickets/ticket-events.js';
+import { TicketsRepository, type TicketRow } from '../tickets/tickets.repository.js';
 
-import { stateChanges, timersOf } from './customer-message-router.js';
-import { customerEvents, toConversationMessage } from './customer-projection.js';
 import { toMessageDto, type MessageDto } from './message-dto.js';
 import { MessagesRepository, type MessageRow } from './messages.repository.js';
+import { PublicReplyService } from './public-reply.service.js';
 
 import type { PermissionKey } from '../authorization/registry/module-permissions.js';
 import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
@@ -72,7 +68,7 @@ export class StaffMessagesService {
     private readonly policy: PolicyService,
     private readonly outbox: OutboxService,
     private readonly clock: Clock,
-    private readonly history: TicketHistoryService,
+    private readonly replies: PublicReplyService,
   ) {}
 
   async ticket(ctx: TenantContext, ticketId: string): Promise<TicketDto> {
@@ -173,72 +169,15 @@ export class StaffMessagesService {
       await this.outbox.append(tx, { type: 'message.created', payload: dto, streams: [ticketStream(locked.id)] });
       return dto;
     }
-    await this.publicReply(ctx, tx, locked, message, dto, now);
+    await this.replies.publish(ctx, tx, locked, message, dto, now);
     return dto;
-  }
-
-  private async publicReply(ctx: TenantContext, tx: TenantTransaction, before: TicketRow, message: MessageRow, dto: MessageDto, now: Date) {
-    const settings = await new TenantSettingsRepository(ctx).conversation(tx);
-    const moved = transition(timersOf(before), { cause: 'agent_reply', now, gracePeriodHours: settings.gracePeriodHours });
-    const patch: TicketPatch = {
-      ...moved.changes,
-      ...(moved.stateChanged ? { state: moved.state } : {}),
-      last_agent_reply_at: now,
-      waiting_on: 'customer',
-      ...(before.first_agent_reply_at === null ? { first_agent_reply_at: now } : {}),
-    };
-    const ticket = await new TicketsRepository(ctx).update(tx, before.id, patch);
-
-    const customerId = ticket.customer_id;
-    const projected = toConversationMessage(message, customerId, await this.refs(ctx, tx, [message]));
-    await this.outbox.append(tx, {
-      type: 'message.created',
-      payload: dto,
-      customerPayload: customerEvents.message(projected),
-      streams: [ticketStream(ticket.id), `conversation:${customerId}`],
-    });
-
-    const changes: FieldChange[] = [
-      ...stateChanges(before, moved),
-      ...(before.waiting_on === 'customer' ? [] : [{ field: 'waiting_on', old: before.waiting_on, new: 'customer' }]),
-    ];
-    const eventId = await this.outbox.append(tx, {
-      type: 'ticket.updated',
-      payload: {
-        ticket: await summaryOf(ctx, tx, ticket),
-        changes: [...changes, { field: 'last_agent_reply_at', old: historyValue(before.last_agent_reply_at), new: now.toISOString() }],
-      },
-      streams: [ticketStream(ticket.id), groupStream(ticket.group_id)],
-    });
-    await this.history.record(tx, ticket.id, changes, { eventId });
-
-    // Replying means support has read what the customer wrote.
-    const read = await new MessagesRepository(ctx).markCustomerMessages(tx, ticket.id, 'read_at', now);
-    await this.announceReceipts(tx, ticket.id, customerId, read, 'read');
-    await this.outbox.append(tx, {
-      type: 'conversation.status_changed',
-      payload: { customerId, status: 'answered' },
-      customerPayload: customerEvents.status('answered'),
-      streams: [`conversation:${customerId}`],
-    });
   }
 
   private async markDelivered(ctx: TenantContext, ticket: TicketRow): Promise<void> {
     await this.unitOfWork.withTenant(ctx, async (tx) => {
       const delivered = await new MessagesRepository(ctx).markCustomerMessages(tx, ticket.id, 'delivered_at', this.clock.now());
-      await this.announceReceipts(tx, ticket.id, ticket.customer_id, delivered, 'delivered');
+      await this.replies.announceReceipts(tx, ticket.id, ticket.customer_id, delivered, 'delivered');
     });
-  }
-
-  private async announceReceipts(tx: TenantTransaction, ticketId: string, customerId: string, messageIds: readonly string[], delivery: 'delivered' | 'read') {
-    for (const messageId of messageIds) {
-      await this.outbox.append(tx, {
-        type: 'message.delivery_updated',
-        payload: { ticketId, messageId, delivery },
-        customerPayload: customerEvents.delivery(messageId, delivery),
-        streams: [`conversation:${customerId}`],
-      });
-    }
   }
 
   /** The ticket if the caller may view it; otherwise the same 404 as a missing ticket. */
@@ -256,13 +195,8 @@ export class StaffMessagesService {
     return this.policy.effectiveAccess(ctx, actorId(ctx));
   }
 
-  private async refs(ctx: TenantContext, tx: TenantTransaction, rows: readonly MessageRow[]) {
-    const repo = new MessagesRepository(ctx);
-    const [authors, attachments] = await Promise.all([
-      repo.authors(tx, rows.flatMap((row) => [row.author_id, ...row.mentions])),
-      repo.attachmentsFor(tx, rows.map((row) => row.id)),
-    ]);
-    return { authors, attachments };
+  private refs(ctx: TenantContext, tx: TenantTransaction, rows: readonly MessageRow[]) {
+    return this.replies.refs(ctx, tx, rows);
   }
 }
 

@@ -16,8 +16,8 @@ import type { DomainEventType } from '../platform-kernel/outbox/event-types.js';
 /**
  * Tells a customer who isn't in the chat that support replied (FR-055, spec US1 scenario 7).
  *
- * On `message.created` for a **public staff reply** only (internal notes never notify
- * customers), and only when the tenant's `offline_customer_notification` is `email`, the
+ * On `message.created` for a **public staff or assistant reply** only (internal notes never
+ * notify customers; the assistant's hand-off notice counts too), and only when the tenant's `offline_customer_notification` is `email`, the
  * customer's `emailOnReply` is on and none of their sockets is connected: one email with a link
  * back to the chat. A burst of replies sends one email per customer per 2 minutes (a Redis
  * marker, so a job that already completed still counts). The email names the agent but never
@@ -54,7 +54,7 @@ export class OfflineReplyEmailConsumer extends IdempotentHandler<Handled> {
 
   protected async handle(tx: TenantTransaction, event: DomainEvent<Handled>): Promise<void> {
     const message = event.payload;
-    if (message.visibility !== 'public' || message.authorKind !== 'staff') return;
+    if (message.visibility !== 'public' || (message.authorKind !== 'staff' && message.authorKind !== 'assistant')) return;
     const ctx = tenantScopeOf(tx);
     if (ctx === undefined) throw new Error('OfflineReplyEmailConsumer.handle must run inside withTenant');
 
@@ -67,7 +67,8 @@ export class OfflineReplyEmailConsumer extends IdempotentHandler<Handled> {
     const marker = await this.redis.set(replyEmailMarker(ctx.tenantId, recipient.id), '1', 'PX', REPLY_EMAIL_WINDOW_MS, 'NX');
     if (marker !== 'OK') return;
 
-    const agent = message.author?.name ?? 'Support';
+    // The template reads "{{agentName}} from support replied": say plainly that it was the AI.
+    const agent = message.authorKind === 'assistant' ? 'Our AI assistant' : (message.author?.name ?? 'Support');
     await this.mail.enqueue(
       {
         tenantId: ctx.tenantId,

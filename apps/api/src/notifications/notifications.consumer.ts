@@ -159,6 +159,7 @@ export function planNotifications(event: DomainEvent<Handled>, ticket: TicketFac
         if (ticket.firstAgentReplyAt === null) return [];
         return [on('message.customer_on_unassigned', title, excerpt(message.body), {}, groupKey)];
       }
+      // Assistant (and system/automation) messages notify nobody on staff (spec 002 FR-012, T020).
       if (message.authorKind !== 'staff' || message.mentions.length === 0) return [];
       const author = message.author?.name ?? 'Someone';
       const where = message.visibility === 'internal' ? 'in a note on' : 'on';
