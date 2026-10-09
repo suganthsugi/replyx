@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo } from 'react';
 
 import { listMentionCandidates, listTicketMessages, postTicketMessage, useMoveTicketMessage as useMoveTicketMessageMutation } from '../api/generated/tickets/tickets';
 
+import { clearAiDraft } from './ai/drafts';
 import { mapError } from './errors';
 import { ticketKeys } from './tickets';
 
@@ -43,6 +44,7 @@ export interface OutboxEntry {
   body: string;
   attachmentIds: string[];
   mentionIds: string[];
+  aiDraftId?: string;
   createdAt: string;
   status: 'sending' | 'sent' | 'failed';
   error?: string;
@@ -106,6 +108,8 @@ export interface SendTicketMessageInput {
   body: string;
   attachmentIds?: string[];
   mentionIds?: string[];
+  /** The AI draft this reply was sent from; the draft is cleared once the reply is sent. */
+  aiDraftId?: string;
 }
 
 /**
@@ -142,7 +146,9 @@ export function useSendTicketMessage(ticketId: string) {
           clientMessageId: entry.clientMessageId,
           ...(entry.attachmentIds.length === 0 ? {} : { attachmentIds: entry.attachmentIds }),
           ...(entry.mentionIds.length === 0 ? {} : { mentionIds: entry.mentionIds }),
+          ...(entry.aiDraftId === undefined ? {} : { aiDraftId: entry.aiDraftId }),
         });
+        if (entry.aiDraftId !== undefined) clearAiDraft(queryClient, ticketId);
         const applied = patchMessages(queryClient, ticketId, (data) => upsertMessage(data, message));
         // Keep the entry as `sent` (with the server message) rather than removing it outright:
         // the list query may still be loading, or its cached snapshot may predate this send, so
@@ -170,6 +176,7 @@ export function useSendTicketMessage(ticketId: string) {
         body: input.body,
         attachmentIds: input.attachmentIds ?? [],
         mentionIds: input.mentionIds ?? [],
+        ...(input.aiDraftId === undefined ? {} : { aiDraftId: input.aiDraftId }),
         createdAt: new Date().toISOString(),
         status: 'sending',
       }),
