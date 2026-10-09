@@ -299,7 +299,7 @@ description: "Task list for AI Assist (first cut)"
 ## Phase 7: Polish
 
 - [ ] T034 Golden set: write `specs/002-ai-assist/golden/policy.md` (sample return, refund and shipping policy) and `specs/002-ai-assist/golden/questions.md` (20 questions with expected answer or "hand-off"). Then run the real-provider check in [quickstart.md](quickstart.md) with the owner's OpenRouter key and Spree key, and record the results in `specs/002-ai-assist/golden/results.md`. SC-006 needs ≥ 18/20; SC-007 needs Advanced ≤ 2/20.
-- [ ] T035 [P] User guide `apps/docs/src/content/docs/guides/ai-assist.md`, plus a sidebar entry. It covers:
+- [X] T035 [P] User guide `apps/docs/src/content/docs/guides/ai-assist.md`, plus a sidebar entry. It covers:
   - setting up an OpenRouter key and a spending cap
   - reply modes
   - policies
