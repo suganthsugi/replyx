@@ -233,13 +233,23 @@ describe('pausing', () => {
     const agentItems = (await asUser(agent).get('/notifications')).body as { items: { eventType: string }[] };
     expect(agentItems.items.some((n) => n.eventType === 'ai.paused')).toBe(false);
 
-    // While paused, a customer message queues no AI work. No AI consumer exists before US3, so this
-    // is a guard that US3's trigger tests (T026) must keep true with real consumers.
+    // While paused, a customer message starts no AI turn. The relay still enqueues the event jobs
+    // (ai-trigger, ai-staff-reply); the trigger consumer must have run and still queued no ai-turn.
     const customer = await createUser(tenant, { roles: ['customer'] });
     expect((await asUser(customer).post('/customer/messages', { body: 'Where is my order?', clientMessageId: uuidv7() })).status).toBe(201);
     await drainOutbox();
-    const aiJobs = await (await service(QueueRegistry)).get('ai').getJobs(['waiting', 'delayed', 'active', 'completed', 'failed']);
-    expect(aiJobs.filter((job) => JSON.stringify(job.data).includes(tenant.id))).toEqual([]);
+    const queue = (await service(QueueRegistry)).get('ai');
+    const jobsOfTenant = async () =>
+      (await queue.getJobs(['waiting', 'delayed', 'active', 'completed', 'failed'])).filter((job) => JSON.stringify(job.data).includes(tenant.id));
+    await vi.waitFor(
+      async () => {
+        const triggers = (await jobsOfTenant()).filter((job) => job.id?.startsWith('ai-trigger.') === true);
+        expect(triggers.length).toBeGreaterThan(0);
+        expect(await Promise.all(triggers.map((job) => job.isCompleted()))).not.toContain(false);
+      },
+      { timeout: 30_000, interval: 250 },
+    );
+    expect((await jobsOfTenant()).filter((job) => job.name === 'ai-turn')).toEqual([]);
 
     // Replacing the key clears the pause; a good test keeps it clear.
     const replaced = await asUser(admin).put('/ai/settings/provider-key', { apiKey: VALID_KEY });

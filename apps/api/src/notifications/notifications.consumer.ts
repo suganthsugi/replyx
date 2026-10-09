@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 
+import { AiTicketStatus } from '../ai/assistant/ai-ticket-status.js';
 import { Clock } from '../platform-kernel/clock.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { tenantScopeOf, UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
@@ -30,6 +31,10 @@ import type { DomainEventPayload, DomainEventType } from '../platform-kernel/out
  * | `message.created` from staff with mentions | `mention` (replies and internal notes) |
  * | `ticket.reminder_reached` | `ticket.reminder_reached` |
  * | `sla.warning`, `sla.breached` | `sla.warning`, `sla.breached` (T223: the owner, else the group's viewers, see `RecipientResolver`) |
+ *
+ * While the AI assistant is answering a ticket (AI active, Auto-reply mode, not stopped) the
+ * `message.customer_on_unassigned` notification is not created; once it handed off, was stopped or
+ * a person took over, it behaves as above.
  *
  * Until support first replies, an unassigned ticket's customer messages add nothing: the "new
  * ticket" notification already stands for them. Customer messages on the same ticket share the
@@ -219,6 +224,7 @@ export class NotificationsConsumer extends IdempotentHandler<Handled> {
     private readonly resolver: RecipientResolver,
     private readonly outbox: OutboxService,
     private readonly clock: Clock,
+    private readonly assistant: AiTicketStatus,
   ) {
     super(unitOfWork);
   }
@@ -232,6 +238,9 @@ export class NotificationsConsumer extends IdempotentHandler<Handled> {
     if (ticket === undefined) return;
 
     for (const planned of planNotifications(event, ticket)) {
+      // While the assistant is answering the ticket (Auto-reply), later customer messages do not ping the group
+      // (product decision, spec 002). A hand-off, a stop or a take-over brings the ping back.
+      if (planned.target.eventType === 'message.customer_on_unassigned' && (await this.assistant.isAssistantAnswering(tx, ticket.id))) continue;
       const recipients = await this.resolver.resolve(ctx, tx, planned.target, 'in_app');
       for (const recipientId of recipients) {
         await this.deliver(tx, repo, event.id, recipientId, ticket.id, planned);

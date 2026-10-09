@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger, Module } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { DelayedError, type Job } from 'bullmq';
 
 import { FILE_STORAGE, type FileStorage } from '../../attachments/storage/file-storage.js';
@@ -290,7 +290,3 @@ export class AiIndexJob extends JobProcessor<AiIndexJobData> {
 function embeddingInput(chunk: PolicyChunk): string {
   return chunk.heading === null ? chunk.content : `${chunk.heading}\n\n${chunk.content}`;
 }
-
-/** Policy indexing (worker process only). */
-@Module({ providers: [AiPolicyIndexEnqueuer, AiIndexJob] })
-export class AiJobsModule {}

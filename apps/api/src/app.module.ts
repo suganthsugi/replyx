@@ -1,7 +1,7 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 
+import { AiJobsModule } from './ai/ai-jobs.module.js';
 import { AiHttpModule, AiModule } from './ai/ai.module.js';
-import { AiJobsModule } from './ai/knowledge/policy-index.job.js';
 import { ApiPipelineModule } from './api-pipeline.module.js';
 import { AttachmentsHttpModule, FileStorageModule } from './attachments/attachments.module.js';
 import { AttachmentJobsModule } from './attachments/scan.job.js';
