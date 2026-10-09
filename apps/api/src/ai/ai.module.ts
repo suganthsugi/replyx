@@ -6,6 +6,10 @@ import { SecretBox } from '../platform-kernel/crypto/secret-box.js';
 
 import { AiAudience } from './ai-audience.js';
 import { AiPermissions } from './ai.permissions.js';
+import { commerceFromEnv } from './commerce/commerce-from-env.js';
+import { COMMERCE_CONNECTOR } from './commerce/ports.js';
+import { StoreConnectionController } from './commerce/store-connection.controller.js';
+import { StoreConnectionService } from './commerce/store-connection.service.js';
 import { AiPoliciesController } from './knowledge/ai-policies.controller.js';
 import { AiPoliciesService } from './knowledge/ai-policies.service.js';
 import { PolicySearch } from './knowledge/policy-search.js';
@@ -18,7 +22,8 @@ import { AiStatus } from './settings/ai-status.js';
 
 /**
  * AI Assist (specs/002-ai-assist), shared by the api and worker processes: the permissions, the
- * provider chosen by `AI_PROVIDER`, the secret box for tenant keys, the run recorder, AI status and
+ * provider chosen by `AI_PROVIDER`, the store connector chosen by `COMMERCE_PROVIDER` and the tenant's
+ * store connection, the secret box for tenant keys, the run recorder, AI status and
  * pausing, and the admin event audience. Global because messaging, routing and SLA ask it about
  * the assistant. HTTP controllers are in `AiHttpModule`; queue consumers are added by the story
  * modules.
@@ -28,17 +33,19 @@ import { AiStatus } from './settings/ai-status.js';
   providers: [
     permissionsProvider(AiPermissions),
     { provide: AI_PROVIDER, useFactory: () => providerFromEnv() },
+    { provide: COMMERCE_CONNECTOR, useFactory: () => commerceFromEnv() },
     { provide: SecretBox, useFactory: () => new SecretBox() },
     AiRunsRecorder,
     AiAudience,
     AiStatus,
     PolicySearch,
+    StoreConnectionService,
     DirectNotifier,
   ],
-  exports: [AI_PROVIDER, SecretBox, AiRunsRecorder, AiAudience, AiStatus, PolicySearch],
+  exports: [AI_PROVIDER, COMMERCE_CONNECTOR, SecretBox, AiRunsRecorder, AiAudience, AiStatus, PolicySearch, StoreConnectionService],
 })
 export class AiModule {}
 
 /** AI HTTP routes (api process only). */
-@Module({ controllers: [AiSettingsController, AiPoliciesController], providers: [AiSettingsService, AiPoliciesService] })
+@Module({ controllers: [AiSettingsController, StoreConnectionController, AiPoliciesController], providers: [AiSettingsService, AiPoliciesService] })
 export class AiHttpModule {}

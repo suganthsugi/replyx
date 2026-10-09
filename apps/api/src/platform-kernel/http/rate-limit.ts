@@ -45,6 +45,8 @@ export const RATE_LIMIT_POLICIES = {
   'customer-message': { limit: 20, windowMs: MINUTE_MS },
   /** Per tenant: each AI connection test calls the tenant's provider (spec 002). */
   'ai-key-test': { limit: 10, windowMs: MINUTE_MS },
+  /** Per tenant: each store connection test calls the tenant's store (spec 002). */
+  'ai-store-test': { limit: 10, windowMs: MINUTE_MS },
   /** Per session. */
   api: { limit: 600, windowMs: MINUTE_MS },
 } as const satisfies Record<string, RateLimitPolicy>;
@@ -134,6 +136,7 @@ export function rateLimitSubject(policy: RateLimitPolicyName, req: Request): str
     case 'customer-message':
       return req.actor?.userId ?? `ip:${req.ip ?? 'unknown'}`;
     case 'ai-key-test':
+    case 'ai-store-test':
       return 'tenant';
     case 'api':
       return req.actor?.sessionId ?? `ip:${req.ip ?? 'unknown'}`;

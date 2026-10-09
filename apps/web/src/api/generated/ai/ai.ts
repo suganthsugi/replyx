@@ -42,6 +42,7 @@ import type {
   PolicyVersion,
   PolicyVersionInput,
   PutStoreConnectionBody,
+  RateLimitedResponse,
   RenamePolicyDocumentBody,
   Responder,
   SetAiProviderKeyBody,
@@ -717,7 +718,7 @@ export function useGetStoreConnection<
 }
 
 /**
- * @summary Create or replace the store connection; the URL must pass the outbound guard (R9)
+ * @summary Create or replace the store connection; the URL must pass the outbound guard (R9), else 400 STORE_URL_NOT_ALLOWED; 400 VALIDATION_FAILED on apiKey when creating without one
  */
 export const getPutStoreConnectionUrl = () => {
   return `/ai/store-connection`;
@@ -779,7 +780,7 @@ export type PutStoreConnectionMutationError =
   ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
 
 /**
- * @summary Create or replace the store connection; the URL must pass the outbound guard (R9)
+ * @summary Create or replace the store connection; the URL must pass the outbound guard (R9), else 400 STORE_URL_NOT_ALLOWED; 400 VALIDATION_FAILED on apiKey when creating without one
  */
 export const usePutStoreConnection = <
   TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
@@ -805,6 +806,9 @@ export const usePutStoreConnection = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * @summary Remove the store connection (204 also when none is saved)
+ */
 export const getDeleteStoreConnectionUrl = () => {
   return `/ai/store-connection`;
 };
@@ -856,6 +860,9 @@ export type DeleteStoreConnectionMutationResult = NonNullable<
 
 export type DeleteStoreConnectionMutationError = UnauthenticatedResponse | PermissionDeniedResponse;
 
+/**
+ * @summary Remove the store connection (204 also when none is saved)
+ */
 export const useDeleteStoreConnection = <
   TError = UnauthenticatedResponse | PermissionDeniedResponse,
   TContext = unknown,
@@ -875,6 +882,9 @@ export const useDeleteStoreConnection = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * @summary Check the saved store connection with one read of the store's orders; 404 STORE_CONNECTION_NOT_FOUND when none is saved
+ */
 export const getTestStoreConnectionUrl = () => {
   return `/ai/store-connection/test`;
 };
@@ -887,7 +897,8 @@ export const testStoreConnection = async (options?: RequestInit): Promise<Connec
 };
 
 export const getTestStoreConnectionMutationOptions = <
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+  TError =
+    UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | RateLimitedResponse,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
@@ -919,10 +930,15 @@ export type TestStoreConnectionMutationResult = NonNullable<
   Awaited<ReturnType<typeof testStoreConnection>>
 >;
 
-export type TestStoreConnectionMutationError = UnauthenticatedResponse | PermissionDeniedResponse;
+export type TestStoreConnectionMutationError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | RateLimitedResponse;
 
+/**
+ * @summary Check the saved store connection with one read of the store's orders; 404 STORE_CONNECTION_NOT_FOUND when none is saved
+ */
 export const useTestStoreConnection = <
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+  TError =
+    UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | RateLimitedResponse,
   TContext = unknown,
 >(
   options?: {

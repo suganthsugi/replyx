@@ -13,7 +13,7 @@ export type PutStoreConnectionBody = {
   /** @maxLength 300 */
   baseUrl: string;
   /**
-   * Required when creating; omit to keep the saved key
+   * Required when creating, and when baseUrl changes to a different origin (scheme, host or port), else 400 VALIDATION_FAILED on apiKey. Omit to keep the saved key when the origin is the same.
    * @minLength 8
    * @maxLength 200
    */

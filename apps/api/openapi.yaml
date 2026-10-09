@@ -3931,7 +3931,7 @@ paths:
       operationId: putStoreConnection
       tags:
         - ai
-      summary: Create or replace the store connection; the URL must pass the outbound guard (R9)
+      summary: "Create or replace the store connection; the URL must pass the outbound guard (R9), else 400 STORE_URL_NOT_ALLOWED; 400 VALIDATION_FAILED on apiKey when creating without one"
       requestBody:
         required: true
         content:
@@ -3956,7 +3956,7 @@ paths:
                   minLength: 8
                   maxLength: 200
                   writeOnly: true
-                  description: Required when creating; omit to keep the saved key
+                  description: "Required when creating, and when baseUrl changes to a different origin (scheme, host or port), else 400 VALIDATION_FAILED on apiKey. Omit to keep the saved key when the origin is the same."
       responses:
         "200":
           description: Saved
@@ -3974,6 +3974,7 @@ paths:
       operationId: deleteStoreConnection
       tags:
         - ai
+      summary: Remove the store connection (204 also when none is saved)
       responses:
         "204":
           description: Removed
@@ -3986,6 +3987,7 @@ paths:
       operationId: testStoreConnection
       tags:
         - ai
+      summary: "Check the saved store connection with one read of the store's orders; 404 STORE_CONNECTION_NOT_FOUND when none is saved"
       responses:
         "200":
           description: Result
@@ -3997,6 +3999,10 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "429":
+          $ref: "#/components/responses/RateLimited"
   /ai/complexity:
     get:
       operationId: getComplexityConfig
