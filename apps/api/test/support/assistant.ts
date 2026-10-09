@@ -110,6 +110,10 @@ class AssistantTestRepository extends TenantRepository {
       .executeTakeFirstOrThrow();
   }
 
+  turnLevels(tx: TenantTransaction, ticketId: string) {
+    return this.selectFrom(tx, 'ai_turns').select(['level', 'complexity_score']).where('ticket_id', '=', ticketId).orderBy('created_at').execute();
+  }
+
   ticketGroup(tx: TenantTransaction, ticketId: string) {
     return this.selectFrom(tx, 'tickets').select('group_id').where('id', '=', ticketId).executeTakeFirstOrThrow();
   }
@@ -267,6 +271,8 @@ export async function queuedRoutes(ticketId: string): Promise<Job[]> {
 export async function clearQueuedRoutes(ticketId: string): Promise<void> {
   for (const job of await queuedRoutes(ticketId)) await job.remove();
 }
+
+export const turnLevels = (tenant: { id: string }, ticketId: string) => read(tenant, (tx, repo) => repo.turnLevels(tx, ticketId));
 
 export const groupOf = async (tenant: { id: string }, ticketId: string) =>
   (await read(tenant, (tx, repo) => repo.ticketGroup(tx, ticketId))).group_id;

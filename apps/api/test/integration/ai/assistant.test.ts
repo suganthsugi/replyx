@@ -24,6 +24,7 @@ import {
   tagsOf,
   ticketRow,
   turnJob,
+  turnLevels,
   type AiTenant,
 } from '../../support/assistant.js';
 import { createGroup, createTenant, type TestUser } from '../../support/factories.js';
@@ -207,6 +208,8 @@ describe('stop rules', () => {
     expect((await historyOf(ai.tenant, ticketId)).filter((entry) => entry.field === 'ai_handoff')).toEqual([expect.objectContaining({ actor_kind: 'ai' })]);
     expect(await ticketRow(ai.tenant, ticketId)).toMatchObject({ waiting_on: 'support' });
     expect((await aiStateOf(ai.tenant, ticketId))?.stopped_reason).toMatch(/^handoff:/);
+    // Handed off by the screen, before any chat call: no model level was used.
+    expect(await turnLevels(ai.tenant, ticketId)).toEqual([{ level: null, complexity_score: null }]);
     expect((await customerConversation(ai.customer)).responder).toEqual({ kind: 'team' });
 
     // Stopped: the next customer message gets no answer.

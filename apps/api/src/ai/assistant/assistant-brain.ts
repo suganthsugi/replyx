@@ -69,7 +69,8 @@ export class AssistantBrain implements TurnBrain {
     const screened = await this.screen.run(input, factorQuestions(config.factors));
     const complexity = scoreComplexity(config, screened.answers, facts);
     const meta = { level: complexity.level, complexityScore: complexity.score };
-    if (screened.handoffReason !== null) return { kind: 'handoff', reason: screened.handoffReason, ...meta };
+    // No chat model ran, so no level was used: the turn and its runs carry none.
+    if (screened.handoffReason !== null) return { kind: 'handoff', reason: screened.handoffReason, level: null, complexityScore: null };
 
     const outcome = await this.typing.while(
       { ctx: input.ctx, ticketId: input.ticketId, customerId: input.customer.id, showToCustomer: input.mode === 'auto' },
