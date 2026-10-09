@@ -66,7 +66,7 @@ describe('AI routing', () => {
     expect(await groupOf(ai.tenant, ticketId)).toBe(ai.shipping.id);
     const history = await historyOf(ai.tenant, ticketId);
     expect(history).toEqual(expect.arrayContaining([expect.objectContaining({ field: 'ai_routing', actor_kind: 'ai', new_value: { groupId: ai.shipping.id, confidence: 0.9 } })]));
-    expect(history.some((entry) => entry.field === 'group_id')).toBe(true);
+    expect(history.filter((entry) => entry.field === 'group_id')).toEqual([expect.objectContaining({ actor_kind: 'ai' })]);
 
     const runs = (await asUser(ai.admin).get('/ai/runs?purpose=routing')).body as { items: { purpose: string; ticket?: { id?: string } }[] };
     expect(runs.items).toHaveLength(1);

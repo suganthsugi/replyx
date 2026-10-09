@@ -18,7 +18,7 @@ import { groupStream, summaryOf, ticketStream } from './ticket-events.js';
 import { TicketHistoryService, historyValue, type FieldChange } from './ticket-history.service.js';
 import { TicketsRepository, type TicketPatch, type TicketRow } from './tickets.repository.js';
 
-import type { TicketPriority, TicketState } from '../platform-kernel/db/tables/tickets.js';
+import type { HistoryActorKind, TicketPriority, TicketState } from '../platform-kernel/db/tables/tickets.js';
 import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
 
 /**
@@ -121,6 +121,8 @@ export class TicketsService {
     access: Viewer,
     before: TicketRow,
     input: TicketUpdateInput,
+    /** Who the history credits when the context's actor is not it (AI routing: `ai`). */
+    options: { historyActorKind?: HistoryActorKind } = {},
   ): Promise<{ ticket: TicketRow; tags: RefDto[] }> {
     const ticketId = before.id;
     const tickets = new TicketsRepository(ctx);
@@ -193,7 +195,7 @@ export class TicketsService {
           ? [ticketStream(ticket.id), groupStream(ticket.group_id), groupStream(before.group_id)]
           : [ticketStream(ticket.id), groupStream(ticket.group_id)],
       });
-      await this.history.record(tx, ticket.id, changes, { eventId });
+      await this.history.record(tx, ticket.id, changes, { eventId, ...(options.historyActorKind === undefined ? {} : { actorKind: options.historyActorKind }) });
 
       if (moved?.stateChanged) {
         await this.outbox.append(tx, {

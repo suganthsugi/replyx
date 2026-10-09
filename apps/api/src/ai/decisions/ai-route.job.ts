@@ -98,7 +98,8 @@ type Snapshot =
  *    the ticket and, only if it is still ungrouped (manual triage wins), move it through
  *    `TicketsService.applyLocked` and record history `ai_routing { groupId, confidence }`.
  *
- * Any failure leaves the ticket in Needs Triage: provider `auth`/`credit` errors pause the tenant,
+ * The decision is not stored on the job: a write that fails and retries asks the model again (one
+ * more cheap decision call). Any failure leaves the ticket in Needs Triage: provider `auth`/`credit` errors pause the tenant,
  * other errors are retried and, on the last attempt, given up quietly.
  */
 @Injectable()
@@ -183,7 +184,7 @@ export class AiRouteJob extends JobProcessor<AiRouteJobData> {
       if (!routingOn(settings)) return 'dropped';
       if (!(await new RouteRepository(ctx).isCandidate(tx, groupId))) return 'dropped';
       // Moving out of Ungrouped needs no group permission: the system acts as the support viewer.
-      await this.tickets.applyLocked(ctx, tx, SUPPORT, before, { groupId });
+      await this.tickets.applyLocked(ctx, tx, SUPPORT, before, { groupId }, { historyActorKind: 'ai' });
       const rounded = Math.round(confidence * 1000) / 1000;
       await this.history.record(tx, ticketId, [{ field: 'ai_routing', old: null, new: { groupId, confidence: rounded } }], { actorKind: 'ai' });
       return 'routed';
