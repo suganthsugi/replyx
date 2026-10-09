@@ -133,7 +133,7 @@ export default function GroupsPage() {
         )}
 
         {(pending?.kind === 'create' || pending?.kind === 'edit') && (
-          <GroupDialog group={pending.kind === 'edit' ? pending.group : undefined} onClose={close} />
+          <GroupDialog group={pending.kind === 'edit' ? pending.group : undefined} canEditAi={held.has('ai_settings.manage')} onClose={close} />
         )}
 
         {pending?.kind === 'status' && (
@@ -178,12 +178,20 @@ export default function GroupsPage() {
   );
 }
 
-function GroupDialog({ group, onClose }: { group: Group | undefined; onClose: () => void }) {
+/**
+ * Create or edit a group. Holders of `ai_settings.manage` also see its AI description (spec 002
+ * FR-023), which AI routing reads to decide which group a new ticket belongs to; it is only sent
+ * when it changed, so editing a group never needs that permission otherwise.
+ */
+function GroupDialog({ group, canEditAi, onClose }: { group: Group | undefined; canEditAi: boolean; onClose: () => void }) {
   const createGroup = useCreateGroup();
   const updateGroup = useUpdateGroup();
   const toast = useToast();
   const [name, setName] = useState(group?.name ?? '');
   const [description, setDescription] = useState(group?.description ?? '');
+  const [aiDescription, setAiDescription] = useState(group?.aiDescription ?? '');
+  const aiChanged = canEditAi && aiDescription.trim() !== (group?.aiDescription ?? '');
+  const aiPatch = aiChanged ? { aiDescription: aiDescription.trim() === '' ? null : aiDescription.trim() } : {};
   const title = group === undefined ? 'New group' : `Rename ${group.name}`;
 
   return (
@@ -195,10 +203,11 @@ function GroupDialog({ group, onClose }: { group: Group | undefined; onClose: ()
             const created = await createGroup.mutateAsync({
               name: name.trim(),
               ...(description.trim() === '' ? {} : { description: description.trim() }),
+              ...aiPatch,
             });
             toast({ message: `${created.name} created. Only Admin can see it until you grant roles access.`, severity: 'success' });
           } else {
-            await updateGroup.mutateAsync({ id: group.id, name: name.trim(), description: description.trim() });
+            await updateGroup.mutateAsync({ id: group.id, name: name.trim(), description: description.trim(), ...aiPatch });
             toast({ message: 'Group saved', severity: 'success' });
           }
           onClose();
@@ -212,6 +221,18 @@ function GroupDialog({ group, onClose }: { group: Group | undefined; onClose: ()
           onChange={(event) => setDescription(event.target.value)}
           slotProps={{ htmlInput: { maxLength: 300 } }}
         />
+        {canEditAi && (
+          <FormField
+            name="aiDescription"
+            label="AI description"
+            helperText="What this group handles, for AI routing. Groups without one are never chosen by AI."
+            value={aiDescription}
+            onChange={(event) => setAiDescription(event.target.value)}
+            multiline
+            minRows={2}
+            slotProps={{ htmlInput: { maxLength: 500 } }}
+          />
+        )}
         <FormError />
         <SubmitButton>{group === undefined ? 'Create group' : 'Save'}</SubmitButton>
       </Form>
