@@ -12,7 +12,7 @@ import { AiTicketStatus } from './assistant/ai-ticket-status.js';
 import { AssistantBrain } from './assistant/assistant-brain.js';
 import { AssistantTools } from './assistant/assistant-tools.js';
 import { AssistantTyping } from './assistant/assistant-typing.js';
-import { DRAFT_WRITER, PlaceholderDraftWriter } from './assistant/draft-writer.js';
+import { DRAFT_WRITER } from './assistant/draft-writer.js';
 import { HandoffScreen } from './assistant/handoff-screen.js';
 import { HandoffWriter } from './assistant/handoff-writer.js';
 import { ResponderService } from './assistant/responder.js';
@@ -21,6 +21,9 @@ import { commerceFromEnv } from './commerce/commerce-from-env.js';
 import { COMMERCE_CONNECTOR } from './commerce/ports.js';
 import { StoreConnectionController } from './commerce/store-connection.controller.js';
 import { StoreConnectionService } from './commerce/store-connection.service.js';
+import { AiDraftWriter } from './drafts/ai-draft-writer.js';
+import { AiDraftsController } from './drafts/ai-drafts.controller.js';
+import { AiDraftsService } from './drafts/ai-drafts.service.js';
 import { AiPoliciesController } from './knowledge/ai-policies.controller.js';
 import { AiPoliciesService } from './knowledge/ai-policies.service.js';
 import { PolicySearch } from './knowledge/policy-search.js';
@@ -66,12 +69,12 @@ import { AiStatus } from './settings/ai-status.js';
     AssistantBrain,
     // The turn job only knows these two interfaces; T023 replaces the draft writer.
     { provide: TURN_BRAIN, useExisting: AssistantBrain },
-    { provide: DRAFT_WRITER, useClass: PlaceholderDraftWriter },
+    { provide: DRAFT_WRITER, useClass: AiDraftWriter },
   ],
   exports: [AI_PROVIDER, COMMERCE_CONNECTOR, SecretBox, AiRunsRecorder, AiAudience, AiStatus, PolicySearch, StoreConnectionService, AiTicketStatus, ResponderService, HandoffWriter, TURN_BRAIN, DRAFT_WRITER],
 })
 export class AiModule {}
 
 /** AI HTTP routes (api process only). */
-@Module({ controllers: [AiSettingsController, StoreConnectionController, AiPoliciesController, AiRunsController], providers: [AiSettingsService, AiPoliciesService, AiRunsService] })
+@Module({ controllers: [AiSettingsController, StoreConnectionController, AiPoliciesController, AiRunsController, AiDraftsController], providers: [AiSettingsService, AiPoliciesService, AiRunsService, AiDraftsService] })
 export class AiHttpModule {}

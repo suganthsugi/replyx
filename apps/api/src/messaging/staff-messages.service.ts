@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 
+import { assertOpenAiDraft } from '../ai/drafts/ai-draft-reference.js';
 import { AccessRepository, decide, PolicyService, type EffectiveAccess } from '../authorization/policy.service.js';
 import { Clock } from '../platform-kernel/clock.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
@@ -40,6 +41,8 @@ export interface StaffMessageInput {
   clientMessageId: string;
   attachmentIds: readonly string[];
   mentionIds: readonly string[];
+  /** The AI draft a public reply was composed from (spec 002 R13); kept in the message metadata. */
+  aiDraftId?: string;
 }
 
 const Position = z.object({ createdAt: z.iso.datetime(), id: z.uuid() }).strict();
@@ -147,6 +150,12 @@ export class StaffMessagesService {
     if (input.visibility === 'public' && mentions.length > 0) throw validationFailed([{ path: 'mentionIds', issue: 'invalid' }]);
     if (!(await new StaffRepository(ctx).allActiveStaff(tx, mentions))) throw validationFailed([{ path: 'mentionIds', issue: 'invalid' }]);
 
+    // Only a public reply can be sent from a draft; on a note the field is a client error.
+    if (input.aiDraftId !== undefined) {
+      if (input.visibility !== 'public') throw validationFailed([{ path: 'aiDraftId', issue: 'invalid' }]);
+      await assertOpenAiDraft(ctx, tx, locked.id, input.aiDraftId);
+    }
+
     const now = this.clock.now();
     const message = await messages.insert(tx, {
       id: uuidv7(),
@@ -156,6 +165,7 @@ export class StaffMessagesService {
       visibility: input.visibility,
       body: input.body,
       client_message_id: input.clientMessageId,
+      metadata: input.aiDraftId === undefined ? undefined : JSON.stringify({ aiDraftId: input.aiDraftId }),
       mentions,
       created_at: now,
       updated_at: now,

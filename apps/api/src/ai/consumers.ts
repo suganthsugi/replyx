@@ -101,13 +101,12 @@ export class StaffReplyConsumer extends IdempotentHandler<Handled> {
   }
 
   /**
-   * The draft the reply was composed from. TODO(T023): `POST /tickets/{id}/messages` accepts
-   * `aiDraftId` and stores it in the message metadata (and may add it to the event payload); until
-   * then no reply carries one and the open draft is marked `superseded`.
+   * The draft the reply was composed from: `POST /tickets/{id}/messages` validated `aiDraftId` and
+   * stored it in the message metadata (not in the event payload, which is the staff `Message`
+   * DTO). A reply without one leaves the open draft `superseded`.
    */
   private async aiDraftIdOf(tx: TenantTransaction, ctx: TenantContext, message: MessageDto): Promise<string | null> {
-    const fromPayload = (message as { aiDraftId?: unknown }).aiDraftId;
-    const candidate = typeof fromPayload === 'string' ? fromPayload : await new AssistantConversationRepository(ctx).aiDraftIdOf(tx, message.id);
+    const candidate = await new AssistantConversationRepository(ctx).aiDraftIdOf(tx, message.id);
     return candidate !== null && UUID.test(candidate) ? candidate : null;
   }
 }

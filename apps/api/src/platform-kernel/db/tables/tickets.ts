@@ -41,6 +41,8 @@ export type MessageAuthorKind = 'customer' | 'staff' | 'system' | 'automation' |
 /** `handoff`: the assistant's fixed hand-off notice, which never counts as a reply for SLA (FR-029). */
 export interface MessageMetadata {
   handoff?: boolean;
+  /** On a staff reply sent from an AI draft: the draft's id (spec 002 R13). Never serialized to a DTO. */
+  aiDraftId?: string;
 }
 export type MessageVisibility = 'public' | 'internal';
 

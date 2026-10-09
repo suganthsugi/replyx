@@ -39,6 +39,7 @@ const PostBody = z
     clientMessageId: z.uuid(),
     attachmentIds: z.array(z.uuid()).max(MAX_ATTACHMENTS).default([]),
     mentionIds: z.array(z.uuid()).max(20).default([]),
+    aiDraftId: z.uuid().optional(),
   })
   .strict();
 
