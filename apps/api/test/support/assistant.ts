@@ -9,7 +9,8 @@ import { ResponderService } from '../../src/ai/assistant/responder.js';
 import { TURN_BRAIN, type TurnBrain } from '../../src/ai/assistant/turn-brain.js';
 import { COMMERCE_CONNECTOR } from '../../src/ai/commerce/ports.js';
 import { AiTriggerConsumer, StaffReplyConsumer } from '../../src/ai/consumers.js';
-import { AI_PROVIDER } from '../../src/ai/providers/ports.js';
+import { AiRouteConsumer, AiRouteJob, type AiRouteJobData, type RouteOutcome } from '../../src/ai/decisions/ai-route.job.js';
+import { AI_PROVIDER, type AiProvider } from '../../src/ai/providers/ports.js';
 import { AiRunsRecorder } from '../../src/ai/runs/ai-runs.recorder.js';
 import { AiStatus } from '../../src/ai/settings/ai-status.js';
 import { PolicyService } from '../../src/authorization/policy.service.js';
@@ -23,6 +24,8 @@ import { UnitOfWork, type TenantTransaction } from '../../src/platform-kernel/db
 import { uuidv7 } from '../../src/platform-kernel/ids.js';
 import { QueueRegistry } from '../../src/platform-kernel/jobs/queues.js';
 import { OutboxService } from '../../src/platform-kernel/outbox/outbox.service.js';
+import { TicketHistoryService } from '../../src/tickets/ticket-history.service.js';
+import { TicketsService } from '../../src/tickets/tickets.service.js';
 
 import { getTestApp, service } from './app.js';
 import { createUser, type TestTenant, type TestUser } from './factories.js';
@@ -105,6 +108,10 @@ class AssistantTestRepository extends TenantRepository {
       .select(['id', 'owner_id', 'waiting_on', 'first_agent_reply_at', 'last_agent_reply_at'])
       .where('id', '=', ticketId)
       .executeTakeFirstOrThrow();
+  }
+
+  ticketGroup(tx: TenantTransaction, ticketId: string) {
+    return this.selectFrom(tx, 'tickets').select('group_id').where('id', '=', ticketId).executeTakeFirstOrThrow();
   }
 
   history(tx: TenantTransaction, ticketId: string) {
@@ -210,3 +217,56 @@ export async function queuedTurns(ticketId: string): Promise<Job[]> {
 export async function clearQueuedTurns(ticketId: string): Promise<void> {
   for (const job of await queuedTurns(ticketId)) await job.remove();
 }
+
+// --- Routing (US4) -------------------------------------------------------------------------------
+
+class RouteEvents extends TenantRepository {
+  ticketCreated(tx: TenantTransaction, ticketId: string) {
+    return this.selectFrom(tx, 'outbox_events')
+      .select('id')
+      .where('type', '=', 'ticket.created')
+      .where(sql<boolean>`payload -> 'ticket' ->> 'id' = ${ticketId}`)
+      .executeTakeFirstOrThrow();
+  }
+}
+
+/** Delivers the ticket's `ticket.created` to the routing trigger (enqueues `ai-route` when routing applies). */
+export async function deliverToRouteTrigger(tenant: { id: string }, ticketId: string): Promise<string> {
+  const ctx = contextOf(tenant);
+  const { id: eventId } = await (await service(UnitOfWork)).withTenantReadOnly(ctx, (tx) => new RouteEvents(ctx).ticketCreated(tx, ticketId));
+  const consumer = new AiRouteConsumer(await service(UnitOfWork), await service(AiStatus), await service(QueueRegistry));
+  return consumer.process({ tenantId: tenant.id, eventId }, `route-trigger-test-${ticketId}`);
+}
+
+/** The `ai-route` job over the app's services; `provider` wraps the fake (e.g. to act while it decides). */
+export async function routeJob(options: { provider?: (real: AiProvider) => AiProvider } = {}): Promise<AiRouteJob> {
+  const real = (await getTestApp()).app.get<AiProvider>(AI_PROVIDER);
+  return new AiRouteJob(
+    await service(UnitOfWork),
+    await service(AiStatus),
+    await service(AiRunsRecorder),
+    await service(TicketsService),
+    await service(TicketHistoryService),
+    options.provider?.(real) ?? real,
+  );
+}
+
+export async function runRoute(tenant: { id: string }, ticketId: string, options: { job?: AiRouteJob; attemptsMade?: number } = {}): Promise<RouteOutcome> {
+  const job = options.job ?? (await routeJob());
+  const data: AiRouteJobData = { tenantId: tenant.id, ticketId };
+  const fake = { id: `route.${ticketId}`, data, attemptsMade: options.attemptsMade ?? 0, opts: { attempts: 5 } } as unknown as Job<AiRouteJobData>;
+  return job.process(data, fake);
+}
+
+/** The `ai-route` jobs queued for one ticket. */
+export async function queuedRoutes(ticketId: string): Promise<Job[]> {
+  const queue = (await service(QueueRegistry)).get('ai');
+  return (await queue.getJobs(['waiting', 'delayed'])).filter((job) => job.name === 'ai-route' && (job.data as AiRouteJobData).ticketId === ticketId);
+}
+
+export async function clearQueuedRoutes(ticketId: string): Promise<void> {
+  for (const job of await queuedRoutes(ticketId)) await job.remove();
+}
+
+export const groupOf = async (tenant: { id: string }, ticketId: string) =>
+  (await read(tenant, (tx, repo) => repo.ticketGroup(tx, ticketId))).group_id;
