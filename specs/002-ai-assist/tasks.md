@@ -277,7 +277,7 @@ description: "Task list for AI Assist (first cut)"
     - field-level 400s
     - default factors seeded on the first enable (research R12)
   - **`ComplexityScorer`**: adds the factor questions to the turn's single Jev call and computes Σw·v/Σw → level (Fast if no factors or on failure). The level and score are recorded on `ai_turns` and `ai_runs`.
-- [ ] T031 [US4] API tests in `apps/api/test/integration/ai/routing.test.ts` and `apps/api/test/cross-tenant/ai-complexity.test.ts`:
+- [X] T031 [US4] API tests in `apps/api/test/integration/ai/routing.test.ts` and `apps/api/test/cross-tenant/ai-complexity.test.ts`:
   - a matching rule wins and Jev is not called
   - routing below the threshold leaves the ticket ungrouped
   - manual triage during the job wins
