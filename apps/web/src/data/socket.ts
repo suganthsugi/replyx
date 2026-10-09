@@ -45,6 +45,11 @@ export type SyncAck =
 
 export type SubscribeAck = { ok: true } | { ok: false; error: { code: string; message: string } };
 
+/** Bare socket event (not an envelope: no id, seq or dedupe) telling clients to refetch the responder. */
+export const RESPONDER_SCOPE_CHANGED = 'ai.responder_scope_changed';
+
+export type SignalListener = (queryClient: QueryClient) => void;
+
 export type EventListener = (envelope: Envelope, queryClient: QueryClient) => void;
 export type ClosingListener = (code: string) => void;
 
@@ -106,6 +111,7 @@ export class RealtimeClient {
   private readonly subscriptions = new Set<string>();
   private readonly listeners = new Map<string, Set<EventListener>>();
   private readonly closingListeners = new Set<ClosingListener>();
+  private readonly signalListeners = new Map<string, Set<SignalListener>>();
   private readonly ephemeralListeners = new Map<string, Set<EphemeralListener>>();
   private readonly connectionListeners = new Set<ConnectionListener>();
   private readonly streamKeys = new Map<string, (stream: string) => QueryKey[]>();
@@ -128,6 +134,9 @@ export class RealtimeClient {
       for (const listener of this.ephemeralListeners.get(signal.type) ?? []) listener(signal);
     });
     this.socket.on('event', (envelope: Envelope) => this.onEnvelope(envelope));
+    this.socket.on(RESPONDER_SCOPE_CHANGED, () => {
+      for (const listener of this.signalListeners.get(RESPONDER_SCOPE_CHANGED) ?? []) listener(this.queryClient);
+    });
     this.socket.on('closing', (body: { code?: string }) => this.handleClosing(body.code ?? 'UNAUTHENTICATED'));
     // A handshake the server refuses is final (Socket.IO does not retry middleware errors).
     this.socket.on('connect_error', (error: { data?: { code?: unknown } }) => {
@@ -141,6 +150,14 @@ export class RealtimeClient {
     const set = this.listeners.get(type) ?? new Set();
     set.add(listener);
     this.listeners.set(type, set);
+    return () => set.delete(listener);
+  }
+
+  /** Called when a bare control signal (`RESPONDER_SCOPE_CHANGED`) arrives; no seq, no dedupe. Returns an unsubscribe. */
+  onSignal(type: string, listener: SignalListener): () => void {
+    const set = this.signalListeners.get(type) ?? new Set();
+    set.add(listener);
+    this.signalListeners.set(type, set);
     return () => set.delete(listener);
   }
 
