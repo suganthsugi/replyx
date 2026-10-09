@@ -2,7 +2,13 @@
 
 ## Resume here (2026-10-10)
 
-**Next: T031 (US4 API tests), then T032–T033.** US3 code and tests are done; T019–T028 are ticked and so is T026. **T029 is open**: the web tests pass (573da7d), and the e2e spec `apps/web/e2e/ai-assist.spec.ts` (project `desktop-ai`, after every other spec) is committed but has never run. Running it needs `docker compose restart api worker web`, because the dev api build predates T024. The user deferred that restart on 2026-10-10. After the restart: run only `--project desktop-ai`, then take the RX-45 screenshots (badge, draft, chat), close RX-56 (T029) and RX-45 (US3). T030 is committed (bf73b46 groups `aiDescription`, b64b065 complexity, ed9329d `ai-route`) and ticked.
+**Next: the deferred e2e run and screenshots (needs the container restart), then T034 (needs the owner's keys), then close T036.**
+
+Status:
+- **Ticked**: T001–T028, T030–T033, T035.
+- **T029 is open**: the web tests pass (573da7d), and the e2e spec `apps/web/e2e/ai-assist.spec.ts` (project `desktop-ai`, after every other spec) is committed but has never run. Running it needs `docker compose restart api worker web`, because the dev api build predates T024. The user deferred that restart on 2026-10-10. After the restart: run only `--project desktop-ai`, take the RX-45 screenshots (badge, draft, chat) and the RX-57 screenshot (complexity page), then close RX-56 (T029), RX-45 (US3) and RX-57 (US4).
+- **T034** needs the owner's OpenRouter and Spree keys.
+- **T036** so far: deployment notes in `apps/docs/.../developers/deployment.md` (27d9a4b). That page is where deploy docs live, so `infra/README.md` was not created. The 001 superseded note is in (19634a4). Full run on 2026-10-10 (`turbo run lint typecheck test --concurrency=1`): api lint, typecheck and tests pass, and docs passes. Web had 1 failure in 720: the complexity "adds a choice factor" test hit the 5 s default timeout under load. It now has 30 s. Not run yet: the coverage gate (`scripts/check-coverage.sh`) and the e2e suite.
 
 **US3 review (2026-10-10)**: the reviewer's pass was partial, because it hit its turn limit. Verdict FAIL with 1 major and 7 minors. Fixed:
 - the major: badge caption opacity could drop contrast below 4.5:1 (42da0cf, plus a contrast test over light and dark themes and near-threshold accents)
@@ -18,6 +24,14 @@ Open:
 - Nits not taken: take over replaces a hand-off reason, so drafts resume in Drafts mode; discard writes no audit entry or event; `access-loss.consumer` builds `ResponderService` inline.
 
 Not reviewed: AiUsagePage, the runs and store connection hooks, and the e2e spec.
+
+**US4 review (2026-10-10)**: PASS, with 1 major and 9 minors. Fixed:
+- the major: focus kept on move and remove, with stale index-keyed field errors cleared through the new `Form` `resetErrorKey`, no remount after a save, and a clearer empty state (2d5e2a8)
+- a screen hand-off records no level (4d2f954)
+- defaults are seeded whenever AI is on and no factors exist (82fe93b)
+- a routed group change is credited to `ai` in the history (62a5710)
+
+Accepted: a failed route write asks the model again on retry; shape and tag validation errors come back in two rounds. Flaky under full load, passes alone: `tickets/triage.test.ts` "visibleToCaller false".
 
 **US4 decisions (T030)**: factor questions go into the turn's single Jev call as `cx_<key>`, so they never collide with the hand-off questions (the default `frustration` factor is asked separately from the hand-off `frustration`). PUT validation is a strict union per kind. Cross-field issues: `duplicate`, `no_positive_weight` (on `factors`), `not_above_standard` (on `thresholds.advanced`), and `not_found` (on `factors.i.tagId`). Defaults are seeded when the reply mode leaves Off or routing turns on, if the tenant has no factors. The VIP factor is seeded only if a tag named "VIP" exists. The `ai-route` consumer name is `ai-route-trigger`, because consumer and job names share a registry. The route job moves the ticket through `applyLocked` with the `SUPPORT` viewer (moving out of Ungrouped needs no group permission). The group-change history entry is by `system`, plus an `ai_routing` entry by `ai`. `TicketsService` is provided in `AiJobsModule` for the worker.
 
