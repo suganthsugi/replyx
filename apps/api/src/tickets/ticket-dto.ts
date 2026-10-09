@@ -3,9 +3,11 @@ import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { NO_SLA, SlaSummaryRepository, type SlaSummaryDto } from '../sla/sla-summary.js';
 
 import type { TicketRow } from './tickets.repository.js';
+import type { TicketAiDto } from '../ai/assistant/ai-ticket-view.js';
 import type { PermissionKey } from '../authorization/registry/module-permissions.js';
 import type { TicketLinkKind, TicketOrigin, TicketPriority, TicketState, WaitingOn } from '../platform-kernel/db/tables/tickets.js';
 import type { TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
+import type { Responder } from '../platform-kernel/outbox/event-types.js';
 
 /** Staff ticket DTOs (contracts/tickets.yaml `TicketSummary`, `Ticket`). Never sent to customers. */
 
@@ -57,6 +59,10 @@ export interface TicketDto extends TicketSummaryDto {
   links: TicketLinkDto[];
   csat: null;
   allowedActions: AllowedAction[];
+  /** Only on `GET /tickets/{id}` (spec 002 R18): who answers the customer's next message. */
+  responder?: Responder;
+  /** Only on `GET /tickets/{id}`, and absent while the tenant's reply mode is Off. */
+  ai?: TicketAiDto;
 }
 
 export interface TicketRefs {

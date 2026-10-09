@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 
+import { ticketAiView } from '../ai/assistant/ai-ticket-view.js';
 import { assertOpenAiDraft } from '../ai/drafts/ai-draft-reference.js';
 import { AccessRepository, decide, PolicyService, type EffectiveAccess } from '../authorization/policy.service.js';
 import { Clock } from '../platform-kernel/clock.js';
@@ -83,7 +84,8 @@ export class StaffMessagesService {
         refs.load(tx, [row]),
         refs.links(tx, row.id, (groupId) => canView(access, groupId)),
       ]);
-      return toTicketDto(row, names, links, access === SUPPORT ? [] : allowedActions(access, row.group_id));
+      const actions = access === SUPPORT ? [] : allowedActions(access, row.group_id);
+      return { ...toTicketDto(row, names, links, actions), ...(await ticketAiView(tx, ctx, row, actions.includes('edit'))) };
     });
   }
 

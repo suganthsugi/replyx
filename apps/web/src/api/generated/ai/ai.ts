@@ -6,7 +6,10 @@
 
  * OpenAPI spec version: 0.1.0
  */
-import { useMutation, useQuery } from '@tanstack/react-query';
+import {
+  useMutation,
+  useQuery
+} from '@tanstack/react-query';
 import type {
   DataTag,
   DefinedInitialDataOptions,
@@ -19,7 +22,7 @@ import type {
   UseMutationOptions,
   UseMutationResult,
   UseQueryOptions,
-  UseQueryResult,
+  UseQueryResult
 } from '@tanstack/react-query';
 
 import type {
@@ -48,2262 +51,1862 @@ import type {
   SetAiProviderKeyBody,
   StoreConnection,
   UnauthenticatedResponse,
-  ValidationFailedResponse,
+  ValidationFailedResponse
 } from '.././model';
 
 import { http } from '../../../data/http';
 
+
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+
 
 /**
  * @summary AI settings (ai_settings.manage)
  */
 export const getGetAiSettingsUrl = () => {
-  return `/ai/settings`;
-};
 
-export const getAiSettings = async (options?: RequestInit): Promise<AiSettings> => {
-  return http<AiSettings>(getGetAiSettingsUrl(), {
+
+  
+
+  return `/ai/settings`
+}
+
+export const getAiSettings = async ( options?: RequestInit): Promise<AiSettings> => {
+  
+  return http<AiSettings>(getGetAiSettingsUrl(),
+  {      
     ...options,
-    method: 'GET',
-  });
-};
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+
 
 export const getGetAiSettingsQueryKey = () => {
-  return [`/ai/settings`] as const;
-};
+    return [
+    `/ai/settings`
+    ] as const;
+    }
 
-export const getGetAiSettingsQueryOptions = <
-  TData = Awaited<ReturnType<typeof getAiSettings>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSettings>>, TError, TData>>;
-  request?: SecondParameter<typeof http>;
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
+    
+export const getGetAiSettingsQueryOptions = <TData = Awaited<ReturnType<typeof getAiSettings>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSettings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
 
-  const queryKey = queryOptions?.queryKey ?? getGetAiSettingsQueryKey();
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiSettings>>> = ({ signal }) =>
-    getAiSettings({ signal, ...requestOptions });
+  const queryKey =  queryOptions?.queryKey ?? getGetAiSettingsQueryKey();
 
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getAiSettings>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
+  
 
-export type GetAiSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getAiSettings>>>;
-export type GetAiSettingsQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAiSettings>>> = ({ signal }) => getAiSettings({ signal, ...requestOptions });
 
-export function useGetAiSettings<
-  TData = Awaited<ReturnType<typeof getAiSettings>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSettings>>, TError, TData>> &
-      Pick<
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAiSettings>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetAiSettingsQueryResult = NonNullable<Awaited<ReturnType<typeof getAiSettings>>>
+export type GetAiSettingsQueryError = UnauthenticatedResponse | PermissionDeniedResponse
+
+
+export function useGetAiSettings<TData = Awaited<ReturnType<typeof getAiSettings>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSettings>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getAiSettings>>,
           TError,
           Awaited<ReturnType<typeof getAiSettings>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetAiSettings<
-  TData = Awaited<ReturnType<typeof getAiSettings>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSettings>>, TError, TData>> &
-      Pick<
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiSettings<TData = Awaited<ReturnType<typeof getAiSettings>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSettings>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getAiSettings>>,
           TError,
           Awaited<ReturnType<typeof getAiSettings>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetAiSettings<
-  TData = Awaited<ReturnType<typeof getAiSettings>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSettings>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetAiSettings<TData = Awaited<ReturnType<typeof getAiSettings>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSettings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary AI settings (ai_settings.manage)
  */
 
-export function useGetAiSettings<
-  TData = Awaited<ReturnType<typeof getAiSettings>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSettings>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetAiSettingsQueryOptions(options);
+export function useGetAiSettings<TData = Awaited<ReturnType<typeof getAiSettings>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getAiSettings>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
+  const queryOptions = getGetAiSettingsQueryOptions(options)
 
-  query.queryKey = queryOptions.queryKey;
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
 
   return query;
 }
+
+
+
 
 /**
  * @summary Change reply mode, routing, models, thresholds (FR-002, FR-003, FR-023)
  */
 export const getUpdateAiSettingsUrl = () => {
-  return `/ai/settings`;
-};
 
-export const updateAiSettings = async (
-  aiSettingsPatch: AiSettingsPatch,
-  options?: RequestInit,
-): Promise<AiSettings> => {
-  return http<AiSettings>(getUpdateAiSettingsUrl(), {
+
+  
+
+  return `/ai/settings`
+}
+
+export const updateAiSettings = async (aiSettingsPatch: AiSettingsPatch, options?: RequestInit): Promise<AiSettings> => {
+  
+  return http<AiSettings>(getUpdateAiSettingsUrl(),
+  {      
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(aiSettingsPatch),
-  });
-};
+    body: JSON.stringify(
+      aiSettingsPatch,)
+  }
+);}
 
-export const getUpdateAiSettingsMutationOptions = <
-  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof updateAiSettings>>,
-    TError,
-    { data: AiSettingsPatch },
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof updateAiSettings>>,
-  TError,
-  { data: AiSettingsPatch },
-  TContext
-> => {
-  const mutationKey = ['updateAiSettings'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof updateAiSettings>>,
-    { data: AiSettingsPatch }
-  > = (props) => {
-    const { data } = props ?? {};
 
-    return updateAiSettings(data, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
+export const getUpdateAiSettingsMutationOptions = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAiSettings>>, TError,{data: AiSettingsPatch}, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAiSettings>>, TError,{data: AiSettingsPatch}, TContext> => {
 
-export type UpdateAiSettingsMutationResult = NonNullable<
-  Awaited<ReturnType<typeof updateAiSettings>>
->;
-export type UpdateAiSettingsMutationBody = AiSettingsPatch;
-export type UpdateAiSettingsMutationError =
-  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+const mutationKey = ['updateAiSettings'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-/**
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAiSettings>>, {data: AiSettingsPatch}> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateAiSettings(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAiSettingsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAiSettings>>>
+    export type UpdateAiSettingsMutationBody = AiSettingsPatch
+    export type UpdateAiSettingsMutationError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse
+
+    /**
  * @summary Change reply mode, routing, models, thresholds (FR-002, FR-003, FR-023)
  */
-export const useUpdateAiSettings = <
-  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof updateAiSettings>>,
-      TError,
-      { data: AiSettingsPatch },
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof updateAiSettings>>,
-  TError,
-  { data: AiSettingsPatch },
-  TContext
-> => {
-  const mutationOptions = getUpdateAiSettingsMutationOptions(options);
+export const useUpdateAiSettings = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAiSettings>>, TError,{data: AiSettingsPatch}, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof updateAiSettings>>,
+        TError,
+        {data: AiSettingsPatch},
+        TContext
+      > => {
 
-  return useMutation(mutationOptions, queryClient);
-};
-/**
+      const mutationOptions = getUpdateAiSettingsMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Save or replace the tenant's provider key; clears a pause (FR-001, FR-005)
  */
 export const getSetAiProviderKeyUrl = () => {
-  return `/ai/settings/provider-key`;
-};
 
-export const setAiProviderKey = async (
-  setAiProviderKeyBody: SetAiProviderKeyBody,
-  options?: RequestInit,
-): Promise<AiSettings> => {
-  return http<AiSettings>(getSetAiProviderKeyUrl(), {
+
+  
+
+  return `/ai/settings/provider-key`
+}
+
+export const setAiProviderKey = async (setAiProviderKeyBody: SetAiProviderKeyBody, options?: RequestInit): Promise<AiSettings> => {
+  
+  return http<AiSettings>(getSetAiProviderKeyUrl(),
+  {      
     ...options,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(setAiProviderKeyBody),
-  });
-};
+    body: JSON.stringify(
+      setAiProviderKeyBody,)
+  }
+);}
 
-export const getSetAiProviderKeyMutationOptions = <
-  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof setAiProviderKey>>,
-    TError,
-    { data: SetAiProviderKeyBody },
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof setAiProviderKey>>,
-  TError,
-  { data: SetAiProviderKeyBody },
-  TContext
-> => {
-  const mutationKey = ['setAiProviderKey'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof setAiProviderKey>>,
-    { data: SetAiProviderKeyBody }
-  > = (props) => {
-    const { data } = props ?? {};
 
-    return setAiProviderKey(data, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
+export const getSetAiProviderKeyMutationOptions = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAiProviderKey>>, TError,{data: SetAiProviderKeyBody}, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof setAiProviderKey>>, TError,{data: SetAiProviderKeyBody}, TContext> => {
 
-export type SetAiProviderKeyMutationResult = NonNullable<
-  Awaited<ReturnType<typeof setAiProviderKey>>
->;
-export type SetAiProviderKeyMutationBody = SetAiProviderKeyBody;
-export type SetAiProviderKeyMutationError =
-  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+const mutationKey = ['setAiProviderKey'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-/**
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setAiProviderKey>>, {data: SetAiProviderKeyBody}> = (props) => {
+          const {data} = props ?? {};
+
+          return  setAiProviderKey(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetAiProviderKeyMutationResult = NonNullable<Awaited<ReturnType<typeof setAiProviderKey>>>
+    export type SetAiProviderKeyMutationBody = SetAiProviderKeyBody
+    export type SetAiProviderKeyMutationError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse
+
+    /**
  * @summary Save or replace the tenant's provider key; clears a pause (FR-001, FR-005)
  */
-export const useSetAiProviderKey = <
-  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof setAiProviderKey>>,
-      TError,
-      { data: SetAiProviderKeyBody },
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof setAiProviderKey>>,
-  TError,
-  { data: SetAiProviderKeyBody },
-  TContext
-> => {
-  const mutationOptions = getSetAiProviderKeyMutationOptions(options);
+export const useSetAiProviderKey = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAiProviderKey>>, TError,{data: SetAiProviderKeyBody}, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof setAiProviderKey>>,
+        TError,
+        {data: SetAiProviderKeyBody},
+        TContext
+      > => {
 
-  return useMutation(mutationOptions, queryClient);
-};
-/**
+      const mutationOptions = getSetAiProviderKeyMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Remove the key (AI stops)
  */
 export const getRemoveAiProviderKeyUrl = () => {
-  return `/ai/settings/provider-key`;
-};
 
-export const removeAiProviderKey = async (options?: RequestInit): Promise<void> => {
-  return http<void>(getRemoveAiProviderKeyUrl(), {
+
+  
+
+  return `/ai/settings/provider-key`
+}
+
+export const removeAiProviderKey = async ( options?: RequestInit): Promise<void> => {
+  
+  return http<void>(getRemoveAiProviderKeyUrl(),
+  {      
     ...options,
-    method: 'DELETE',
-  });
-};
+    method: 'DELETE'
+    
+    
+  }
+);}
 
-export const getRemoveAiProviderKeyMutationOptions = <
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof removeAiProviderKey>>,
-    TError,
-    void,
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<Awaited<ReturnType<typeof removeAiProviderKey>>, TError, void, TContext> => {
-  const mutationKey = ['removeAiProviderKey'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof removeAiProviderKey>>,
-    void
-  > = () => {
-    return removeAiProviderKey(requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
 
-export type RemoveAiProviderKeyMutationResult = NonNullable<
-  Awaited<ReturnType<typeof removeAiProviderKey>>
->;
+export const getRemoveAiProviderKeyMutationOptions = <TError = UnauthenticatedResponse | PermissionDeniedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeAiProviderKey>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof removeAiProviderKey>>, TError,void, TContext> => {
 
-export type RemoveAiProviderKeyMutationError = UnauthenticatedResponse | PermissionDeniedResponse;
+const mutationKey = ['removeAiProviderKey'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-/**
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof removeAiProviderKey>>, void> = () => {
+          
+
+          return  removeAiProviderKey(requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RemoveAiProviderKeyMutationResult = NonNullable<Awaited<ReturnType<typeof removeAiProviderKey>>>
+    
+    export type RemoveAiProviderKeyMutationError = UnauthenticatedResponse | PermissionDeniedResponse
+
+    /**
  * @summary Remove the key (AI stops)
  */
-export const useRemoveAiProviderKey = <
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof removeAiProviderKey>>,
-      TError,
-      void,
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<Awaited<ReturnType<typeof removeAiProviderKey>>, TError, void, TContext> => {
-  const mutationOptions = getRemoveAiProviderKeyMutationOptions(options);
+export const useRemoveAiProviderKey = <TError = UnauthenticatedResponse | PermissionDeniedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof removeAiProviderKey>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof removeAiProviderKey>>,
+        TError,
+        void,
+        TContext
+      > => {
 
-  return useMutation(mutationOptions, queryClient);
-};
-/**
+      const mutationOptions = getRemoveAiProviderKeyMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Check the saved key with the provider (FR-001)
  */
 export const getTestAiProviderKeyUrl = () => {
-  return `/ai/settings/provider-key/test`;
-};
 
-export const testAiProviderKey = async (options?: RequestInit): Promise<ConnectionTest> => {
-  return http<ConnectionTest>(getTestAiProviderKeyUrl(), {
+
+  
+
+  return `/ai/settings/provider-key/test`
+}
+
+export const testAiProviderKey = async ( options?: RequestInit): Promise<ConnectionTest> => {
+  
+  return http<ConnectionTest>(getTestAiProviderKeyUrl(),
+  {      
     ...options,
-    method: 'POST',
-  });
-};
+    method: 'POST'
+    
+    
+  }
+);}
 
-export const getTestAiProviderKeyMutationOptions = <
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof testAiProviderKey>>,
-    TError,
-    void,
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<Awaited<ReturnType<typeof testAiProviderKey>>, TError, void, TContext> => {
-  const mutationKey = ['testAiProviderKey'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<Awaited<ReturnType<typeof testAiProviderKey>>, void> = () => {
-    return testAiProviderKey(requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
 
-export type TestAiProviderKeyMutationResult = NonNullable<
-  Awaited<ReturnType<typeof testAiProviderKey>>
->;
+export const getTestAiProviderKeyMutationOptions = <TError = UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testAiProviderKey>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof testAiProviderKey>>, TError,void, TContext> => {
 
-export type TestAiProviderKeyMutationError =
-  UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse;
+const mutationKey = ['testAiProviderKey'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-/**
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testAiProviderKey>>, void> = () => {
+          
+
+          return  testAiProviderKey(requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestAiProviderKeyMutationResult = NonNullable<Awaited<ReturnType<typeof testAiProviderKey>>>
+    
+    export type TestAiProviderKeyMutationError = UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse
+
+    /**
  * @summary Check the saved key with the provider (FR-001)
  */
-export const useTestAiProviderKey = <
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof testAiProviderKey>>,
-      TError,
-      void,
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<Awaited<ReturnType<typeof testAiProviderKey>>, TError, void, TContext> => {
-  const mutationOptions = getTestAiProviderKeyMutationOptions(options);
+export const useTestAiProviderKey = <TError = UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testAiProviderKey>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof testAiProviderKey>>,
+        TError,
+        void,
+        TContext
+      > => {
 
-  return useMutation(mutationOptions, queryClient);
-};
-/**
+      const mutationOptions = getTestAiProviderKeyMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Selectable models per level, with prices (catalog, R5)
  */
 export const getListAiModelsUrl = () => {
-  return `/ai/models`;
-};
 
-export const listAiModels = async (options?: RequestInit): Promise<ListAiModels200> => {
-  return http<ListAiModels200>(getListAiModelsUrl(), {
+
+  
+
+  return `/ai/models`
+}
+
+export const listAiModels = async ( options?: RequestInit): Promise<ListAiModels200> => {
+  
+  return http<ListAiModels200>(getListAiModelsUrl(),
+  {      
     ...options,
-    method: 'GET',
-  });
-};
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+
 
 export const getListAiModelsQueryKey = () => {
-  return [`/ai/models`] as const;
-};
+    return [
+    `/ai/models`
+    ] as const;
+    }
 
-export const getListAiModelsQueryOptions = <
-  TData = Awaited<ReturnType<typeof listAiModels>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData>>;
-  request?: SecondParameter<typeof http>;
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
+    
+export const getListAiModelsQueryOptions = <TData = Awaited<ReturnType<typeof listAiModels>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
 
-  const queryKey = queryOptions?.queryKey ?? getListAiModelsQueryKey();
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAiModels>>> = ({ signal }) =>
-    listAiModels({ signal, ...requestOptions });
+  const queryKey =  queryOptions?.queryKey ?? getListAiModelsQueryKey();
 
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listAiModels>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
+  
 
-export type ListAiModelsQueryResult = NonNullable<Awaited<ReturnType<typeof listAiModels>>>;
-export type ListAiModelsQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAiModels>>> = ({ signal }) => listAiModels({ signal, ...requestOptions });
 
-export function useListAiModels<
-  TData = Awaited<ReturnType<typeof listAiModels>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData>> &
-      Pick<
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListAiModelsQueryResult = NonNullable<Awaited<ReturnType<typeof listAiModels>>>
+export type ListAiModelsQueryError = UnauthenticatedResponse | PermissionDeniedResponse
+
+
+export function useListAiModels<TData = Awaited<ReturnType<typeof listAiModels>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listAiModels>>,
           TError,
           Awaited<ReturnType<typeof listAiModels>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListAiModels<
-  TData = Awaited<ReturnType<typeof listAiModels>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData>> &
-      Pick<
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAiModels<TData = Awaited<ReturnType<typeof listAiModels>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listAiModels>>,
           TError,
           Awaited<ReturnType<typeof listAiModels>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListAiModels<
-  TData = Awaited<ReturnType<typeof listAiModels>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAiModels<TData = Awaited<ReturnType<typeof listAiModels>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Selectable models per level, with prices (catalog, R5)
  */
 
-export function useListAiModels<
-  TData = Awaited<ReturnType<typeof listAiModels>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getListAiModelsQueryOptions(options);
+export function useListAiModels<TData = Awaited<ReturnType<typeof listAiModels>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiModels>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
+  const queryOptions = getListAiModelsQueryOptions(options)
 
-  query.queryKey = queryOptions.queryKey;
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
 
   return query;
 }
+
+
+
 
 /**
  * @summary Store connection or 404 STORE_CONNECTION_NOT_FOUND (FR-017)
  */
 export const getGetStoreConnectionUrl = () => {
-  return `/ai/store-connection`;
-};
 
-export const getStoreConnection = async (options?: RequestInit): Promise<StoreConnection> => {
-  return http<StoreConnection>(getGetStoreConnectionUrl(), {
+
+  
+
+  return `/ai/store-connection`
+}
+
+export const getStoreConnection = async ( options?: RequestInit): Promise<StoreConnection> => {
+  
+  return http<StoreConnection>(getGetStoreConnectionUrl(),
+  {      
     ...options,
-    method: 'GET',
-  });
-};
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+
 
 export const getGetStoreConnectionQueryKey = () => {
-  return [`/ai/store-connection`] as const;
-};
+    return [
+    `/ai/store-connection`
+    ] as const;
+    }
 
-export const getGetStoreConnectionQueryOptions = <
-  TData = Awaited<ReturnType<typeof getStoreConnection>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
->(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getStoreConnection>>, TError, TData>>;
-  request?: SecondParameter<typeof http>;
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
+    
+export const getGetStoreConnectionQueryOptions = <TData = Awaited<ReturnType<typeof getStoreConnection>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStoreConnection>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
 
-  const queryKey = queryOptions?.queryKey ?? getGetStoreConnectionQueryKey();
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getStoreConnection>>> = ({ signal }) =>
-    getStoreConnection({ signal, ...requestOptions });
+  const queryKey =  queryOptions?.queryKey ?? getGetStoreConnectionQueryKey();
 
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getStoreConnection>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
+  
 
-export type GetStoreConnectionQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getStoreConnection>>
->;
-export type GetStoreConnectionQueryError =
-  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStoreConnection>>> = ({ signal }) => getStoreConnection({ signal, ...requestOptions });
 
-export function useGetStoreConnection<
-  TData = Awaited<ReturnType<typeof getStoreConnection>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
->(
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getStoreConnection>>, TError, TData>> &
-      Pick<
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStoreConnection>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetStoreConnectionQueryResult = NonNullable<Awaited<ReturnType<typeof getStoreConnection>>>
+export type GetStoreConnectionQueryError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse
+
+
+export function useGetStoreConnection<TData = Awaited<ReturnType<typeof getStoreConnection>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStoreConnection>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getStoreConnection>>,
           TError,
           Awaited<ReturnType<typeof getStoreConnection>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetStoreConnection<
-  TData = Awaited<ReturnType<typeof getStoreConnection>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getStoreConnection>>, TError, TData>
-    > &
-      Pick<
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStoreConnection<TData = Awaited<ReturnType<typeof getStoreConnection>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStoreConnection>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getStoreConnection>>,
           TError,
           Awaited<ReturnType<typeof getStoreConnection>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetStoreConnection<
-  TData = Awaited<ReturnType<typeof getStoreConnection>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
->(
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getStoreConnection>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetStoreConnection<TData = Awaited<ReturnType<typeof getStoreConnection>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStoreConnection>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Store connection or 404 STORE_CONNECTION_NOT_FOUND (FR-017)
  */
 
-export function useGetStoreConnection<
-  TData = Awaited<ReturnType<typeof getStoreConnection>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
->(
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getStoreConnection>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetStoreConnectionQueryOptions(options);
+export function useGetStoreConnection<TData = Awaited<ReturnType<typeof getStoreConnection>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getStoreConnection>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
+  const queryOptions = getGetStoreConnectionQueryOptions(options)
 
-  query.queryKey = queryOptions.queryKey;
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
 
   return query;
 }
+
+
+
 
 /**
  * @summary Create or replace the store connection; the URL must pass the outbound guard (R9), else 400 STORE_URL_NOT_ALLOWED; 400 VALIDATION_FAILED on apiKey when creating without one
  */
 export const getPutStoreConnectionUrl = () => {
-  return `/ai/store-connection`;
-};
 
-export const putStoreConnection = async (
-  putStoreConnectionBody: PutStoreConnectionBody,
-  options?: RequestInit,
-): Promise<StoreConnection> => {
-  return http<StoreConnection>(getPutStoreConnectionUrl(), {
+
+  
+
+  return `/ai/store-connection`
+}
+
+export const putStoreConnection = async (putStoreConnectionBody: PutStoreConnectionBody, options?: RequestInit): Promise<StoreConnection> => {
+  
+  return http<StoreConnection>(getPutStoreConnectionUrl(),
+  {      
     ...options,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(putStoreConnectionBody),
-  });
-};
+    body: JSON.stringify(
+      putStoreConnectionBody,)
+  }
+);}
 
-export const getPutStoreConnectionMutationOptions = <
-  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof putStoreConnection>>,
-    TError,
-    { data: PutStoreConnectionBody },
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof putStoreConnection>>,
-  TError,
-  { data: PutStoreConnectionBody },
-  TContext
-> => {
-  const mutationKey = ['putStoreConnection'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof putStoreConnection>>,
-    { data: PutStoreConnectionBody }
-  > = (props) => {
-    const { data } = props ?? {};
 
-    return putStoreConnection(data, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
+export const getPutStoreConnectionMutationOptions = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putStoreConnection>>, TError,{data: PutStoreConnectionBody}, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof putStoreConnection>>, TError,{data: PutStoreConnectionBody}, TContext> => {
 
-export type PutStoreConnectionMutationResult = NonNullable<
-  Awaited<ReturnType<typeof putStoreConnection>>
->;
-export type PutStoreConnectionMutationBody = PutStoreConnectionBody;
-export type PutStoreConnectionMutationError =
-  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+const mutationKey = ['putStoreConnection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-/**
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof putStoreConnection>>, {data: PutStoreConnectionBody}> = (props) => {
+          const {data} = props ?? {};
+
+          return  putStoreConnection(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PutStoreConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof putStoreConnection>>>
+    export type PutStoreConnectionMutationBody = PutStoreConnectionBody
+    export type PutStoreConnectionMutationError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse
+
+    /**
  * @summary Create or replace the store connection; the URL must pass the outbound guard (R9), else 400 STORE_URL_NOT_ALLOWED; 400 VALIDATION_FAILED on apiKey when creating without one
  */
-export const usePutStoreConnection = <
-  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof putStoreConnection>>,
-      TError,
-      { data: PutStoreConnectionBody },
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof putStoreConnection>>,
-  TError,
-  { data: PutStoreConnectionBody },
-  TContext
-> => {
-  const mutationOptions = getPutStoreConnectionMutationOptions(options);
+export const usePutStoreConnection = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putStoreConnection>>, TError,{data: PutStoreConnectionBody}, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof putStoreConnection>>,
+        TError,
+        {data: PutStoreConnectionBody},
+        TContext
+      > => {
 
-  return useMutation(mutationOptions, queryClient);
-};
-/**
+      const mutationOptions = getPutStoreConnectionMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Remove the store connection (204 also when none is saved)
  */
 export const getDeleteStoreConnectionUrl = () => {
-  return `/ai/store-connection`;
-};
 
-export const deleteStoreConnection = async (options?: RequestInit): Promise<void> => {
-  return http<void>(getDeleteStoreConnectionUrl(), {
+
+  
+
+  return `/ai/store-connection`
+}
+
+export const deleteStoreConnection = async ( options?: RequestInit): Promise<void> => {
+  
+  return http<void>(getDeleteStoreConnectionUrl(),
+  {      
     ...options,
-    method: 'DELETE',
-  });
-};
+    method: 'DELETE'
+    
+    
+  }
+);}
 
-export const getDeleteStoreConnectionMutationOptions = <
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof deleteStoreConnection>>,
-    TError,
-    void,
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof deleteStoreConnection>>,
-  TError,
-  void,
-  TContext
-> => {
-  const mutationKey = ['deleteStoreConnection'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof deleteStoreConnection>>,
-    void
-  > = () => {
-    return deleteStoreConnection(requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
 
-export type DeleteStoreConnectionMutationResult = NonNullable<
-  Awaited<ReturnType<typeof deleteStoreConnection>>
->;
+export const getDeleteStoreConnectionMutationOptions = <TError = UnauthenticatedResponse | PermissionDeniedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStoreConnection>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteStoreConnection>>, TError,void, TContext> => {
 
-export type DeleteStoreConnectionMutationError = UnauthenticatedResponse | PermissionDeniedResponse;
+const mutationKey = ['deleteStoreConnection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-/**
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteStoreConnection>>, void> = () => {
+          
+
+          return  deleteStoreConnection(requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteStoreConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof deleteStoreConnection>>>
+    
+    export type DeleteStoreConnectionMutationError = UnauthenticatedResponse | PermissionDeniedResponse
+
+    /**
  * @summary Remove the store connection (204 also when none is saved)
  */
-export const useDeleteStoreConnection = <
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof deleteStoreConnection>>,
-      TError,
-      void,
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<Awaited<ReturnType<typeof deleteStoreConnection>>, TError, void, TContext> => {
-  const mutationOptions = getDeleteStoreConnectionMutationOptions(options);
+export const useDeleteStoreConnection = <TError = UnauthenticatedResponse | PermissionDeniedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteStoreConnection>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deleteStoreConnection>>,
+        TError,
+        void,
+        TContext
+      > => {
 
-  return useMutation(mutationOptions, queryClient);
-};
-/**
+      const mutationOptions = getDeleteStoreConnectionMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Check the saved store connection with one read of the store's orders; 404 STORE_CONNECTION_NOT_FOUND when none is saved
  */
 export const getTestStoreConnectionUrl = () => {
-  return `/ai/store-connection/test`;
-};
 
-export const testStoreConnection = async (options?: RequestInit): Promise<ConnectionTest> => {
-  return http<ConnectionTest>(getTestStoreConnectionUrl(), {
+
+  
+
+  return `/ai/store-connection/test`
+}
+
+export const testStoreConnection = async ( options?: RequestInit): Promise<ConnectionTest> => {
+  
+  return http<ConnectionTest>(getTestStoreConnectionUrl(),
+  {      
     ...options,
-    method: 'POST',
-  });
-};
+    method: 'POST'
+    
+    
+  }
+);}
 
-export const getTestStoreConnectionMutationOptions = <
-  TError =
-    UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | RateLimitedResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof testStoreConnection>>,
-    TError,
-    void,
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<Awaited<ReturnType<typeof testStoreConnection>>, TError, void, TContext> => {
-  const mutationKey = ['testStoreConnection'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof testStoreConnection>>,
-    void
-  > = () => {
-    return testStoreConnection(requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
 
-export type TestStoreConnectionMutationResult = NonNullable<
-  Awaited<ReturnType<typeof testStoreConnection>>
->;
+export const getTestStoreConnectionMutationOptions = <TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | RateLimitedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testStoreConnection>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof testStoreConnection>>, TError,void, TContext> => {
 
-export type TestStoreConnectionMutationError =
-  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | RateLimitedResponse;
+const mutationKey = ['testStoreConnection'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-/**
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof testStoreConnection>>, void> = () => {
+          
+
+          return  testStoreConnection(requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TestStoreConnectionMutationResult = NonNullable<Awaited<ReturnType<typeof testStoreConnection>>>
+    
+    export type TestStoreConnectionMutationError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | RateLimitedResponse
+
+    /**
  * @summary Check the saved store connection with one read of the store's orders; 404 STORE_CONNECTION_NOT_FOUND when none is saved
  */
-export const useTestStoreConnection = <
-  TError =
-    UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | RateLimitedResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof testStoreConnection>>,
-      TError,
-      void,
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<Awaited<ReturnType<typeof testStoreConnection>>, TError, void, TContext> => {
-  const mutationOptions = getTestStoreConnectionMutationOptions(options);
+export const useTestStoreConnection = <TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | RateLimitedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof testStoreConnection>>, TError,void, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof testStoreConnection>>,
+        TError,
+        void,
+        TContext
+      > => {
 
-  return useMutation(mutationOptions, queryClient);
-};
-export const getGetComplexityConfigUrl = () => {
-  return `/ai/complexity`;
-};
+      const mutationOptions = getTestStoreConnectionMutationOptions(options);
 
-export const getComplexityConfig = async (options?: RequestInit): Promise<ComplexityConfig> => {
-  return http<ComplexityConfig>(getGetComplexityConfigUrl(), {
+      return useMutation(mutationOptions, queryClient);
+    }
+    export const getGetComplexityConfigUrl = () => {
+
+
+  
+
+  return `/ai/complexity`
+}
+
+export const getComplexityConfig = async ( options?: RequestInit): Promise<ComplexityConfig> => {
+  
+  return http<ComplexityConfig>(getGetComplexityConfigUrl(),
+  {      
     ...options,
-    method: 'GET',
-  });
-};
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+
 
 export const getGetComplexityConfigQueryKey = () => {
-  return [`/ai/complexity`] as const;
-};
+    return [
+    `/ai/complexity`
+    ] as const;
+    }
 
-export const getGetComplexityConfigQueryOptions = <
-  TData = Awaited<ReturnType<typeof getComplexityConfig>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getComplexityConfig>>, TError, TData>>;
-  request?: SecondParameter<typeof http>;
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
+    
+export const getGetComplexityConfigQueryOptions = <TData = Awaited<ReturnType<typeof getComplexityConfig>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getComplexityConfig>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
 
-  const queryKey = queryOptions?.queryKey ?? getGetComplexityConfigQueryKey();
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getComplexityConfig>>> = ({ signal }) =>
-    getComplexityConfig({ signal, ...requestOptions });
+  const queryKey =  queryOptions?.queryKey ?? getGetComplexityConfigQueryKey();
 
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getComplexityConfig>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
+  
 
-export type GetComplexityConfigQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getComplexityConfig>>
->;
-export type GetComplexityConfigQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getComplexityConfig>>> = ({ signal }) => getComplexityConfig({ signal, ...requestOptions });
 
-export function useGetComplexityConfig<
-  TData = Awaited<ReturnType<typeof getComplexityConfig>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getComplexityConfig>>, TError, TData>
-    > &
-      Pick<
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getComplexityConfig>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetComplexityConfigQueryResult = NonNullable<Awaited<ReturnType<typeof getComplexityConfig>>>
+export type GetComplexityConfigQueryError = UnauthenticatedResponse | PermissionDeniedResponse
+
+
+export function useGetComplexityConfig<TData = Awaited<ReturnType<typeof getComplexityConfig>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getComplexityConfig>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getComplexityConfig>>,
           TError,
           Awaited<ReturnType<typeof getComplexityConfig>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetComplexityConfig<
-  TData = Awaited<ReturnType<typeof getComplexityConfig>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getComplexityConfig>>, TError, TData>
-    > &
-      Pick<
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetComplexityConfig<TData = Awaited<ReturnType<typeof getComplexityConfig>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getComplexityConfig>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getComplexityConfig>>,
           TError,
           Awaited<ReturnType<typeof getComplexityConfig>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetComplexityConfig<
-  TData = Awaited<ReturnType<typeof getComplexityConfig>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getComplexityConfig>>, TError, TData>
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetComplexityConfig<TData = Awaited<ReturnType<typeof getComplexityConfig>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getComplexityConfig>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 
-export function useGetComplexityConfig<
-  TData = Awaited<ReturnType<typeof getComplexityConfig>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getComplexityConfig>>, TError, TData>
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetComplexityConfigQueryOptions(options);
+export function useGetComplexityConfig<TData = Awaited<ReturnType<typeof getComplexityConfig>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getComplexityConfig>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
+  const queryOptions = getGetComplexityConfigQueryOptions(options)
 
-  query.queryKey = queryOptions.queryKey;
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
 
   return query;
 }
+
+
+
 
 /**
  * @summary Replace all factors and thresholds atomically (FR-025)
  */
 export const getPutComplexityConfigUrl = () => {
-  return `/ai/complexity`;
-};
 
-export const putComplexityConfig = async (
-  complexityConfig: ComplexityConfig,
-  options?: RequestInit,
-): Promise<ComplexityConfig> => {
-  return http<ComplexityConfig>(getPutComplexityConfigUrl(), {
+
+  
+
+  return `/ai/complexity`
+}
+
+export const putComplexityConfig = async (complexityConfig: ComplexityConfig, options?: RequestInit): Promise<ComplexityConfig> => {
+  
+  return http<ComplexityConfig>(getPutComplexityConfigUrl(),
+  {      
     ...options,
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(complexityConfig),
-  });
-};
+    body: JSON.stringify(
+      complexityConfig,)
+  }
+);}
 
-export const getPutComplexityConfigMutationOptions = <
-  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof putComplexityConfig>>,
-    TError,
-    { data: ComplexityConfig },
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof putComplexityConfig>>,
-  TError,
-  { data: ComplexityConfig },
-  TContext
-> => {
-  const mutationKey = ['putComplexityConfig'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof putComplexityConfig>>,
-    { data: ComplexityConfig }
-  > = (props) => {
-    const { data } = props ?? {};
 
-    return putComplexityConfig(data, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
+export const getPutComplexityConfigMutationOptions = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putComplexityConfig>>, TError,{data: ComplexityConfig}, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof putComplexityConfig>>, TError,{data: ComplexityConfig}, TContext> => {
 
-export type PutComplexityConfigMutationResult = NonNullable<
-  Awaited<ReturnType<typeof putComplexityConfig>>
->;
-export type PutComplexityConfigMutationBody = ComplexityConfig;
-export type PutComplexityConfigMutationError =
-  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+const mutationKey = ['putComplexityConfig'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-/**
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof putComplexityConfig>>, {data: ComplexityConfig}> = (props) => {
+          const {data} = props ?? {};
+
+          return  putComplexityConfig(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type PutComplexityConfigMutationResult = NonNullable<Awaited<ReturnType<typeof putComplexityConfig>>>
+    export type PutComplexityConfigMutationBody = ComplexityConfig
+    export type PutComplexityConfigMutationError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse
+
+    /**
  * @summary Replace all factors and thresholds atomically (FR-025)
  */
-export const usePutComplexityConfig = <
-  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof putComplexityConfig>>,
-      TError,
-      { data: ComplexityConfig },
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof putComplexityConfig>>,
-  TError,
-  { data: ComplexityConfig },
-  TContext
-> => {
-  const mutationOptions = getPutComplexityConfigMutationOptions(options);
+export const usePutComplexityConfig = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof putComplexityConfig>>, TError,{data: ComplexityConfig}, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof putComplexityConfig>>,
+        TError,
+        {data: ComplexityConfig},
+        TContext
+      > => {
 
-  return useMutation(mutationOptions, queryClient);
-};
-/**
+      const mutationOptions = getPutComplexityConfigMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Policy documents (ai_knowledge.manage)
  */
 export const getListPolicyDocumentsUrl = () => {
-  return `/ai/policies`;
-};
 
-export const listPolicyDocuments = async (
-  options?: RequestInit,
-): Promise<ListPolicyDocuments200> => {
-  return http<ListPolicyDocuments200>(getListPolicyDocumentsUrl(), {
+
+  
+
+  return `/ai/policies`
+}
+
+export const listPolicyDocuments = async ( options?: RequestInit): Promise<ListPolicyDocuments200> => {
+  
+  return http<ListPolicyDocuments200>(getListPolicyDocumentsUrl(),
+  {      
     ...options,
-    method: 'GET',
-  });
-};
+    method: 'GET'
+    
+    
+  }
+);}
+
+
+
+
 
 export const getListPolicyDocumentsQueryKey = () => {
-  return [`/ai/policies`] as const;
-};
+    return [
+    `/ai/policies`
+    ] as const;
+    }
 
-export const getListPolicyDocumentsQueryOptions = <
-  TData = Awaited<ReturnType<typeof listPolicyDocuments>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(options?: {
-  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listPolicyDocuments>>, TError, TData>>;
-  request?: SecondParameter<typeof http>;
-}) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
+    
+export const getListPolicyDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listPolicyDocuments>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>( options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPolicyDocuments>>, TError, TData>>, request?: SecondParameter<typeof http>}
+) => {
 
-  const queryKey = queryOptions?.queryKey ?? getListPolicyDocumentsQueryKey();
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof listPolicyDocuments>>> = ({ signal }) =>
-    listPolicyDocuments({ signal, ...requestOptions });
+  const queryKey =  queryOptions?.queryKey ?? getListPolicyDocumentsQueryKey();
 
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listPolicyDocuments>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
+  
 
-export type ListPolicyDocumentsQueryResult = NonNullable<
-  Awaited<ReturnType<typeof listPolicyDocuments>>
->;
-export type ListPolicyDocumentsQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listPolicyDocuments>>> = ({ signal }) => listPolicyDocuments({ signal, ...requestOptions });
 
-export function useListPolicyDocuments<
-  TData = Awaited<ReturnType<typeof listPolicyDocuments>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listPolicyDocuments>>, TError, TData>
-    > &
-      Pick<
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listPolicyDocuments>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListPolicyDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listPolicyDocuments>>>
+export type ListPolicyDocumentsQueryError = UnauthenticatedResponse | PermissionDeniedResponse
+
+
+export function useListPolicyDocuments<TData = Awaited<ReturnType<typeof listPolicyDocuments>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPolicyDocuments>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listPolicyDocuments>>,
           TError,
           Awaited<ReturnType<typeof listPolicyDocuments>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListPolicyDocuments<
-  TData = Awaited<ReturnType<typeof listPolicyDocuments>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listPolicyDocuments>>, TError, TData>
-    > &
-      Pick<
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPolicyDocuments<TData = Awaited<ReturnType<typeof listPolicyDocuments>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPolicyDocuments>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listPolicyDocuments>>,
           TError,
           Awaited<ReturnType<typeof listPolicyDocuments>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListPolicyDocuments<
-  TData = Awaited<ReturnType<typeof listPolicyDocuments>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listPolicyDocuments>>, TError, TData>
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListPolicyDocuments<TData = Awaited<ReturnType<typeof listPolicyDocuments>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPolicyDocuments>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Policy documents (ai_knowledge.manage)
  */
 
-export function useListPolicyDocuments<
-  TData = Awaited<ReturnType<typeof listPolicyDocuments>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof listPolicyDocuments>>, TError, TData>
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getListPolicyDocumentsQueryOptions(options);
+export function useListPolicyDocuments<TData = Awaited<ReturnType<typeof listPolicyDocuments>>, TError = UnauthenticatedResponse | PermissionDeniedResponse>(
+  options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listPolicyDocuments>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
+  const queryOptions = getListPolicyDocumentsQueryOptions(options)
 
-  query.queryKey = queryOptions.queryKey;
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
 
   return query;
 }
+
+
+
 
 /**
  * @summary Create a document with its first version (FR-006)
  */
 export const getCreatePolicyDocumentUrl = () => {
-  return `/ai/policies`;
-};
 
-export const createPolicyDocument = async (
-  policyDocumentInput: PolicyDocumentInput,
-  options?: RequestInit,
-): Promise<PolicyDocument> => {
-  return http<PolicyDocument>(getCreatePolicyDocumentUrl(), {
+
+  
+
+  return `/ai/policies`
+}
+
+export const createPolicyDocument = async (policyDocumentInput: PolicyDocumentInput, options?: RequestInit): Promise<PolicyDocument> => {
+  
+  return http<PolicyDocument>(getCreatePolicyDocumentUrl(),
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(policyDocumentInput),
-  });
-};
+    body: JSON.stringify(
+      policyDocumentInput,)
+  }
+);}
 
-export const getCreatePolicyDocumentMutationOptions = <
-  TError =
-    | ValidationFailedResponse
-    | UnauthenticatedResponse
-    | PermissionDeniedResponse
-    | ConflictResponse
-    | ErrorResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createPolicyDocument>>,
-    TError,
-    { data: PolicyDocumentInput },
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createPolicyDocument>>,
-  TError,
-  { data: PolicyDocumentInput },
-  TContext
-> => {
-  const mutationKey = ['createPolicyDocument'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createPolicyDocument>>,
-    { data: PolicyDocumentInput }
-  > = (props) => {
-    const { data } = props ?? {};
 
-    return createPolicyDocument(data, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
+export const getCreatePolicyDocumentMutationOptions = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse | ErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPolicyDocument>>, TError,{data: PolicyDocumentInput}, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPolicyDocument>>, TError,{data: PolicyDocumentInput}, TContext> => {
 
-export type CreatePolicyDocumentMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createPolicyDocument>>
->;
-export type CreatePolicyDocumentMutationBody = PolicyDocumentInput;
-export type CreatePolicyDocumentMutationError =
-  | ValidationFailedResponse
-  | UnauthenticatedResponse
-  | PermissionDeniedResponse
-  | ConflictResponse
-  | ErrorResponse;
+const mutationKey = ['createPolicyDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-/**
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPolicyDocument>>, {data: PolicyDocumentInput}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createPolicyDocument(data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePolicyDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof createPolicyDocument>>>
+    export type CreatePolicyDocumentMutationBody = PolicyDocumentInput
+    export type CreatePolicyDocumentMutationError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse | ErrorResponse
+
+    /**
  * @summary Create a document with its first version (FR-006)
  */
-export const useCreatePolicyDocument = <
-  TError =
-    | ValidationFailedResponse
-    | UnauthenticatedResponse
-    | PermissionDeniedResponse
-    | ConflictResponse
-    | ErrorResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createPolicyDocument>>,
-      TError,
-      { data: PolicyDocumentInput },
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof createPolicyDocument>>,
-  TError,
-  { data: PolicyDocumentInput },
-  TContext
-> => {
-  const mutationOptions = getCreatePolicyDocumentMutationOptions(options);
+export const useCreatePolicyDocument = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse | ErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPolicyDocument>>, TError,{data: PolicyDocumentInput}, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createPolicyDocument>>,
+        TError,
+        {data: PolicyDocumentInput},
+        TContext
+      > => {
 
-  return useMutation(mutationOptions, queryClient);
-};
-/**
+      const mutationOptions = getCreatePolicyDocumentMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Document with its active text (text source) and recent versions
  */
-export const getGetPolicyDocumentUrl = (id: string) => {
-  return `/ai/policies/${id}`;
-};
+export const getGetPolicyDocumentUrl = (id: string,) => {
 
-export const getPolicyDocument = async (
-  id: string,
-  options?: RequestInit,
-): Promise<PolicyDocumentDetail> => {
-  return http<PolicyDocumentDetail>(getGetPolicyDocumentUrl(id), {
+
+  
+
+  return `/ai/policies/${id}`
+}
+
+export const getPolicyDocument = async (id: string, options?: RequestInit): Promise<PolicyDocumentDetail> => {
+  
+  return http<PolicyDocumentDetail>(getGetPolicyDocumentUrl(id),
+  {      
     ...options,
-    method: 'GET',
-  });
-};
+    method: 'GET'
+    
+    
+  }
+);}
 
-export const getGetPolicyDocumentQueryKey = (id?: string) => {
-  return [`/ai/policies/${id}`] as const;
-};
 
-export const getGetPolicyDocumentQueryOptions = <
-  TData = Awaited<ReturnType<typeof getPolicyDocument>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
->(
-  id: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPolicyDocument>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
+
+
+
+export const getGetPolicyDocumentQueryKey = (id?: string,) => {
+    return [
+    `/ai/policies/${id}`
+    ] as const;
+    }
+
+    
+export const getGetPolicyDocumentQueryOptions = <TData = Awaited<ReturnType<typeof getPolicyDocument>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPolicyDocument>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetPolicyDocumentQueryKey(id);
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPolicyDocument>>> = ({ signal }) =>
-    getPolicyDocument(id, { signal, ...requestOptions });
+  const queryKey =  queryOptions?.queryKey ?? getGetPolicyDocumentQueryKey(id);
 
-  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getPolicyDocument>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
+  
 
-export type GetPolicyDocumentQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getPolicyDocument>>
->;
-export type GetPolicyDocumentQueryError =
-  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getPolicyDocument>>> = ({ signal }) => getPolicyDocument(id, { signal, ...requestOptions });
 
-export function useGetPolicyDocument<
-  TData = Awaited<ReturnType<typeof getPolicyDocument>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
->(
-  id: string,
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPolicyDocument>>, TError, TData>> &
-      Pick<
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getPolicyDocument>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetPolicyDocumentQueryResult = NonNullable<Awaited<ReturnType<typeof getPolicyDocument>>>
+export type GetPolicyDocumentQueryError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse
+
+
+export function useGetPolicyDocument<TData = Awaited<ReturnType<typeof getPolicyDocument>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPolicyDocument>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getPolicyDocument>>,
           TError,
           Awaited<ReturnType<typeof getPolicyDocument>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetPolicyDocument<
-  TData = Awaited<ReturnType<typeof getPolicyDocument>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
->(
-  id: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPolicyDocument>>, TError, TData>> &
-      Pick<
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPolicyDocument<TData = Awaited<ReturnType<typeof getPolicyDocument>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPolicyDocument>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getPolicyDocument>>,
           TError,
           Awaited<ReturnType<typeof getPolicyDocument>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetPolicyDocument<
-  TData = Awaited<ReturnType<typeof getPolicyDocument>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
->(
-  id: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPolicyDocument>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetPolicyDocument<TData = Awaited<ReturnType<typeof getPolicyDocument>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPolicyDocument>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Document with its active text (text source) and recent versions
  */
 
-export function useGetPolicyDocument<
-  TData = Awaited<ReturnType<typeof getPolicyDocument>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
->(
-  id: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPolicyDocument>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetPolicyDocumentQueryOptions(id, options);
+export function useGetPolicyDocument<TData = Awaited<ReturnType<typeof getPolicyDocument>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getPolicyDocument>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
+  const queryOptions = getGetPolicyDocumentQueryOptions(id,options)
 
-  query.queryKey = queryOptions.queryKey;
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
 
   return query;
 }
 
-export const getRenamePolicyDocumentUrl = (id: string) => {
-  return `/ai/policies/${id}`;
-};
 
-export const renamePolicyDocument = async (
-  id: string,
-  renamePolicyDocumentBody: RenamePolicyDocumentBody,
-  options?: RequestInit,
-): Promise<PolicyDocument> => {
-  return http<PolicyDocument>(getRenamePolicyDocumentUrl(id), {
+
+
+export const getRenamePolicyDocumentUrl = (id: string,) => {
+
+
+  
+
+  return `/ai/policies/${id}`
+}
+
+export const renamePolicyDocument = async (id: string,
+    renamePolicyDocumentBody: RenamePolicyDocumentBody, options?: RequestInit): Promise<PolicyDocument> => {
+  
+  return http<PolicyDocument>(getRenamePolicyDocumentUrl(id),
+  {      
     ...options,
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(renamePolicyDocumentBody),
-  });
-};
+    body: JSON.stringify(
+      renamePolicyDocumentBody,)
+  }
+);}
 
-export const getRenamePolicyDocumentMutationOptions = <
-  TError =
-    | ValidationFailedResponse
-    | UnauthenticatedResponse
-    | PermissionDeniedResponse
-    | NotFoundResponse
-    | ConflictResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof renamePolicyDocument>>,
-    TError,
-    { id: string; data: RenamePolicyDocumentBody },
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof renamePolicyDocument>>,
-  TError,
-  { id: string; data: RenamePolicyDocumentBody },
-  TContext
-> => {
-  const mutationKey = ['renamePolicyDocument'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof renamePolicyDocument>>,
-    { id: string; data: RenamePolicyDocumentBody }
-  > = (props) => {
-    const { id, data } = props ?? {};
 
-    return renamePolicyDocument(id, data, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
+export const getRenamePolicyDocumentMutationOptions = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renamePolicyDocument>>, TError,{id: string;data: RenamePolicyDocumentBody}, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof renamePolicyDocument>>, TError,{id: string;data: RenamePolicyDocumentBody}, TContext> => {
 
-export type RenamePolicyDocumentMutationResult = NonNullable<
-  Awaited<ReturnType<typeof renamePolicyDocument>>
->;
-export type RenamePolicyDocumentMutationBody = RenamePolicyDocumentBody;
-export type RenamePolicyDocumentMutationError =
-  | ValidationFailedResponse
-  | UnauthenticatedResponse
-  | PermissionDeniedResponse
-  | NotFoundResponse
-  | ConflictResponse;
+const mutationKey = ['renamePolicyDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-export const useRenamePolicyDocument = <
-  TError =
-    | ValidationFailedResponse
-    | UnauthenticatedResponse
-    | PermissionDeniedResponse
-    | NotFoundResponse
-    | ConflictResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof renamePolicyDocument>>,
-      TError,
-      { id: string; data: RenamePolicyDocumentBody },
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof renamePolicyDocument>>,
-  TError,
-  { id: string; data: RenamePolicyDocumentBody },
-  TContext
-> => {
-  const mutationOptions = getRenamePolicyDocumentMutationOptions(options);
+      
 
-  return useMutation(mutationOptions, queryClient);
-};
-/**
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof renamePolicyDocument>>, {id: string;data: RenamePolicyDocumentBody}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  renamePolicyDocument(id,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RenamePolicyDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof renamePolicyDocument>>>
+    export type RenamePolicyDocumentMutationBody = RenamePolicyDocumentBody
+    export type RenamePolicyDocumentMutationError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse
+
+    export const useRenamePolicyDocument = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof renamePolicyDocument>>, TError,{id: string;data: RenamePolicyDocumentBody}, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof renamePolicyDocument>>,
+        TError,
+        {id: string;data: RenamePolicyDocumentBody},
+        TContext
+      > => {
+
+      const mutationOptions = getRenamePolicyDocumentMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Delete the document and its passages (FR-008)
  */
-export const getDeletePolicyDocumentUrl = (id: string) => {
-  return `/ai/policies/${id}`;
-};
+export const getDeletePolicyDocumentUrl = (id: string,) => {
+
+
+  
+
+  return `/ai/policies/${id}`
+}
 
 export const deletePolicyDocument = async (id: string, options?: RequestInit): Promise<void> => {
-  return http<void>(getDeletePolicyDocumentUrl(id), {
+  
+  return http<void>(getDeletePolicyDocumentUrl(id),
+  {      
     ...options,
-    method: 'DELETE',
-  });
-};
+    method: 'DELETE'
+    
+    
+  }
+);}
 
-export const getDeletePolicyDocumentMutationOptions = <
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof deletePolicyDocument>>,
-    TError,
-    { id: string },
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof deletePolicyDocument>>,
-  TError,
-  { id: string },
-  TContext
-> => {
-  const mutationKey = ['deletePolicyDocument'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof deletePolicyDocument>>,
-    { id: string }
-  > = (props) => {
-    const { id } = props ?? {};
 
-    return deletePolicyDocument(id, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
+export const getDeletePolicyDocumentMutationOptions = <TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePolicyDocument>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof deletePolicyDocument>>, TError,{id: string}, TContext> => {
 
-export type DeletePolicyDocumentMutationResult = NonNullable<
-  Awaited<ReturnType<typeof deletePolicyDocument>>
->;
+const mutationKey = ['deletePolicyDocument'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-export type DeletePolicyDocumentMutationError =
-  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+      
 
-/**
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deletePolicyDocument>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  deletePolicyDocument(id,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeletePolicyDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof deletePolicyDocument>>>
+    
+    export type DeletePolicyDocumentMutationError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse
+
+    /**
  * @summary Delete the document and its passages (FR-008)
  */
-export const useDeletePolicyDocument = <
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof deletePolicyDocument>>,
-      TError,
-      { id: string },
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof deletePolicyDocument>>,
-  TError,
-  { id: string },
-  TContext
-> => {
-  const mutationOptions = getDeletePolicyDocumentMutationOptions(options);
+export const useDeletePolicyDocument = <TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deletePolicyDocument>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof deletePolicyDocument>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
 
-  return useMutation(mutationOptions, queryClient);
-};
-/**
+      const mutationOptions = getDeletePolicyDocumentMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Save a new version (text or uploaded attachment); becomes active once processed
  */
-export const getCreatePolicyVersionUrl = (id: string) => {
-  return `/ai/policies/${id}/versions`;
-};
+export const getCreatePolicyVersionUrl = (id: string,) => {
 
-export const createPolicyVersion = async (
-  id: string,
-  policyVersionInput: PolicyVersionInput,
-  options?: RequestInit,
-): Promise<PolicyVersion> => {
-  return http<PolicyVersion>(getCreatePolicyVersionUrl(id), {
+
+  
+
+  return `/ai/policies/${id}/versions`
+}
+
+export const createPolicyVersion = async (id: string,
+    policyVersionInput: PolicyVersionInput, options?: RequestInit): Promise<PolicyVersion> => {
+  
+  return http<PolicyVersion>(getCreatePolicyVersionUrl(id),
+  {      
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(policyVersionInput),
-  });
-};
+    body: JSON.stringify(
+      policyVersionInput,)
+  }
+);}
 
-export const getCreatePolicyVersionMutationOptions = <
-  TError =
-    | ValidationFailedResponse
-    | UnauthenticatedResponse
-    | PermissionDeniedResponse
-    | NotFoundResponse
-    | ConflictResponse
-    | ErrorResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createPolicyVersion>>,
-    TError,
-    { id: string; data: PolicyVersionInput },
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof createPolicyVersion>>,
-  TError,
-  { id: string; data: PolicyVersionInput },
-  TContext
-> => {
-  const mutationKey = ['createPolicyVersion'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createPolicyVersion>>,
-    { id: string; data: PolicyVersionInput }
-  > = (props) => {
-    const { id, data } = props ?? {};
 
-    return createPolicyVersion(id, data, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
+export const getCreatePolicyVersionMutationOptions = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse | ErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPolicyVersion>>, TError,{id: string;data: PolicyVersionInput}, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof createPolicyVersion>>, TError,{id: string;data: PolicyVersionInput}, TContext> => {
 
-export type CreatePolicyVersionMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createPolicyVersion>>
->;
-export type CreatePolicyVersionMutationBody = PolicyVersionInput;
-export type CreatePolicyVersionMutationError =
-  | ValidationFailedResponse
-  | UnauthenticatedResponse
-  | PermissionDeniedResponse
-  | NotFoundResponse
-  | ConflictResponse
-  | ErrorResponse;
+const mutationKey = ['createPolicyVersion'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-/**
+      
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createPolicyVersion>>, {id: string;data: PolicyVersionInput}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createPolicyVersion(id,data,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreatePolicyVersionMutationResult = NonNullable<Awaited<ReturnType<typeof createPolicyVersion>>>
+    export type CreatePolicyVersionMutationBody = PolicyVersionInput
+    export type CreatePolicyVersionMutationError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse | ErrorResponse
+
+    /**
  * @summary Save a new version (text or uploaded attachment); becomes active once processed
  */
-export const useCreatePolicyVersion = <
-  TError =
-    | ValidationFailedResponse
-    | UnauthenticatedResponse
-    | PermissionDeniedResponse
-    | NotFoundResponse
-    | ConflictResponse
-    | ErrorResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createPolicyVersion>>,
-      TError,
-      { id: string; data: PolicyVersionInput },
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof createPolicyVersion>>,
-  TError,
-  { id: string; data: PolicyVersionInput },
-  TContext
-> => {
-  const mutationOptions = getCreatePolicyVersionMutationOptions(options);
+export const useCreatePolicyVersion = <TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse | ErrorResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createPolicyVersion>>, TError,{id: string;data: PolicyVersionInput}, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof createPolicyVersion>>,
+        TError,
+        {id: string;data: PolicyVersionInput},
+        TContext
+      > => {
 
-  return useMutation(mutationOptions, queryClient);
-};
-/**
+      const mutationOptions = getCreatePolicyVersionMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary AI usage list, newest first (ai_usage.view, FR-021)
  */
-export const getListAiRunsUrl = (params?: ListAiRunsParams) => {
+export const getListAiRunsUrl = (params?: ListAiRunsParams,) => {
   const normalizedParams = new URLSearchParams();
 
   Object.entries(params || {}).forEach(([key, value]) => {
+    
     if (value !== undefined) {
-      normalizedParams.append(key, value === null ? 'null' : value.toString());
+      normalizedParams.append(key, value === null ? 'null' : value.toString())
     }
   });
 
   const stringifiedParams = normalizedParams.toString();
 
-  return stringifiedParams.length > 0 ? `/ai/runs?${stringifiedParams}` : `/ai/runs`;
-};
+  return stringifiedParams.length > 0 ? `/ai/runs?${stringifiedParams}` : `/ai/runs`
+}
 
-export const listAiRuns = async (
-  params?: ListAiRunsParams,
-  options?: RequestInit,
-): Promise<ListAiRuns200> => {
-  return http<ListAiRuns200>(getListAiRunsUrl(params), {
+export const listAiRuns = async (params?: ListAiRunsParams, options?: RequestInit): Promise<ListAiRuns200> => {
+  
+  return http<ListAiRuns200>(getListAiRunsUrl(params),
+  {      
     ...options,
-    method: 'GET',
-  });
-};
+    method: 'GET'
+    
+    
+  }
+);}
 
-export const getListAiRunsQueryKey = (params?: ListAiRunsParams) => {
-  return [`/ai/runs`, ...(params ? [params] : [])] as const;
-};
 
-export const getListAiRunsQueryOptions = <
-  TData = Awaited<ReturnType<typeof listAiRuns>>,
-  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  params?: ListAiRunsParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiRuns>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
+
+
+
+export const getListAiRunsQueryKey = (params?: ListAiRunsParams,) => {
+    return [
+    `/ai/runs`, ...(params ? [params]: [])
+    ] as const;
+    }
+
+    
+export const getListAiRunsQueryOptions = <TData = Awaited<ReturnType<typeof listAiRuns>>, TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse>(params?: ListAiRunsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiRuns>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getListAiRunsQueryKey(params);
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAiRuns>>> = ({ signal }) =>
-    listAiRuns(params, { signal, ...requestOptions });
+  const queryKey =  queryOptions?.queryKey ?? getListAiRunsQueryKey(params);
 
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listAiRuns>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
+  
 
-export type ListAiRunsQueryResult = NonNullable<Awaited<ReturnType<typeof listAiRuns>>>;
-export type ListAiRunsQueryError =
-  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAiRuns>>> = ({ signal }) => listAiRuns(params, { signal, ...requestOptions });
 
-export function useListAiRuns<
-  TData = Awaited<ReturnType<typeof listAiRuns>>,
-  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  params: undefined | ListAiRunsParams,
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiRuns>>, TError, TData>> &
-      Pick<
+      
+
+      
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAiRuns>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type ListAiRunsQueryResult = NonNullable<Awaited<ReturnType<typeof listAiRuns>>>
+export type ListAiRunsQueryError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse
+
+
+export function useListAiRuns<TData = Awaited<ReturnType<typeof listAiRuns>>, TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse>(
+ params: undefined |  ListAiRunsParams, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiRuns>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof listAiRuns>>,
           TError,
           Awaited<ReturnType<typeof listAiRuns>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListAiRuns<
-  TData = Awaited<ReturnType<typeof listAiRuns>>,
-  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  params?: ListAiRunsParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiRuns>>, TError, TData>> &
-      Pick<
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAiRuns<TData = Awaited<ReturnType<typeof listAiRuns>>, TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse>(
+ params?: ListAiRunsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiRuns>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof listAiRuns>>,
           TError,
           Awaited<ReturnType<typeof listAiRuns>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useListAiRuns<
-  TData = Awaited<ReturnType<typeof listAiRuns>>,
-  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  params?: ListAiRunsParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiRuns>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useListAiRuns<TData = Awaited<ReturnType<typeof listAiRuns>>, TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse>(
+ params?: ListAiRunsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiRuns>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary AI usage list, newest first (ai_usage.view, FR-021)
  */
 
-export function useListAiRuns<
-  TData = Awaited<ReturnType<typeof listAiRuns>>,
-  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
->(
-  params?: ListAiRunsParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiRuns>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getListAiRunsQueryOptions(params, options);
+export function useListAiRuns<TData = Awaited<ReturnType<typeof listAiRuns>>, TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse>(
+ params?: ListAiRunsParams, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof listAiRuns>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
+  const queryOptions = getListAiRunsQueryOptions(params,options)
 
-  query.queryKey = queryOptions.queryKey;
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
 
   return query;
 }
 
+
+
+
 /**
  * @summary Open AI draft for the ticket (ticket reply access), 404 AI_DRAFT_NOT_FOUND when none
  */
-export const getGetTicketAiDraftUrl = (id: string) => {
-  return `/tickets/${id}/ai-draft`;
-};
+export const getGetTicketAiDraftUrl = (id: string,) => {
+
+
+  
+
+  return `/tickets/${id}/ai-draft`
+}
 
 export const getTicketAiDraft = async (id: string, options?: RequestInit): Promise<AiDraft> => {
-  return http<AiDraft>(getGetTicketAiDraftUrl(id), {
+  
+  return http<AiDraft>(getGetTicketAiDraftUrl(id),
+  {      
     ...options,
-    method: 'GET',
-  });
-};
+    method: 'GET'
+    
+    
+  }
+);}
 
-export const getGetTicketAiDraftQueryKey = (id?: string) => {
-  return [`/tickets/${id}/ai-draft`] as const;
-};
 
-export const getGetTicketAiDraftQueryOptions = <
-  TData = Awaited<ReturnType<typeof getTicketAiDraft>>,
-  TError = UnauthenticatedResponse | NotFoundResponse,
->(
-  id: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTicketAiDraft>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
+
+
+
+export const getGetTicketAiDraftQueryKey = (id?: string,) => {
+    return [
+    `/tickets/${id}/ai-draft`
+    ] as const;
+    }
+
+    
+export const getGetTicketAiDraftQueryOptions = <TData = Awaited<ReturnType<typeof getTicketAiDraft>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTicketAiDraft>>, TError, TData>>, request?: SecondParameter<typeof http>}
 ) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {};
 
-  const queryKey = queryOptions?.queryKey ?? getGetTicketAiDraftQueryKey(id);
+const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getTicketAiDraft>>> = ({ signal }) =>
-    getTicketAiDraft(id, { signal, ...requestOptions });
+  const queryKey =  queryOptions?.queryKey ?? getGetTicketAiDraftQueryKey(id);
 
-  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getTicketAiDraft>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
+  
 
-export type GetTicketAiDraftQueryResult = NonNullable<Awaited<ReturnType<typeof getTicketAiDraft>>>;
-export type GetTicketAiDraftQueryError = UnauthenticatedResponse | NotFoundResponse;
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getTicketAiDraft>>> = ({ signal }) => getTicketAiDraft(id, { signal, ...requestOptions });
 
-export function useGetTicketAiDraft<
-  TData = Awaited<ReturnType<typeof getTicketAiDraft>>,
-  TError = UnauthenticatedResponse | NotFoundResponse,
->(
-  id: string,
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTicketAiDraft>>, TError, TData>> &
-      Pick<
+      
+
+      
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getTicketAiDraft>>, TError, TData> & { queryKey: DataTag<QueryKey, TData, TError> }
+}
+
+export type GetTicketAiDraftQueryResult = NonNullable<Awaited<ReturnType<typeof getTicketAiDraft>>>
+export type GetTicketAiDraftQueryError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse
+
+
+export function useGetTicketAiDraft<TData = Awaited<ReturnType<typeof getTicketAiDraft>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(
+ id: string, options: { query:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTicketAiDraft>>, TError, TData>> & Pick<
         DefinedInitialDataOptions<
           Awaited<ReturnType<typeof getTicketAiDraft>>,
           TError,
           Awaited<ReturnType<typeof getTicketAiDraft>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetTicketAiDraft<
-  TData = Awaited<ReturnType<typeof getTicketAiDraft>>,
-  TError = UnauthenticatedResponse | NotFoundResponse,
->(
-  id: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTicketAiDraft>>, TError, TData>> &
-      Pick<
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTicketAiDraft<TData = Awaited<ReturnType<typeof getTicketAiDraft>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTicketAiDraft>>, TError, TData>> & Pick<
         UndefinedInitialDataOptions<
           Awaited<ReturnType<typeof getTicketAiDraft>>,
           TError,
           Awaited<ReturnType<typeof getTicketAiDraft>>
-        >,
-        'initialData'
-      >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
-export function useGetTicketAiDraft<
-  TData = Awaited<ReturnType<typeof getTicketAiDraft>>,
-  TError = UnauthenticatedResponse | NotFoundResponse,
->(
-  id: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTicketAiDraft>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+        > , 'initialData'
+      >, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
+export function useGetTicketAiDraft<TData = Awaited<ReturnType<typeof getTicketAiDraft>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTicketAiDraft>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient
+  ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
 /**
  * @summary Open AI draft for the ticket (ticket reply access), 404 AI_DRAFT_NOT_FOUND when none
  */
 
-export function useGetTicketAiDraft<
-  TData = Awaited<ReturnType<typeof getTicketAiDraft>>,
-  TError = UnauthenticatedResponse | NotFoundResponse,
->(
-  id: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getTicketAiDraft>>, TError, TData>>;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetTicketAiDraftQueryOptions(id, options);
+export function useGetTicketAiDraft<TData = Awaited<ReturnType<typeof getTicketAiDraft>>, TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse>(
+ id: string, options?: { query?:Partial<UseQueryOptions<Awaited<ReturnType<typeof getTicketAiDraft>>, TError, TData>>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient 
+ ):  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
 
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>;
-  };
+  const queryOptions = getGetTicketAiDraftQueryOptions(id,options)
 
-  query.queryKey = queryOptions.queryKey;
+  const query = useQuery(queryOptions, queryClient) as  UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey ;
 
   return query;
 }
 
-export const getDiscardTicketAiDraftUrl = (id: string) => {
-  return `/tickets/${id}/ai-draft/discard`;
-};
+
+
+
+export const getDiscardTicketAiDraftUrl = (id: string,) => {
+
+
+  
+
+  return `/tickets/${id}/ai-draft/discard`
+}
 
 export const discardTicketAiDraft = async (id: string, options?: RequestInit): Promise<void> => {
-  return http<void>(getDiscardTicketAiDraftUrl(id), {
+  
+  return http<void>(getDiscardTicketAiDraftUrl(id),
+  {      
     ...options,
-    method: 'POST',
-  });
-};
+    method: 'POST'
+    
+    
+  }
+);}
 
-export const getDiscardTicketAiDraftMutationOptions = <
-  TError = UnauthenticatedResponse | NotFoundResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof discardTicketAiDraft>>,
-    TError,
-    { id: string },
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof discardTicketAiDraft>>,
-  TError,
-  { id: string },
-  TContext
-> => {
-  const mutationKey = ['discardTicketAiDraft'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof discardTicketAiDraft>>,
-    { id: string }
-  > = (props) => {
-    const { id } = props ?? {};
 
-    return discardTicketAiDraft(id, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
+export const getDiscardTicketAiDraftMutationOptions = <TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discardTicketAiDraft>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof discardTicketAiDraft>>, TError,{id: string}, TContext> => {
 
-export type DiscardTicketAiDraftMutationResult = NonNullable<
-  Awaited<ReturnType<typeof discardTicketAiDraft>>
->;
+const mutationKey = ['discardTicketAiDraft'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-export type DiscardTicketAiDraftMutationError = UnauthenticatedResponse | NotFoundResponse;
+      
 
-export const useDiscardTicketAiDraft = <
-  TError = UnauthenticatedResponse | NotFoundResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof discardTicketAiDraft>>,
-      TError,
-      { id: string },
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof discardTicketAiDraft>>,
-  TError,
-  { id: string },
-  TContext
-> => {
-  const mutationOptions = getDiscardTicketAiDraftMutationOptions(options);
 
-  return useMutation(mutationOptions, queryClient);
-};
-/**
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof discardTicketAiDraft>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  discardTicketAiDraft(id,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DiscardTicketAiDraftMutationResult = NonNullable<Awaited<ReturnType<typeof discardTicketAiDraft>>>
+    
+    export type DiscardTicketAiDraftMutationError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse
+
+    export const useDiscardTicketAiDraft = <TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof discardTicketAiDraft>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof discardTicketAiDraft>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
+
+      const mutationOptions = getDiscardTicketAiDraftMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Stop the assistant on this ticket and make the caller the owner (FR-030, R17)
  */
-export const getTakeOverTicketFromAiUrl = (id: string) => {
-  return `/tickets/${id}/ai/takeover`;
-};
+export const getTakeOverTicketFromAiUrl = (id: string,) => {
 
-export const takeOverTicketFromAi = async (
-  id: string,
-  options?: RequestInit,
-): Promise<Responder> => {
-  return http<Responder>(getTakeOverTicketFromAiUrl(id), {
+
+  
+
+  return `/tickets/${id}/ai/takeover`
+}
+
+export const takeOverTicketFromAi = async (id: string, options?: RequestInit): Promise<Responder> => {
+  
+  return http<Responder>(getTakeOverTicketFromAiUrl(id),
+  {      
     ...options,
-    method: 'POST',
-  });
-};
+    method: 'POST'
+    
+    
+  }
+);}
 
-export const getTakeOverTicketFromAiMutationOptions = <
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof takeOverTicketFromAi>>,
-    TError,
-    { id: string },
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof takeOverTicketFromAi>>,
-  TError,
-  { id: string },
-  TContext
-> => {
-  const mutationKey = ['takeOverTicketFromAi'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof takeOverTicketFromAi>>,
-    { id: string }
-  > = (props) => {
-    const { id } = props ?? {};
 
-    return takeOverTicketFromAi(id, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
+export const getTakeOverTicketFromAiMutationOptions = <TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeOverTicketFromAi>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof takeOverTicketFromAi>>, TError,{id: string}, TContext> => {
 
-export type TakeOverTicketFromAiMutationResult = NonNullable<
-  Awaited<ReturnType<typeof takeOverTicketFromAi>>
->;
+const mutationKey = ['takeOverTicketFromAi'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-export type TakeOverTicketFromAiMutationError =
-  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse;
+      
 
-/**
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof takeOverTicketFromAi>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  takeOverTicketFromAi(id,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type TakeOverTicketFromAiMutationResult = NonNullable<Awaited<ReturnType<typeof takeOverTicketFromAi>>>
+    
+    export type TakeOverTicketFromAiMutationError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse
+
+    /**
  * @summary Stop the assistant on this ticket and make the caller the owner (FR-030, R17)
  */
-export const useTakeOverTicketFromAi = <
-  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof takeOverTicketFromAi>>,
-      TError,
-      { id: string },
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof takeOverTicketFromAi>>,
-  TError,
-  { id: string },
-  TContext
-> => {
-  const mutationOptions = getTakeOverTicketFromAiMutationOptions(options);
+export const useTakeOverTicketFromAi = <TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof takeOverTicketFromAi>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof takeOverTicketFromAi>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
 
-  return useMutation(mutationOptions, queryClient);
-};
-/**
+      const mutationOptions = getTakeOverTicketFromAiMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    /**
  * @summary Let the assistant answer again and clear the owner (FR-030, R17)
  */
-export const getHandTicketBackToAiUrl = (id: string) => {
-  return `/tickets/${id}/ai/handback`;
-};
+export const getHandTicketBackToAiUrl = (id: string,) => {
+
+
+  
+
+  return `/tickets/${id}/ai/handback`
+}
 
 export const handTicketBackToAi = async (id: string, options?: RequestInit): Promise<Responder> => {
-  return http<Responder>(getHandTicketBackToAiUrl(id), {
+  
+  return http<Responder>(getHandTicketBackToAiUrl(id),
+  {      
     ...options,
-    method: 'POST',
-  });
-};
+    method: 'POST'
+    
+    
+  }
+);}
 
-export const getHandTicketBackToAiMutationOptions = <
-  TError = UnauthenticatedResponse | NotFoundResponse | ConflictResponse,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof handTicketBackToAi>>,
-    TError,
-    { id: string },
-    TContext
-  >;
-  request?: SecondParameter<typeof http>;
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof handTicketBackToAi>>,
-  TError,
-  { id: string },
-  TContext
-> => {
-  const mutationKey = ['handTicketBackToAi'];
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined };
 
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof handTicketBackToAi>>,
-    { id: string }
-  > = (props) => {
-    const { id } = props ?? {};
 
-    return handTicketBackToAi(id, requestOptions);
-  };
 
-  return { mutationFn, ...mutationOptions };
-};
+export const getHandTicketBackToAiMutationOptions = <TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof handTicketBackToAi>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof http>}
+): UseMutationOptions<Awaited<ReturnType<typeof handTicketBackToAi>>, TError,{id: string}, TContext> => {
 
-export type HandTicketBackToAiMutationResult = NonNullable<
-  Awaited<ReturnType<typeof handTicketBackToAi>>
->;
+const mutationKey = ['handTicketBackToAi'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
 
-export type HandTicketBackToAiMutationError =
-  UnauthenticatedResponse | NotFoundResponse | ConflictResponse;
+      
 
-/**
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof handTicketBackToAi>>, {id: string}> = (props) => {
+          const {id} = props ?? {};
+
+          return  handTicketBackToAi(id,requestOptions)
+        }
+
+        
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type HandTicketBackToAiMutationResult = NonNullable<Awaited<ReturnType<typeof handTicketBackToAi>>>
+    
+    export type HandTicketBackToAiMutationError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse
+
+    /**
  * @summary Let the assistant answer again and clear the owner (FR-030, R17)
  */
-export const useHandTicketBackToAi = <
-  TError = UnauthenticatedResponse | NotFoundResponse | ConflictResponse,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof handTicketBackToAi>>,
-      TError,
-      { id: string },
-      TContext
-    >;
-    request?: SecondParameter<typeof http>;
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof handTicketBackToAi>>,
-  TError,
-  { id: string },
-  TContext
-> => {
-  const mutationOptions = getHandTicketBackToAiMutationOptions(options);
+export const useHandTicketBackToAi = <TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse | ConflictResponse,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof handTicketBackToAi>>, TError,{id: string}, TContext>, request?: SecondParameter<typeof http>}
+ , queryClient?: QueryClient): UseMutationResult<
+        Awaited<ReturnType<typeof handTicketBackToAi>>,
+        TError,
+        {id: string},
+        TContext
+      > => {
 
-  return useMutation(mutationOptions, queryClient);
-};
+      const mutationOptions = getHandTicketBackToAiMutationOptions(options);
+
+      return useMutation(mutationOptions, queryClient);
+    }
+    

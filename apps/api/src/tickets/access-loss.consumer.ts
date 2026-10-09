@@ -1,5 +1,6 @@
 import { Injectable, Module } from '@nestjs/common';
 
+import { ResponderService } from '../ai/assistant/responder.js';
 import { AccessRepository } from '../authorization/policy.service.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { tenantScopeOf, UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
@@ -93,6 +94,9 @@ export class AccessLossConsumer extends IdempotentHandler<Handled> {
     // A concurrent reconciliation (another matching group/reason in the same event) already cleared it.
     if (before === undefined || before.owner_id === null) return;
 
+    // Built inline: this consumer's constructor is fixed by its callers (it needs only the outbox).
+    const responders = new ResponderService(this.outbox);
+    const responderBefore = await responders.current(tx, ctx, ticketId);
     const ticket = await tickets.update(tx, ticketId, { owner_id: null });
     const changes: FieldChange[] = [{ field: 'owner_id', old: before.owner_id, new: null }];
     await this.history.record(tx, ticket.id, changes, { actorKind: 'system' });
@@ -108,6 +112,7 @@ export class AccessLossConsumer extends IdempotentHandler<Handled> {
       payload: { ticketId: ticket.id, previousOwnerId: before.owner_id, ownerId: null },
       streams: [ticketStream(ticket.id)],
     });
+    await responders.emitIfChanged(tx, ctx, ticket.id, responderBefore);
   }
 }
 

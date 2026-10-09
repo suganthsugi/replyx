@@ -85,6 +85,22 @@ export class AiTicketStateRepository extends TenantRepository {
       .execute();
   }
 
+  /** An agent took the ticket over (R17). The row must exist (`ensureLocked`). */
+  async takeOver(tx: TenantTransaction, ticketId: string, userId: string): Promise<void> {
+    await this.updateTable(tx, 'ai_ticket_state')
+      .set({ stopped_reason: 'taken_over', taken_over_by: userId })
+      .where('ai_ticket_state.ticket_id', '=', ticketId)
+      .execute();
+  }
+
+  /** Hand back to the assistant: every stop field and the unresolved run are cleared (R17). */
+  async handBack(tx: TenantTransaction, ticketId: string): Promise<void> {
+    await this.updateTable(tx, 'ai_ticket_state')
+      .set({ stopped_reason: null, taken_over_by: null, agent_replied_at: null, unresolved_turns: 0 })
+      .where('ai_ticket_state.ticket_id', '=', ticketId)
+      .execute();
+  }
+
   async stop(tx: TenantTransaction, ticketId: string, reason: AiStopReason): Promise<void> {
     await this.updateTable(tx, 'ai_ticket_state').set({ stopped_reason: reason }).where('ai_ticket_state.ticket_id', '=', ticketId).execute();
   }

@@ -4279,6 +4279,8 @@ paths:
                 $ref: "#/components/schemas/AiDraft"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
   /tickets/{id}/ai-draft/discard:
@@ -4293,6 +4295,8 @@ paths:
           description: Discarded
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
   /tickets/{id}/ai/takeover:
@@ -4335,6 +4339,8 @@ paths:
                 $ref: "#/components/schemas/Responder"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
         "409":

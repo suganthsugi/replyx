@@ -2,6 +2,7 @@ import { Injectable, Optional } from '@nestjs/common';
 import { sql } from 'kysely';
 import { z } from 'zod';
 
+import { responderForCustomer } from '../ai/assistant/responder.js';
 import { Clock } from '../platform-kernel/clock.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
@@ -24,6 +25,7 @@ import {
 import { MESSAGE_COLUMNS, MessagesRepository, type MessageRow } from './messages.repository.js';
 
 import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
+import type { Responder } from '../platform-kernel/outbox/event-types.js';
 
 /**
  * The customer's single thread (FR-048, FR-052, research D9): public messages across all of the
@@ -41,6 +43,8 @@ export interface ConversationPage {
   status: FriendlyStatus;
   pendingRating: null;
   streamSeq: number;
+  /** Who answers the next message: the assistant, an agent by name, or the team (FR-031). */
+  responder: Responder;
 }
 
 const Position = z.object({ at: z.iso.datetime(), key: z.string().min(1).max(64) }).strict();
@@ -109,6 +113,7 @@ export class CustomerConversationService {
         status: await this.status(ctx, tx, customerId),
         pendingRating: null,
         streamSeq,
+        responder: await responderForCustomer(tx, ctx, customerId),
       };
     });
   }

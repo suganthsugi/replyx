@@ -6,6 +6,7 @@ import { AiStatus, isActive } from '../settings/ai-status.js';
 import { AiTicketStateRepository, type AiTicketState } from './assistant.repositories.js';
 
 import type { AiReplyMode } from '../../platform-kernel/db/tables/ai.js';
+import type { AiSettingsRow } from '../settings/ai-settings.repository.js';
 
 /** The assistant is stopped on the ticket for any reason: hand-off, a staff reply or a take-over. */
 export function isStopped(state: Pick<AiTicketState, 'stoppedReason' | 'agentRepliedAt'> | undefined): boolean {
@@ -21,6 +22,14 @@ export function blocksAssistant(state: Pick<AiTicketState, 'stoppedReason' | 'ag
   if (state === undefined) return false;
   if (mode === 'auto') return isStopped(state);
   return state.stoppedReason?.startsWith('handoff:') === true;
+}
+
+/**
+ * The assistant will answer the customer itself: AI active, Auto-reply, ticket not stopped at all.
+ * The one rule behind `AiTicketStatus.isAssistantAnswering` and the `assistant` responder.
+ */
+export function isAnswering(settings: AiSettingsRow, state: Pick<AiTicketState, 'stoppedReason' | 'agentRepliedAt'> | undefined): boolean {
+  return isActive(settings) && settings.replyMode === 'auto' && !isStopped(state);
 }
 
 /**
@@ -46,7 +55,7 @@ export class AiTicketStatus {
 
   async isAssistantAnswering(tx: TenantTransaction, ticketId: string): Promise<boolean> {
     const { settings, state } = await this.load(tx, ticketId);
-    return isActive(settings) && settings.replyMode === 'auto' && !isStopped(state);
+    return isAnswering(settings, state);
   }
 
   private async load(tx: TenantTransaction, ticketId: string) {

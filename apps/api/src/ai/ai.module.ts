@@ -5,9 +5,12 @@ import { MessagingModule } from '../messaging/messaging.module.js';
 import { DirectNotifier } from '../notifications/direct-notifier.js';
 import { SecretBox } from '../platform-kernel/crypto/secret-box.js';
 import { PresenceService } from '../platform-kernel/realtime/presence.service.js';
+import { TicketsHttpModule } from '../tickets/tickets.module.js';
 
 import { AiAudience } from './ai-audience.js';
 import { AiPermissions } from './ai.permissions.js';
+import { AiTakeoverController } from './assistant/ai-takeover.controller.js';
+import { AiTakeoverService } from './assistant/ai-takeover.service.js';
 import { AiTicketStatus } from './assistant/ai-ticket-status.js';
 import { AssistantBrain } from './assistant/assistant-brain.js';
 import { AssistantTools } from './assistant/assistant-tools.js';
@@ -76,5 +79,9 @@ import { AiStatus } from './settings/ai-status.js';
 export class AiModule {}
 
 /** AI HTTP routes (api process only). */
-@Module({ controllers: [AiSettingsController, StoreConnectionController, AiPoliciesController, AiRunsController, AiDraftsController], providers: [AiSettingsService, AiPoliciesService, AiRunsService, AiDraftsService] })
+@Module({
+  imports: [TicketsHttpModule],
+  controllers: [AiSettingsController, StoreConnectionController, AiPoliciesController, AiRunsController, AiDraftsController, AiTakeoverController],
+  providers: [AiSettingsService, AiPoliciesService, AiRunsService, AiDraftsService, AiTakeoverService],
+})
 export class AiHttpModule {}

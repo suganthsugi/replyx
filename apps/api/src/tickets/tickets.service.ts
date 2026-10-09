@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 
+import { ResponderService } from '../ai/assistant/responder.js';
 import { AuditService } from '../audit/audit.service.js';
 import { AccessRepository, decide, PolicyService, type EffectiveAccess } from '../authorization/policy.service.js';
 import { announceResolved } from '../messaging/conversation-events.js';
@@ -96,6 +97,7 @@ export class TicketsService {
     private readonly history: TicketHistoryService,
     private readonly audit: AuditService,
     private readonly tags: TagsService,
+    private readonly responders: ResponderService,
   ) {}
 
   async update(ctx: TenantContext, ticketId: string, input: TicketUpdateInput): Promise<TicketDto> {
@@ -178,6 +180,8 @@ export class TicketsService {
 
     if (input.tagIds !== undefined) await this.replaceTags(tx, ticketId, input.tagIds);
 
+    // An owner change can change who answers the customer (spec 002 R18).
+    const responderBefore = patch.owner_id === undefined ? undefined : await this.responders.current(tx, ctx, ticketId);
     const ticket = Object.keys(patch).length === 0 ? before : await tickets.update(tx, ticketId, patch);
     const tagRefs = (await this.tags.tagsByTicketIds(tx, [ticket.id])).get(ticket.id) ?? [];
 
@@ -226,6 +230,8 @@ export class TicketsService {
         });
       }
     }
+
+    if (patch.owner_id !== undefined) await this.responders.emitIfChanged(tx, ctx, ticketId, responderBefore);
 
     return { ticket, tags: tagRefs };
   }
