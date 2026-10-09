@@ -1,20 +1,39 @@
 import { createServer, type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
 
+
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   OutboundRefusedError,
   OutboundTimeoutError,
+  type AllAddressesLookup,
   checkOutboundUrl,
   guardedLookup,
   isPrivateAddress,
   outboundRequest,
 } from '../../../src/platform-kernel/http/outbound-guard.js';
 
-// vitest's `vi.mock('node:dns')` does not intercept the guard's import in this SWC setup (the real
-// lookup ran, so every name was "unresolvable"). IP literals resolve to themselves without a DNS
-// query, so the guard's address checks are exercised deterministically without a mock.
+import type { LookupAddress } from 'node:dns';
+
+// vitest's `vi.mock('node:dns')` does not intercept the guard's import in this SWC setup, so the
+// lookup tests inject their own resolver: names resolve to fixed addresses, with no network or
+// /etc/hosts involved.
+const FIXTURES: Record<string, LookupAddress[]> = {
+  'rebind.test': [{ address: '10.1.2.3', family: 4 }],
+  'loopback.test': [{ address: '127.0.0.1', family: 4 }],
+  'public.test': [{ address: '93.184.216.34', family: 4 }],
+  'mixed.test': [
+    { address: '93.184.216.34', family: 4 },
+    { address: '::1', family: 6 },
+  ],
+};
+
+const fixtureLookup: AllAddressesLookup = (hostname, _options, callback) => {
+  const addresses = FIXTURES[hostname];
+  if (addresses === undefined) callback(Object.assign(new Error(`ENOTFOUND ${hostname}`), { code: 'ENOTFOUND' }), []);
+  else callback(null, addresses);
+};
 
 
 function refusal(fn: () => unknown): string | undefined {
@@ -73,18 +92,25 @@ describe('checkOutboundUrl', () => {
 describe('guardedLookup', () => {
   function resolve(host: string, allowPrivate: boolean): Promise<unknown> {
     return new Promise((done) => {
-      guardedLookup(allowPrivate)(host, { all: true }, (err, addresses) => done(err ?? addresses));
+      guardedLookup(allowPrivate, fixtureLookup)(host, { all: true }, (err, addresses) => done(err ?? addresses));
     });
   }
 
-  it('refuses a name that resolves to a private address (what a rebinding name resolves to)', async () => {
-    expect(await resolve('10.1.2.3', false)).toBeInstanceOf(OutboundRefusedError);
-    expect(await resolve('localhost', false)).toBeInstanceOf(OutboundRefusedError);
+  it('refuses a name that resolves to a private address (DNS rebinding), even alongside a public one', async () => {
+    expect(await resolve('rebind.test', false)).toBeInstanceOf(OutboundRefusedError);
+    expect(await resolve('loopback.test', false)).toBeInstanceOf(OutboundRefusedError);
+    expect(await resolve('mixed.test', false)).toBeInstanceOf(OutboundRefusedError);
+  });
+
+  it('refuses a name that does not resolve', async () => {
+    const refused = await resolve('missing.test', false);
+    expect(refused).toBeInstanceOf(OutboundRefusedError);
+    expect((refused as OutboundRefusedError).reason).toBe('unresolvable');
   });
 
   it('passes public addresses, and private ones in development', async () => {
-    expect(await resolve('93.184.216.34', false)).toEqual([{ address: '93.184.216.34', family: 4 }]);
-    expect(await resolve('10.1.2.3', true)).toEqual([{ address: '10.1.2.3', family: 4 }]);
+    expect(await resolve('public.test', false)).toEqual([{ address: '93.184.216.34', family: 4 }]);
+    expect(await resolve('rebind.test', true)).toEqual([{ address: '10.1.2.3', family: 4 }]);
   });
 });
 

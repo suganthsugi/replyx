@@ -104,10 +104,13 @@ export interface OutboundResponse {
 
 type LookupCallback = (err: NodeJS.ErrnoException | null, address: string | LookupAddress[], family?: number) => void;
 
-/** Exported for tests: the socket lookup that refuses private addresses. */
-export function guardedLookup(allowPrivate: boolean) {
+/** Resolves every address of a name; `node:dns` lookup in production, a fixture in tests. */
+export type AllAddressesLookup = (hostname: string, options: { all: true }, callback: (err: NodeJS.ErrnoException | null, addresses: LookupAddress[]) => void) => void;
+
+/** Exported for tests: the socket lookup that refuses private addresses. `resolve` is injectable for them. */
+export function guardedLookup(allowPrivate: boolean, resolve: AllAddressesLookup = dnsLookup) {
   return (hostname: string, options: { all?: boolean }, callback: LookupCallback): void => {
-    dnsLookup(hostname, { all: true }, (err, addresses) => {
+    resolve(hostname, { all: true }, (err, addresses) => {
       if (err !== null) {
         callback(new OutboundRefusedError('unresolvable'), []);
         return;
