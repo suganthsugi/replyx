@@ -203,7 +203,7 @@ description: "Task list for AI Assist (first cut)"
   - drafts mode upserts the single open `ai_drafts` row and emits `ai.draft_ready`
   - `GET /tickets/{id}/ai-draft` (404 `AI_DRAFT_NOT_FOUND`) and `POST /tickets/{id}/ai-draft/discard`, both with ticket reply access
   - `POST /tickets/{id}/messages` accepts an optional `aiDraftId`
-- [ ] T024 [US3] Take over, hand back and responder (research R17, R18):
+- [X] T024 [US3] Take over, hand back and responder (research R17, R18):
   - **`POST /tickets/{id}/ai/takeover`** (ticket edit access) goes through `TicketsService.applyLocked`: owner = caller (409 `OWNER_NOT_ALLOWED`), `stopped_reason='taken_over'`, `taken_over_by`, history `ai_takeover`, audit. Taking over again as the same user returns 200 with no change.
   - **`POST /tickets/{id}/ai/handback`** (409 `AI_NOT_IN_AUTO_MODE` / `AI_PAUSED`) clears the stop fields, `unresolved_turns` and the owner, and adds history `ai_handback`.
   - **Responder** (assistant | agent | team, per [data-model.md](data-model.md)): add `responder` and `ai {stopped, stoppedReason, canTakeOver, canHandBack}` to TicketDetail, and `responder` to the customer conversation projection.
