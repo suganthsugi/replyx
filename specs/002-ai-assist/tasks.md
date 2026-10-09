@@ -230,7 +230,7 @@ description: "Task list for AI Assist (first cut)"
     - a paused tenant behaves like Off
     - store connection: the outbound guard rejects private IPs
   - **Isolation**: cross-tenant 404 for the store connection, drafts, takeover/handback and runs.
-- [ ] T027 [P] [US3] Data hooks in `apps/web/src/data/ai/`:
+- [X] T027 [P] [US3] Data hooks in `apps/web/src/data/ai/`:
   - `storeConnection.ts`, `drafts.ts` (`ai.draft_ready` handler), `takeover.ts` (takeover and handback mutations) and `runs.ts`
   - `responder.ts`: a `conversation.responder_changed` / `ai.responder_scope_changed` handler that updates the ticket detail cache and the customer conversation cache
 - [ ] T028 [US3] UI:
