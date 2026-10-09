@@ -36,6 +36,7 @@ import {
 import { useRealtime } from '../../../data/realtime';
 
 import { AiSection } from './AiSection';
+import { RoutingSection } from './RoutingSection';
 import { StoreConnectionSection } from './StoreConnectionSection';
 
 /**
@@ -45,6 +46,7 @@ import { StoreConnectionSection } from './StoreConnectionSection';
  *   password field), Remove (confirmed) and Test connection (a plain-language result);
  * - how the assistant replies (Off, Drafts for agents, Auto-reply) and the model for each level,
  *   with its price per million tokens, saved together (only changed fields are sent);
+ * - AI routing (US4): on/off and the confidence needed, in `RoutingSection`;
  * - an "AI paused" banner while a bad key or no credit has paused AI; it appears and clears live.
  */
 
@@ -115,6 +117,7 @@ export default function AiSettingsPage() {
             <StoreConnectionSection />
             {/* Keyed by the saved values, so a save elsewhere (another tab, a pause) resets the form. */}
             <AssistantForm key={`${settingsQuery.data.replyMode}|${Object.values(settingsQuery.data.models).join('|')}`} settings={settingsQuery.data} models={modelsQuery.data} />
+            <RoutingSection key={`${String(settingsQuery.data.routingEnabled)}|${settingsQuery.data.routingThreshold}`} settings={settingsQuery.data} />
           </Box>
         )}
       </Box>
