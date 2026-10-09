@@ -178,7 +178,7 @@ description: "Task list for AI Assist (first cut)"
   - **Writer**: add an assistant message writer that reuses the staff reply path. A public answer sets `first_agent_reply_at` (if null) and `last_agent_reply_at` and moves `waiting_on` to `customer`. A message with `metadata.handoff=true` skips those.
   - **SLA**: the SLA consumer treats `authorKind in ('staff','assistant') && !metadata.handoff` as a reply.
   - **Notifications**: staff are not notified about assistant messages.
-- [ ] T021 [US3] Trigger consumers and turn pipeline in `apps/api/src/ai/assistant/` and `apps/api/src/ai/consumers.ts` (research R6):
+- [X] T021 [US3] Trigger consumers and turn pipeline in `apps/api/src/ai/assistant/` and `apps/api/src/ai/consumers.ts` (research R6):
   - **`AiTriggerConsumer`** (`IdempotentHandler`, queue `ai`, `message.created`): for a public customer message when `isActive` and mode ≠ off, enqueue an `ai-turn` job with deduplication id `turn:{tenantId}:{ticketId}`, a 3 s delay, `extend + replace`.
   - **`StaffReplyConsumer`**: on a public staff message, set `ai_ticket_state.agent_replied_at`, mark the open draft `sent` (when the reply carried `aiDraftId`) or `superseded`, and emit `conversation.responder_changed` if the responder changed.
   - **`ai-turn` job phases**:
@@ -208,7 +208,7 @@ description: "Task list for AI Assist (first cut)"
   - **`POST /tickets/{id}/ai/handback`** (409 `AI_NOT_IN_AUTO_MODE` / `AI_PAUSED`) clears the stop fields, `unresolved_turns` and the owner, and adds history `ai_handback`.
   - **Responder** (assistant | agent | team, per [data-model.md](data-model.md)): add `responder` and `ai {stopped, stoppedReason, canTakeOver, canHandBack}` to TicketDetail, and `responder` to the customer conversation projection.
   - **Events**: emit `conversation.responder_changed` on owner change, stop, hand back and hand-off; emit `ai.responder_scope_changed` on mode or pause change.
-- [ ] T025 [P] [US3] `GET /ai/runs` in `apps/api/src/ai/runs/` (`ai_usage.view`): cursor pagination with `from`, `to` and `purpose` filters, plus totals `{ runs, costUsd }` for the filter.
+- [X] T025 [P] [US3] `GET /ai/runs` in `apps/api/src/ai/runs/` (`ai_usage.view`): cursor pagination with `from`, `to` and `purpose` filters, plus totals `{ runs, costUsd }` for the filter.
 - [ ] T026 [US3] API tests in `apps/api/test/integration/ai/assistant.test.ts` and `apps/api/test/cross-tenant/ai-assistant.test.ts`, using the fake providers:
   - **Conversation and orders**:
     - "where is my order" then `R100200` gives the status; `R999999` gives the same reply as an unknown number
