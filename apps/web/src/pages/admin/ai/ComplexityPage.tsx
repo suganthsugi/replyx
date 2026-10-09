@@ -4,7 +4,7 @@ import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Slider from '@mui/material/Slider';
 import Typography from '@mui/material/Typography';
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 
 import { EmptyState } from '../../../components/foundations/EmptyState';
 import { useAnnounce } from '../../../components/foundations/LiveRegion';
@@ -117,7 +117,8 @@ export default function ComplexityPage() {
         </Typography>
         {query.isPending && <Skeleton variant="block" label="complexity settings" />}
         {query.isError && <EmptyState variant="error" title="Couldn't load the complexity settings" message={query.error?.message} onRetry={() => void query.refetch()} />}
-        {query.isSuccess && <ComplexityForm key={JSON.stringify(query.data)} config={query.data} />}
+        {/* Not keyed by the data: a save returns what was sent, and remounting would drop focus. */}
+        {query.isSuccess && <ComplexityForm config={query.data} />}
       </Box>
     </DesignSystemScope>
   );
@@ -131,20 +132,47 @@ function ComplexityForm({ config }: { config: ComplexityConfig }) {
   const toast = useToast();
   const announce = useAnnounce();
 
+  // Keyboard users keep their place (WCAG 2.4.3): after a move, focus stays on the moved card's
+  // button (or its heading once that button is disabled); after a remove, it goes to the next card,
+  // or to "Add factor" when none is left.
+  const listRef = useRef<HTMLDivElement>(null);
+  const [focusAfter, setFocusAfter] = useState<{ uid: string; control: 'up' | 'down' | 'heading' } | 'add' | null>(null);
+  // Server field errors are keyed by position: a move or a remove makes them point at the wrong card.
+  const [layoutVersion, setLayoutVersion] = useState(0);
+  useEffect(() => {
+    if (focusAfter === null) return;
+    const root = listRef.current;
+    if (focusAfter === 'add') {
+      root?.querySelector<HTMLElement>('[data-focus="add"]')?.focus();
+    } else {
+      const card = root?.querySelector(`[data-factor="${focusAfter.uid}"]`);
+      const button = card?.querySelector<HTMLButtonElement>(`[data-focus="${focusAfter.control}"]`);
+      (button !== null && button !== undefined && !button.disabled ? button : card?.querySelector<HTMLElement>('[data-focus="heading"]'))?.focus();
+    }
+    setFocusAfter(null);
+  }, [focusAfter, drafts]);
+
   const update = (index: number, change: Partial<Draft>) => setDrafts((all) => all.map((draft, i) => (i === index ? { ...draft, ...change } : draft)));
   const move = (index: number, by: -1 | 1) => {
     const target = index + by;
+    const moving = drafts[index];
+    if (moving === undefined || target < 0 || target >= drafts.length) return;
     setDrafts((all) => {
       const next = [...all];
       const [moved] = next.splice(index, 1);
       if (moved !== undefined) next.splice(target, 0, moved);
       return next;
     });
-    announce(`${drafts[index]?.label || 'Factor'} moved to position ${target + 1} of ${drafts.length}`, 'polite');
+    setLayoutVersion((version) => version + 1);
+    setFocusAfter({ uid: moving.uid, control: by === -1 ? 'up' : 'down' });
+    announce(`${moving.label || 'Factor'} moved to position ${target + 1} of ${drafts.length}`, 'polite');
   };
   const remove = (index: number) => {
+    const neighbour = drafts[index + 1] ?? drafts[index - 1];
     announce(`${drafts[index]?.label || 'Factor'} removed`, 'polite');
     setDrafts((all) => all.filter((_, i) => i !== index));
+    setLayoutVersion((version) => version + 1);
+    setFocusAfter(neighbour === undefined ? 'add' : { uid: neighbour.uid, control: 'heading' });
   };
 
   const ordered = standard < advanced;
@@ -153,6 +181,7 @@ function ComplexityForm({ config }: { config: ComplexityConfig }) {
   return (
     <Form
       label="Complexity settings"
+      resetErrorKey={layoutVersion}
       onSubmit={async () => {
         await save.mutateAsync({ thresholds: { standard: standard / 100, advanced: advanced / 100 }, factors: drafts.map(toFactor) });
         toast({ message: 'Complexity settings saved', severity: 'success' });
@@ -164,7 +193,10 @@ function ComplexityForm({ config }: { config: ComplexityConfig }) {
 
       <AiSection title="Factors" description="What makes a conversation complex for your team. Weights set how much each factor counts.">
         <FactorsIssue />
-        {drafts.length === 0 && <EmptyState title="No factors" message="Without factors every conversation uses the Fast model." headingLevel={3} />}
+        {drafts.length === 0 && (
+          <EmptyState title="No factors" message="Add at least one factor with a weight above 0 to save. Until then every conversation uses the Fast model." headingLevel={3} />
+        )}
+        <Box ref={listRef}>
         <Box component="ol" sx={{ listStyle: 'none', m: 0, p: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
           {drafts.map((draft, index) => (
             <FactorCard
@@ -179,7 +211,7 @@ function ComplexityForm({ config }: { config: ComplexityConfig }) {
           ))}
         </Box>
         <Box sx={{ mt: 4 }}>
-          <Button variant="outlined" disabled={drafts.length >= MAX_FACTORS} onClick={() => setDrafts((all) => [...all, newDraft()])}>
+          <Button variant="outlined" data-focus="add" disabled={drafts.length >= MAX_FACTORS} onClick={() => setDrafts((all) => [...all, newDraft()])}>
             Add factor
           </Button>
           {drafts.length >= MAX_FACTORS && (
@@ -187,6 +219,7 @@ function ComplexityForm({ config }: { config: ComplexityConfig }) {
               You can have up to {MAX_FACTORS} factors.
             </Typography>
           )}
+        </Box>
         </Box>
       </AiSection>
 
@@ -289,16 +322,16 @@ function FactorCard({ draft, index, count, onChange, onMove, onRemove }: FactorC
   const kind = KINDS.find((entry) => entry.value === draft.kind);
 
   return (
-    <Box component="li" aria-labelledby={headingId} sx={{ p: 4, border: 1, borderColor: 'divider', borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
+    <Box component="li" aria-labelledby={headingId} data-factor={draft.uid} sx={{ p: 4, border: 1, borderColor: 'divider', borderRadius: 2, display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2, flexWrap: 'wrap' }}>
-        <Typography id={headingId} component="h3" variant="h6">
+        <Typography id={headingId} component="h3" variant="h6" tabIndex={-1} data-focus="heading" sx={{ outline: 'none' }}>
           {name}
         </Typography>
         <Box sx={{ display: 'flex', gap: 1 }}>
-          <Button size="small" onClick={() => onMove(-1)} disabled={index === 0} aria-label={`Move ${name} up`}>
+          <Button size="small" data-focus="up" onClick={() => onMove(-1)} disabled={index === 0} aria-label={`Move ${name} up`}>
             Up
           </Button>
-          <Button size="small" onClick={() => onMove(1)} disabled={index === count - 1} aria-label={`Move ${name} down`}>
+          <Button size="small" data-focus="down" onClick={() => onMove(1)} disabled={index === count - 1} aria-label={`Move ${name} down`}>
             Down
           </Button>
           <Button size="small" color="error" onClick={onRemove} aria-label={`Remove ${name}`}>
@@ -320,7 +353,7 @@ function FactorCard({ draft, index, count, onChange, onMove, onRemove }: FactorC
         label="Key"
         value={draft.key}
         required
-        helperText="Lowercase letters, digits and underscores. Used in usage reports."
+        helperText="Identifies the factor. Lowercase letters, digits and underscores, starting with a letter."
         onChange={(event) => onChange({ key: event.target.value, keyTouched: true })}
         slotProps={{ htmlInput: { maxLength: 40, spellCheck: false } }}
       />

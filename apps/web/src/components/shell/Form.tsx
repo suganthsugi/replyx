@@ -3,7 +3,7 @@ import Box from '@mui/material/Box';
 import Button, { type ButtonProps } from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import TextField, { type TextFieldProps } from '@mui/material/TextField';
-import { createContext, useContext, useState, type FormEvent, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useState, type FormEvent, type ReactNode } from 'react';
 
 import { mapError, type UiError } from '../../data/errors';
 
@@ -52,10 +52,15 @@ export interface FormProps {
   children: ReactNode;
   /** Accessible name for the form, e.g. "Invite a user". */
   label?: string;
+  /** A change clears the last server error, e.g. when list fields are reordered and its paths no longer fit. */
+  resetErrorKey?: unknown;
 }
 
-export function Form({ onSubmit, children, label }: FormProps) {
+export function Form({ onSubmit, children, label, resetErrorKey }: FormProps) {
   const [state, setState] = useState<FormState>({ submitting: false });
+  useEffect(() => {
+    setState((current) => (current.error === undefined ? current : { submitting: current.submitting }));
+  }, [resetErrorKey]);
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();

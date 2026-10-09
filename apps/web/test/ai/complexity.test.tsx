@@ -78,7 +78,10 @@ describe('ComplexityPage', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'Move Order value up' }));
     expect(polite()).toHaveTextContent('Order value moved to position 2 of 3');
+    expect(screen.getByRole('button', { name: 'Move Order value up' })).toHaveFocus();
     await userEvent.click(screen.getByRole('button', { name: 'Remove Customer frustration' }));
+    // Focus goes to the next card instead of falling back to the page.
+    expect(screen.getByRole('heading', { level: 3, name: 'Order value' })).toHaveFocus();
 
     await userEvent.click(screen.getByRole('button', { name: 'Save complexity settings' }));
     await waitFor(() => expect(saved).toHaveLength(1));
@@ -99,6 +102,13 @@ describe('ComplexityPage', () => {
         { key: 'several_issues', label: 'Several issues', kind: 'noul', weight: 1, instructions: 'Several issues?', criteria: { true: 'Two or more.', false: 'One.' } },
       ],
     });
+  }, 30_000);
+
+  it('moves focus to Add factor after removing the last factor', async () => {
+    renderComplexity({ ...CONFIG, factors: [CONFIG.factors[0]!] });
+    await userEvent.click(await screen.findByRole('button', { name: 'Remove Customer frustration' }, FIND));
+    expect(screen.getByRole('button', { name: 'Add factor' })).toHaveFocus();
+    expect(screen.getByText(/Add at least one factor with a weight above 0 to save/)).toBeInTheDocument();
   });
 
   it('blocks saving while the Advanced threshold is not above the Standard one', async () => {
