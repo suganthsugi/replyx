@@ -1,13 +1,16 @@
+import { getContrastRatio } from '@mui/material/styles';
 import { act, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 
-import { ResponderBadge } from '../../src/components/data-display/ResponderBadge';
+
+import { assistantSheenStops, ResponderBadge } from '../../src/components/data-display/ResponderBadge';
 import { RealtimeProvider } from '../../src/data/realtime';
 import AiUsagePage from '../../src/pages/admin/ai/AiUsagePage';
 import ChatPage from '../../src/pages/customer/ChatPage';
 import { TicketFocus } from '../../src/pages/desk/inbox/TicketFocus';
+import { createDesignSystemTheme } from '../../src/theme/theme';
 import { conversationEvent, conversationPage, FakeSocket, me, myMessage, supportMessage } from '../chat/fixtures';
 import { eligibleOwnersHandler, groupDestinationsHandler, historyHandler, makeEligibleOwner, makeGroup, makeMe, makeMessage, makeTicket, meHandler, messagesHandler, tagsHandler, usersHandler } from '../desk/fixtures';
 import { API, branding, errorResponse } from '../msw/handlers';
@@ -42,6 +45,17 @@ describe('ResponderBadge', () => {
     const { container } = renderWithProviders(<ResponderBadge responder={responder} />);
     expect(spoken(container.querySelector('[data-testid="responder-badge"]'))).toBe(text);
     await expectNoAxeViolations(container);
+  });
+
+  // Near-threshold accents: resolveBrandAccent shifts them only as far as AA needs, so they sit close to 4.5:1.
+  it.each(['light', 'dark'] as const)('keeps every gradient stop at 4.5:1 or more under the label (%s)', (mode) => {
+    for (const tenantColor of [null, '#0F766E', '#2563EB', '#E11D48', '#CA8A04', '#7C3AED', '#14B8A6']) {
+      const theme = createDesignSystemTheme(mode, tenantColor);
+      const label = theme.palette.primary.contrastText;
+      for (const stop of Object.values(assistantSheenStops(theme))) {
+        expect(getContrastRatio(label, stop), `${String(tenantColor)} ${stop}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
   });
 
   it('announces a change politely, but not the first render', () => {

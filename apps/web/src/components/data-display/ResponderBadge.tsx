@@ -1,6 +1,6 @@
 import Avatar from '@mui/material/Avatar';
 import Box from '@mui/material/Box';
-import { darken, keyframes, lighten, useTheme } from '@mui/material/styles';
+import { darken, keyframes, lighten, useTheme, type Theme } from '@mui/material/styles';
 import Typography from '@mui/material/Typography';
 import { useEffect, useRef } from 'react';
 
@@ -28,6 +28,15 @@ const sweep = keyframes`
   to { background-position: -100% 0; }
 `;
 
+/**
+ * The Assistant variant's gradient stops. Each one moves away from the label color (`primary.contrastText`):
+ * darker under white text, lighter under dark text, so no stop has less contrast than `primary.main`.
+ */
+export function assistantSheenStops(theme: Theme): { main: string; sheen: string } {
+  const main = theme.palette.primary.main;
+  return { main, sheen: theme.palette.mode === 'dark' ? lighten(main, 0.35) : darken(main, 0.3) };
+}
+
 export function responderLabel(responder: Responder): string {
   if (responder.kind === 'assistant') return 'Assistant';
   if (responder.kind === 'agent') return responder.name;
@@ -47,7 +56,8 @@ export function ResponderBadge({ responder }: ResponderBadgeProps) {
 
   const pill = { display: 'inline-flex', alignItems: 'center', gap: 1.5, px: 2.5, py: 0.75, borderRadius: 9999, maxWidth: '100%', minWidth: 0 } as const;
   const caption = (
-    <Typography component="span" variant="caption" sx={{ opacity: 0.85 }}>
+    // Solid color, no opacity: a faded caption can fall below 4.5:1 on a near-threshold tenant accent.
+    <Typography component="span" variant="caption" sx={{ fontWeight: 400 }}>
       Now replying:
     </Typography>
   );
@@ -55,8 +65,7 @@ export function ResponderBadge({ responder }: ResponderBadgeProps) {
   const gap = ' ';
 
   if (responder.kind === 'assistant') {
-    const main = theme.palette.primary.main;
-    const sheen = theme.palette.mode === 'dark' ? lighten(main, 0.35) : darken(main, 0.3);
+    const { main, sheen } = assistantSheenStops(theme);
     return (
       <Box
         data-testid="responder-badge"
