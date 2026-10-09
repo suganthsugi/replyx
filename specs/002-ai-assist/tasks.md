@@ -168,7 +168,7 @@ description: "Task list for AI Assist (first cut)"
 **Goal**: Auto-replies and drafts grounded in policies and Spree orders. Hand-off to people, take over and hand back, SLA counting, and a live responder badge.
 **Independent test**: quickstart scenarios 3–8 and 10–13.
 
-- [ ] T019 [US3] Commerce connector in `apps/api/src/ai/commerce/` (research R9):
+- [X] T019 [US3] Commerce connector in `apps/api/src/ai/commerce/` (research R9):
   - **`CommerceConnector` port**: `getOrder(number)` returns `{ number, email, state, shipmentState, completedAt, items[], shipments[{tracking, trackingUrl, state}] }`, plus `test()`.
   - **`SpreeAdminConnector`**: `GET {baseUrl}/api/v3/admin/orders?q[number_eq]=…&expand=line_items,shipments` with header `X-Spree-API-Key`, mapped through zod, 5 s timeout. **Verify the field and expand names against the live Spree 5.5.4 store (`https://store.example.com`) with the owner's read-only key before finishing.**
   - **`FakeCommerceConnector`**: fixtures `R100200` (seeded customer) and `R999999` (another email). Selected by `COMMERCE_PROVIDER`.
