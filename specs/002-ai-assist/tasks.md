@@ -233,7 +233,7 @@ description: "Task list for AI Assist (first cut)"
 - [X] T027 [P] [US3] Data hooks in `apps/web/src/data/ai/`:
   - `storeConnection.ts`, `drafts.ts` (`ai.draft_ready` handler), `takeover.ts` (takeover and handback mutations) and `runs.ts`
   - `responder.ts`: a `conversation.responder_changed` / `ai.responder_scope_changed` handler that updates the ticket detail cache and the customer conversation cache
-- [ ] T028 [US3] UI:
+- [X] T028 [US3] UI:
   - **`ResponderBadge`** in `apps/web/src/components/ResponderBadge.tsx`: the Assistant variant has an animated shining `linear-gradient` sheen (about 3 s loop) that is static under `prefers-reduced-motion`, with text contrast ≥ 4.5:1 on every stop. The agent variant shows avatar and name; the team variant shows "Support team". `aria-live="polite"` announces "Now replying: …".
   - **Where it appears**: at the top of the ticket conversation in `apps/web/src/pages/desk/ticket/` and the customer chat header in `apps/web/src/pages/customer/`.
   - **Ticket view**: Take over and Hand back to AI buttons per `ai.canTakeOver`/`canHandBack`, and an "AI draft — Use / Discard" bar above the composer.
