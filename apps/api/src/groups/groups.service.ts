@@ -23,6 +23,8 @@ import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
  *   tickets module's check.
  * - Delete is refused with 409 `GROUP_HAS_TICKETS` while any ticket references the group (FR-030);
  *   otherwise the role access rows go with it (FK cascade) and the access version is bumped.
+ * - `aiDescription` (≤ 500 chars, spec 002 FR-023) tells AI routing what the group handles. Setting
+ *   or clearing it also needs `ai_settings.manage` (403 otherwise); other edits leave it alone.
  * - Ticket counts come from the tickets module through `GROUP_TICKET_STATS` (US6); until it
  *   exists every count is 0 and no group has tickets.
  */
@@ -31,6 +33,7 @@ export interface GroupDto {
   id: string;
   name: string;
   description?: string;
+  aiDescription: string | null;
   status: 'active' | 'inactive';
   openTicketCount: number;
 }
@@ -43,6 +46,8 @@ export interface GroupRefDto {
 export interface GroupInput {
   name?: string;
   description?: string;
+  /** `null` or an empty string clears it. */
+  aiDescription?: string | null;
   status?: 'active' | 'inactive';
 }
 
@@ -73,7 +78,7 @@ const noTickets: GroupTicketStats = {
   hasTickets: () => Promise.resolve(false),
 };
 
-type GroupRow = { id: string; name: string; description: string | null; status: 'active' | 'inactive' };
+type GroupRow = { id: string; name: string; description: string | null; ai_description: string | null; status: 'active' | 'inactive' };
 
 @Injectable()
 export class GroupsService {
@@ -114,10 +119,11 @@ export class GroupsService {
   }
 
   async create(ctx: TenantContext, input: GroupInput & { name: string }): Promise<GroupDto> {
+    if (input.aiDescription !== undefined) await this.requireAiSettings(ctx);
     return this.unitOfWork.withTenant(ctx, async (tx) => {
       const repo = new GroupsRepository(ctx);
       const groupId = await nameTaken(() =>
-        repo.insert(tx, { name: input.name, description: input.description ?? null, status: input.status ?? 'active' }),
+        repo.insert(tx, { name: input.name, description: input.description ?? null, ai_description: aiDescriptionOf(input.aiDescription), status: input.status ?? 'active' }),
       );
       await repo.grantAdminFullAccess(tx, groupId);
       await bumpAccessVersion(tx, ctx.tenantId, 'group.created', this.outbox);
@@ -132,15 +138,19 @@ export class GroupsService {
   }
 
   async update(ctx: TenantContext, groupId: string, input: GroupInput): Promise<GroupDto> {
+    if (input.aiDescription !== undefined) await this.requireAiSettings(ctx);
     return this.unitOfWork.withTenant(ctx, async (tx) => {
       const repo = new GroupsRepository(ctx);
       const group = await repo.byId(tx, groupId);
       if (group === undefined) throw notFound('group');
 
-      const changes: Partial<Pick<GroupRow, 'name' | 'description' | 'status'>> = {};
+      const changes: Partial<Pick<GroupRow, 'name' | 'description' | 'ai_description' | 'status'>> = {};
       if (input.name !== undefined && input.name !== group.name) changes.name = input.name;
       if (input.description !== undefined && input.description !== (group.description ?? '')) {
         changes.description = input.description === '' ? null : input.description;
+      }
+      if (input.aiDescription !== undefined && aiDescriptionOf(input.aiDescription) !== group.ai_description) {
+        changes.ai_description = aiDescriptionOf(input.aiDescription);
       }
       if (input.status !== undefined && input.status !== group.status) changes.status = input.status;
 
@@ -198,6 +208,11 @@ export class GroupsService {
     });
   }
 
+  /** Group AI descriptions are AI configuration: `ai_settings.manage` on top of the group permission. */
+  private async requireAiSettings(ctx: TenantContext): Promise<void> {
+    if ((await this.policy.can(ctx, 'ai_settings.manage')) !== 'allow') throw permissionDenied();
+  }
+
   private async load(ctx: TenantContext, tx: TenantTransaction, groupId: string): Promise<GroupDto> {
     const row = await new GroupsRepository(ctx).byId(tx, groupId);
     if (row === undefined) throw notFound('group');
@@ -211,9 +226,15 @@ function toDto(row: GroupRow, openTicketCount: number): GroupDto {
     id: row.id,
     name: row.name,
     ...(row.description === null ? {} : { description: row.description }),
+    aiDescription: row.ai_description,
     status: row.status,
     openTicketCount,
   };
+}
+
+function aiDescriptionOf(value: string | null | undefined): string | null {
+  const trimmed = value?.trim() ?? '';
+  return trimmed === '' ? null : trimmed;
 }
 
 /** Runs a write and turns the case-insensitive name index violation into 409 `GROUP_NAME_TAKEN`. */
@@ -231,21 +252,21 @@ async function nameTaken<T>(write: () => Promise<T>): Promise<T> {
 
 class GroupsRepository extends TenantRepository {
   list(tx: TenantTransaction, status?: 'active' | 'inactive'): Promise<GroupRow[]> {
-    let query = this.selectFrom(tx, 'groups').select(['id', 'name', 'description', 'status']);
+    let query = this.selectFrom(tx, 'groups').select(['id', 'name', 'description', 'ai_description', 'status']);
     if (status !== undefined) query = query.where('status', '=', status);
     return query.orderBy('name').orderBy('id').execute();
   }
 
   byId(tx: TenantTransaction, groupId: string): Promise<GroupRow | undefined> {
-    return this.selectFrom(tx, 'groups').select(['id', 'name', 'description', 'status']).where('id', '=', groupId).executeTakeFirst();
+    return this.selectFrom(tx, 'groups').select(['id', 'name', 'description', 'ai_description', 'status']).where('id', '=', groupId).executeTakeFirst();
   }
 
-  async insert(tx: TenantTransaction, row: { name: string; description: string | null; status: 'active' | 'inactive' }): Promise<string> {
+  async insert(tx: TenantTransaction, row: { name: string; description: string | null; ai_description: string | null; status: 'active' | 'inactive' }): Promise<string> {
     const inserted = await this.insertInto(tx, 'groups', row).returning('id').executeTakeFirstOrThrow();
     return inserted.id;
   }
 
-  async update(tx: TenantTransaction, groupId: string, values: Partial<Pick<GroupRow, 'name' | 'description' | 'status'>>): Promise<void> {
+  async update(tx: TenantTransaction, groupId: string, values: Partial<Pick<GroupRow, 'name' | 'description' | 'ai_description' | 'status'>>): Promise<void> {
     await this.updateTable(tx, 'groups').set(values).where('id', '=', groupId).execute();
   }
 

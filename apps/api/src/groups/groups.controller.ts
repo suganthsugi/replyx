@@ -18,10 +18,14 @@ const ListQuery = z.object({ status: z.enum(['active', 'inactive']).optional() }
 const Name = z.string().trim().min(1).max(80);
 const Description = z.string().max(300);
 const Status = z.enum(['active', 'inactive']);
+/** Spec 002 FR-023; setting it also needs `ai_settings.manage` (checked in the service). */
+const AiDescription = z.string().max(500).nullable();
 
-const CreateBody = z.object({ name: Name, description: Description.optional(), status: Status.optional() }).strict();
+const CreateBody = z.object({ name: Name, description: Description.optional(), aiDescription: AiDescription.optional(), status: Status.optional() }).strict();
 
-const UpdateBody = z.object({ name: Name.optional(), description: Description.optional(), status: Status.optional() }).strict();
+const UpdateBody = z
+  .object({ name: Name.optional(), description: Description.optional(), aiDescription: AiDescription.optional(), status: Status.optional() })
+  .strict();
 
 @Controller('groups')
 export class GroupsController {
