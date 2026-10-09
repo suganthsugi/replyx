@@ -107,3 +107,20 @@ export function useTestStoreConnection() {
 }
 
 export type { ConnectionTest, PutStoreConnectionBody, StoreConnection };
+
+const STORE_TEST_ERROR_MESSAGES: Readonly<Record<string, string>> = {
+  invalid_key: 'The store did not accept the key. Check that you copied all of it and that it can read orders.',
+  auth: 'The store did not accept the key. Check that you copied all of it and that it can read orders.',
+  not_allowed: 'ReplyX is not allowed to connect to this address. Use the public https address of your store.',
+  rate_limit: 'The store is busy right now. Try again in a minute.',
+  unreachable: "Couldn't reach the store. Check the address and try again.",
+  unavailable: "Couldn't reach the store. Check the address and try again.",
+  timeout: 'The store did not answer in time. Try again in a minute.',
+  unexpected_response: 'The address answered, but not like a Spree store. Check the store address and that Spree is version 5.5 or later.',
+  bad_response: 'The address answered, but not like a Spree store. Check the store address and that Spree is version 5.5 or later.',
+};
+
+/** Plain-language text for a store connection test error code (`lastTest.error`, `ConnectionTest.error`). */
+export function storeTestErrorMessage(code: string | null | undefined): string {
+  return (code === null || code === undefined ? undefined : STORE_TEST_ERROR_MESSAGES[code]) ?? "The last test didn't work. Check the address and the key, then test again.";
+}

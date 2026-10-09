@@ -7,7 +7,7 @@ import Tab from '@mui/material/Tab';
 import Tabs from '@mui/material/Tabs';
 import TextField from '@mui/material/TextField';
 import Typography from '@mui/material/Typography';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { EmptyState } from '../../../components/foundations/EmptyState';
 import { CloseIcon } from '../../../components/foundations/icons';
@@ -21,6 +21,7 @@ import { TagInput } from '../../../components/inputs/TagInput';
 import { UserSelector } from '../../../components/inputs/UserSelector';
 import { ConfirmationDialog } from '../../../components/shell/ConfirmationDialog';
 import { useToast } from '../../../components/shell/Toast';
+import { AiDraftBar } from '../../../components/tickets/AiDraftBar';
 import { HistoryTimeline } from '../../../components/tickets/HistoryTimeline';
 import { MergeTicketDialog, SplitTicketDialog } from '../../../components/tickets/MergeSplitDialogs';
 import { PresenceStack } from '../../../components/tickets/PresenceStack';
@@ -28,6 +29,7 @@ import { PriorityMark } from '../../../components/tickets/PriorityMark';
 import { StatePill } from '../../../components/tickets/StatePill';
 import { TicketConversation } from '../../../components/tickets/TicketConversation';
 import { TriageBar } from '../../../components/tickets/TriageBar';
+import { useAiDraft, useAiDraftEvents, useDiscardAiDraft } from '../../../data/ai/drafts';
 import { useAttachmentUploads } from '../../../data/attachments';
 import { useMe } from '../../../data/auth';
 import { mapError } from '../../../data/errors';
@@ -118,6 +120,23 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
   const messages = useTicketMessages(ticketId);
   const history = useTicketHistory(ticketId);
   const { send } = useSendTicketMessage(ticketId);
+  // The AI draft is for staff who can reply (not note-only); using it sends its id with the next public reply.
+  const canReply = ticketQuery.data?.allowedActions.includes('reply') === true;
+  useAiDraftEvents(client, canReply ? ticketId : undefined);
+  const aiDraft = useAiDraft(ticketId, canReply);
+  const discardDraft = useDiscardAiDraft(ticketId);
+  const [usedDraftId, setUsedDraftId] = useState<string | undefined>();
+  const [injection, setInjection] = useState<{ key: string; text?: string } | undefined>();
+  const draftId = aiDraft.data?.id;
+  const composerBody = useRef('');
+  const [confirmingDraft, setConfirmingDraft] = useState(false);
+  useEffect(() => {
+    setUsedDraftId(undefined);
+    setInjection(undefined);
+  }, [ticketId]);
+  useEffect(() => {
+    if (canReply && draftId !== undefined) announce('An AI draft reply is ready for this ticket', 'polite');
+  }, [canReply, draftId, announce]);
   const uploads = useAttachmentUploads({ audience: 'staff' });
   const updateTicket = useUpdateTicket();
   const deleteTicket = useDeleteTicket();
@@ -240,6 +259,27 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
     }
     setSplitting(false);
     toast({ message: `Split into new ticket #${created.number}`, severity: 'success' });
+  };
+
+  const draft = canReply ? aiDraft.data : null;
+  const applyDraft = () => {
+    setConfirmingDraft(false);
+    if (draft === null || draft === undefined) return;
+    setUsedDraftId(draft.id);
+    setInjection({ key: crypto.randomUUID(), text: draft.body });
+    announce('AI draft added to your reply. Review it before sending.', 'polite');
+  };
+  const discard = async () => {
+    try {
+      await discardDraft.mutateAsync();
+    } catch (error) {
+      reportFailure(error);
+      return;
+    }
+    announce('AI draft discarded', 'polite');
+    setUsedDraftId(undefined);
+    // The bar is gone: put focus in the composer instead of losing it.
+    setInjection({ key: crypto.randomUUID() });
   };
 
   const sendMacro = async (macroId: string, bodyOverride: string | undefined) => {
@@ -424,6 +464,9 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
               onLoadOlder={messages.loadOlder}
             />
           )}
+          {draft !== null && draft !== undefined && draft.id !== usedDraftId && (
+            <AiDraftBar body={draft.body} onUse={() => (composerBody.current.trim() === '' ? applyDraft() : setConfirmingDraft(true))} onDiscard={() => void discard()} discarding={discardDraft.isPending} />
+          )}
           <MessageComposer
             onSend={(body, mode) => {
               stopTyping();
@@ -431,7 +474,9 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
                 visibility: mode === 'note' ? 'internal' : 'public',
                 body,
                 attachmentIds: uploads.ready.map((attachment) => attachment.id),
+                ...(mode === 'reply' && usedDraftId !== undefined ? { aiDraftId: usedDraftId } : {}),
               });
+              setUsedDraftId(undefined);
               uploads.clearReady();
             }}
             attachments={uploads.attachments}
@@ -441,6 +486,12 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
             mentionCandidates={mentionCandidates.data ?? []}
             onMentionQueryChange={setMentionQuery}
             disabled={!canReplyOrNote}
+            injection={injection}
+            onContentChange={({ body, mode }) => {
+              composerBody.current = body;
+              // The agent cleared the text or switched to an internal note: the draft no longer applies.
+              if (usedDraftId !== undefined && (mode === 'note' || body.trim() === '')) setUsedDraftId(undefined);
+            }}
             macros={canUseMacros ? (macros.data ?? []) : undefined}
             onApplyMacro={canUseMacros ? (macroId, bodyOverride) => void sendMacro(macroId, bodyOverride) : undefined}
           />
@@ -457,6 +508,14 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
         </Box>
       )}
 
+      <ConfirmationDialog
+        open={confirmingDraft}
+        title="Replace your reply with the AI draft?"
+        message="The text in the reply box is replaced by the draft. Nothing is sent."
+        confirmLabel="Replace"
+        onClose={() => setConfirmingDraft(false)}
+        onConfirm={applyDraft}
+      />
       <MergeTicketDialog open={merging} sourceNumber={ticket.number} onClose={() => setMerging(false)} onMerge={mergeInto} />
       <SplitTicketDialog open={splitting} messages={splitCandidates} onClose={() => setSplitting(false)} onSplit={splitMessage} />
 

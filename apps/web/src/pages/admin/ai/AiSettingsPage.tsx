@@ -8,7 +8,7 @@ import MenuItem from '@mui/material/MenuItem';
 import Radio from '@mui/material/Radio';
 import RadioGroup from '@mui/material/RadioGroup';
 import Typography from '@mui/material/Typography';
-import { useId, useState, type ReactNode } from 'react';
+import { useState } from 'react';
 
 import { EmptyState } from '../../../components/foundations/EmptyState';
 import { useAnnounce } from '../../../components/foundations/LiveRegion';
@@ -34,6 +34,9 @@ import {
   type ModelOption,
 } from '../../../data/ai/settings';
 import { useRealtime } from '../../../data/realtime';
+
+import { AiSection } from './AiSection';
+import { StoreConnectionSection } from './StoreConnectionSection';
 
 /**
  * AI settings (specs/002-ai-assist US1, FR-001 to FR-005), behind `ai_settings.manage`:
@@ -109,27 +112,13 @@ export default function AiSettingsPage() {
               </Alert>
             )}
             <ProviderSection settings={settingsQuery.data} />
+            <StoreConnectionSection />
             {/* Keyed by the saved values, so a save elsewhere (another tab, a pause) resets the form. */}
             <AssistantForm key={`${settingsQuery.data.replyMode}|${Object.values(settingsQuery.data.models).join('|')}`} settings={settingsQuery.data} models={modelsQuery.data} />
           </Box>
         )}
       </Box>
     </DesignSystemScope>
-  );
-}
-
-function Section({ title, description, children }: { title: string; description: string; children: ReactNode }) {
-  const headingId = useId();
-  return (
-    <Box component="section" aria-labelledby={headingId} sx={{ p: 5, border: 1, borderColor: 'divider', borderRadius: 3, bgcolor: 'background.paper' }}>
-      <Typography id={headingId} component="h2" variant="h3" sx={{ mb: 1 }}>
-        {title}
-      </Typography>
-      <Typography color="text.secondary" sx={{ mb: 4 }}>
-        {description}
-      </Typography>
-      {children}
-    </Box>
   );
 }
 
@@ -155,7 +144,7 @@ function ProviderSection({ settings }: { settings: AiSettings }) {
   };
 
   return (
-    <Section title="AI provider" description="ReplyX uses OpenRouter to reach the AI models. Keys are stored encrypted and never shown again.">
+    <AiSection title="AI provider" description="ReplyX uses OpenRouter to reach the AI models. Keys are stored encrypted and never shown again.">
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 3, flexWrap: 'wrap', mb: 3 }}>
         <Typography sx={{ fontWeight: 600 }}>OpenRouter key</Typography>
         <Typography color={hasKey ? 'text.primary' : 'text.secondary'} sx={{ fontFamily: hasKey ? 'monospace' : undefined }}>
@@ -215,7 +204,7 @@ function ProviderSection({ settings }: { settings: AiSettings }) {
           toast({ message: 'Key removed', severity: 'success' });
         }}
       />
-    </Section>
+    </AiSection>
   );
 }
 
@@ -264,7 +253,7 @@ function AssistantForm({ settings, models }: { settings: AiSettings; models: AiM
   const dirty = Object.keys(patch).length > 0;
 
   return (
-    <Section title="Assistant" description="Choose how the assistant answers customers and which model it uses for each level of difficulty.">
+    <AiSection title="Assistant" description="Choose how the assistant answers customers and which model it uses for each level of difficulty.">
       <Form
         label="Assistant settings"
         onSubmit={async () => {
@@ -326,6 +315,6 @@ function AssistantForm({ settings, models }: { settings: AiSettings; models: AiM
           <SubmitButton disabled={!dirty}>Save changes</SubmitButton>
         </Box>
       </Form>
-    </Section>
+    </AiSection>
   );
 }

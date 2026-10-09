@@ -72,6 +72,13 @@ export interface MessageComposerProps {
   macros?: readonly Macro[];
   /** Applies the picked macro with the (possibly edited) reply text; `undefined` keeps the macro's own text. */
   onApplyMacro?: (macroId: string, bodyOverride: string | undefined) => void;
+  /**
+   * Put text in the reply field (switching to reply mode, replacing what is there) and move focus
+   * into it; with no `text` it only moves focus. Runs again whenever `key` changes. Nothing is sent.
+   */
+  injection?: { key: string; text?: string };
+  /** Called when the written text or the mode changes, e.g. to drop a draft the agent cleared. */
+  onContentChange?: (content: { body: string; mode: ComposerMode }) => void;
 }
 
 const MAX_BODY = 10_000;
@@ -124,6 +131,8 @@ export function MessageComposer({
   onTyping,
   macros,
   onApplyMacro,
+  injection,
+  onContentChange,
 }: MessageComposerProps) {
   const [mode, setMode] = useState<ComposerMode>(defaultMode);
   const [body, setBody] = useState('');
@@ -165,6 +174,31 @@ export function MessageComposer({
       : slashOpen && macroResults.length > 0
         ? `${macroListboxId}-option-${slash.activeIndex}`
         : undefined;
+
+  const injectionKey = injection?.key;
+  const injectionText = injection?.text;
+  useEffect(() => {
+    if (injectionKey === undefined) return;
+    if (injectionText !== undefined) {
+      setMode('reply');
+      setBody(injectionText.slice(0, MAX_BODY));
+      setPickedMacro(null);
+      setSlash(null);
+      setMention(null);
+    }
+    requestAnimationFrame(() => {
+      const field = textareaRef.current;
+      if (field === null) return;
+      field.focus();
+      field.setSelectionRange(field.value.length, field.value.length);
+    });
+  }, [injectionKey, injectionText]);
+
+  const contentCallback = useRef(onContentChange);
+  contentCallback.current = onContentChange;
+  useEffect(() => {
+    contentCallback.current?.({ body, mode });
+  }, [body, mode]);
 
   const send = () => {
     if (!canSend) return;
