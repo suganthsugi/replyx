@@ -4248,11 +4248,16 @@ paths:
                           $ref: "#/components/schemas/AiRun"
                       totals:
                         type: object
+                        required:
+                          - runs
+                          - costUsd
                         properties:
                           runs:
                             type: integer
                           costUsd:
                             type: number
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
         "401":
           $ref: "#/components/responses/Unauthenticated"
         "403":

@@ -8,6 +8,6 @@
  */
 
 export type ListAiRuns200AllOfTotals = {
-  runs?: number;
-  costUsd?: number;
+  runs: number;
+  costUsd: number;
 };

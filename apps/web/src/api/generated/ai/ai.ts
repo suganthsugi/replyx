@@ -1838,7 +1838,7 @@ export const getListAiRunsQueryKey = (params?: ListAiRunsParams) => {
 
 export const getListAiRunsQueryOptions = <
   TData = Awaited<ReturnType<typeof listAiRuns>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
 >(
   params?: ListAiRunsParams,
   options?: {
@@ -1861,11 +1861,12 @@ export const getListAiRunsQueryOptions = <
 };
 
 export type ListAiRunsQueryResult = NonNullable<Awaited<ReturnType<typeof listAiRuns>>>;
-export type ListAiRunsQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+export type ListAiRunsQueryError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
 
 export function useListAiRuns<
   TData = Awaited<ReturnType<typeof listAiRuns>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
 >(
   params: undefined | ListAiRunsParams,
   options: {
@@ -1884,7 +1885,7 @@ export function useListAiRuns<
 ): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAiRuns<
   TData = Awaited<ReturnType<typeof listAiRuns>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
 >(
   params?: ListAiRunsParams,
   options?: {
@@ -1903,7 +1904,7 @@ export function useListAiRuns<
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
 export function useListAiRuns<
   TData = Awaited<ReturnType<typeof listAiRuns>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
 >(
   params?: ListAiRunsParams,
   options?: {
@@ -1918,7 +1919,7 @@ export function useListAiRuns<
 
 export function useListAiRuns<
   TData = Awaited<ReturnType<typeof listAiRuns>>,
-  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
 >(
   params?: ListAiRunsParams,
   options?: {
