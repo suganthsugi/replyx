@@ -285,7 +285,7 @@ description: "Task list for AI Assist (first cut)"
   - complexity validation errors
   - a high-score fixture uses the Advanced level
   - the triad and cross-tenant cases
-- [ ] T032 [P] [US4] UI:
+- [X] T032 [P] [US4] UI:
   - `apps/web/src/data/ai/complexity.ts` hooks
   - `apps/web/src/pages/admin/ai/ComplexityPage.tsx`: a factor list with add, reorder and remove; type-specific fields; weight sliders; and two threshold sliders with a live preview of the Fast/Standard/Advanced bands
   - routing toggle and threshold on `AiSettingsPage.tsx`
