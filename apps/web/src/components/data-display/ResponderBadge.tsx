@@ -51,6 +51,8 @@ export function ResponderBadge({ responder }: ResponderBadgeProps) {
       Now replying:
     </Typography>
   );
+  // The pieces are separate spans: keep a real space between them for the text a screen reader gets.
+  const gap = ' ';
 
   if (responder.kind === 'assistant') {
     const main = theme.palette.primary.main;
@@ -71,6 +73,7 @@ export function ResponderBadge({ responder }: ResponderBadgeProps) {
         }}
       >
         {caption}
+        {gap}
         <Typography component="span" variant="caption" sx={{ fontWeight: 700 }}>
           Assistant · AI
         </Typography>
@@ -81,8 +84,9 @@ export function ResponderBadge({ responder }: ResponderBadgeProps) {
   return (
     <Box data-testid="responder-badge" data-responder={responder.kind} sx={{ ...pill, bgcolor: 'action.hover', color: 'text.primary', border: 1, borderColor: 'divider' }}>
       {caption}
+      {gap}
       {responder.kind === 'agent' && (
-        <Avatar src={responder.avatarUrl ?? undefined} alt="" sx={{ width: 20, height: 20, fontSize: '0.625rem', bgcolor: 'primary.light', color: 'text.primary' }}>
+        <Avatar aria-hidden="true" src={responder.avatarUrl ?? undefined} alt="" sx={{ width: 20, height: 20, fontSize: '0.625rem', bgcolor: 'primary.light', color: 'text.primary' }}>
           {label.charAt(0).toUpperCase()}
         </Avatar>
       )}
