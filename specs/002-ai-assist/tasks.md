@@ -186,7 +186,7 @@ description: "Task list for AI Assist (first cut)"
     2. **Think**: no transaction (T022).
     3. **Write**: one transaction. Lock `ai_ticket_state FOR UPDATE`; re-check mode ≠ off, not stopped, no newer customer message and no staff reply since the read; insert into `ai_turns` (a duplicate key means exit quietly); then write the reply, draft or hand-off.
   - **Context**: summarise messages older than the last 20 with the Fast model into `ai_ticket_state.summary`.
-- [ ] T022 [US3] Assistant decision logic in `apps/api/src/ai/assistant/` (research R7, R8):
+- [X] T022 [US3] Assistant decision logic in `apps/api/src/ai/assistant/` (research R7, R8):
   - **One Jev call per turn** (state = last 6 messages) with `wants_human` (yes/no), `refund_or_exception` (yes/no) and `frustration` (score: calm/annoyed/angry). Hand off if a yes/no is ≥ 0.7 or angry is ≥ 0.6.
   - **Chat model** at the Fast level (US4 adds the level choice), with tools `search_policies(query)`, `lookup_order(orderNumber)` (argument `[A-Za-z0-9-]{3,32}`; order details only when the order email matches the ticket customer's email case-insensitively, otherwise the `not_found` result) and `handoff(reason)`. At most 3 tool rounds.
   - **Output**: JSON schema `{ reply, confidence, awaiting, resolved }`. Hand off when `confidence < 0.6` or after 2 unresolved turns in a row.
@@ -199,7 +199,7 @@ description: "Task list for AI Assist (first cut)"
     - in auto mode only, post one fixed localized hand-off message with `metadata.handoff=true`
   - **While generating**: the assistant typing presence is on, and one `ai_runs` row is recorded per provider call.
   - **Failures**: on provider `auth`/`credit`, pause the tenant (T009). After the last retry on other errors, hand off with reason `ai_unavailable`.
-- [ ] T023 [US3] Drafts in `apps/api/src/ai/drafts/` (research R13):
+- [X] T023 [US3] Drafts in `apps/api/src/ai/drafts/` (research R13):
   - drafts mode upserts the single open `ai_drafts` row and emits `ai.draft_ready`
   - `GET /tickets/{id}/ai-draft` (404 `AI_DRAFT_NOT_FOUND`) and `POST /tickets/{id}/ai-draft/discard`, both with ticket reply access
   - `POST /tickets/{id}/messages` accepts an optional `aiDraftId`
