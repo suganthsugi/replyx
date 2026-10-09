@@ -290,7 +290,7 @@ description: "Task list for AI Assist (first cut)"
   - `apps/web/src/pages/admin/ai/ComplexityPage.tsx`: a factor list with add, reorder and remove; type-specific fields; weight sliders; and two threshold sliders with a live preview of the Fast/Standard/Advanced bands
   - routing toggle and threshold on `AiSettingsPage.tsx`
   - an "AI description" field in `apps/web/src/pages/admin/groups/`
-- [ ] T033 [US4] Web tests in `apps/web/test/ai/complexity.test.tsx`: add/edit/validate factors, the threshold order error, the group AI description, and an axe check.
+- [X] T033 [US4] Web tests in `apps/web/test/ai/complexity.test.tsx`: add/edit/validate factors, the threshold order error, the group AI description, and an axe check.
 
 **Checkpoint**: reviewer pass for US4; Jira Story to Done with a screenshot.
 
