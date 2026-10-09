@@ -37,6 +37,10 @@ const ISSUE_MESSAGES: Record<string, string> = {
   invalid: 'This value is not valid',
   unrecognized_key: 'This field is not allowed',
   insufficient_contrast: 'This color does not contrast enough against white for accessible text',
+  duplicate: 'This is already used',
+  not_found: 'This no longer exists',
+  no_positive_weight: 'Give at least one factor a weight above 0',
+  not_above_standard: 'Must be higher than the Standard threshold',
 };
 
 export function issueMessage(issue: string): string {
@@ -95,6 +99,15 @@ export function FormField({ name, helperText, disabled, ...props }: TextFieldPro
       fullWidth
     />
   );
+}
+
+/**
+ * The server's message for a field that is not a `FormField` (a slider, a list), by API path, or
+ * undefined. Render it next to the control, linked with `aria-describedby`.
+ */
+export function useFormIssue(name: string): string | undefined {
+  const issue = useContext(FormContext).error?.fieldErrors?.[name];
+  return issue === undefined ? undefined : issueMessage(issue);
 }
 
 /** The form-level error (anything that isn't a field validation issue). */
