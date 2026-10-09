@@ -83,6 +83,7 @@ describe('cross-tenant isolation (generated)', () => {
       if (fixture === undefined) throw new Error(`No cross-tenant fixture for ${resource}`);
       const [a, b] = await Promise.all([createTenant(), createTenant()]);
       const created: CreatedResource = await fixture.create(a);
+      await fixture.prepareCaller?.(b);
       const callerB: TestUser = await createUser(b, {
         roles: fixture.callerRoles ?? [resource.startsWith('customer:') ? 'customer' : 'admin'],
       });

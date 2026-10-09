@@ -45,8 +45,16 @@ export interface CrossTenantFixture {
    * tenant A admin and requires a created id in the body, so tenant B's empty answer is meaningful.
    */
   queries?: Record<string, (resource: CreatedResource) => string>;
+  /** Runs for tenant B before its caller is used, when a route answers 200 only for a tenant that has its own row (store connection). */
+  prepareCaller?(tenantB: TestTenant): Promise<void>;
   /** Roles for the tenant B caller; defaults to Admin (every permission, full group access). */
   callerRoles?: RoleRef[];
+}
+
+async function saveStoreConnection(tenant: TestTenant, apiKey: string): Promise<void> {
+  const admin = await createUser(tenant, { roles: ['admin'] });
+  const saved = await asUser(admin).put('/ai/store-connection', { kind: 'spree', baseUrl: 'https://shop.example.com', apiKey });
+  if (saved.status !== 200) throw new Error(`Store connection fixture failed: ${saved.status}`);
 }
 
 const HIGH_PRIORITY = { op: 'and', items: [{ field: 'priority', operator: 'is', value: 'high' }] };
@@ -135,7 +143,23 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       const admin = await createUser(tenant, { roles: ['admin'] });
       await asUser(admin).put('/ai/settings/provider-key', { apiKey: 'sk-or-v1-tenant-a-ZQXW' });
       await asUser(admin).patch('/ai/settings', { replyMode: 'auto', models: { fast: 'qwen/qwen3.7-flash' } });
-      return { params: {}, ids: ['ZQXW'] };
+      await saveStoreConnection(tenant, 'spree-key-tenant-a-WXYZ');
+      // The marker for the store connection is A's key last4.
+      return { params: {}, ids: ['ZQXW', 'WXYZ'] };
+    },
+    // GET /ai/store-connection is 404 for a tenant with none: B gets its own, so 200 proves it shows B's row only.
+    async prepareCaller(tenantB) {
+      await saveStoreConnection(tenantB, 'spree-key-tenant-b-QRST');
+    },
+  },
+  // AI usage (T025): tenant B lists its own runs and totals, never A's run ids.
+  ai_usage: {
+    async create(tenant) {
+      const admin = await createUser(tenant, { roles: ['admin'] });
+      await asUser(admin).put('/ai/settings/provider-key', { apiKey: 'sk-or-v1-usage-tenant-a-RUNA' });
+      await asUser(admin).post('/ai/settings/provider-key/test');
+      const runs = (await asUser(admin).get('/ai/runs')).body as { items: { id: string }[] };
+      return { params: {}, ids: runs.items.map((run) => run.id) };
     },
   },
   // Policy documents (T016): tenant B must get the unknown-id 404 for A's document on every

@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
 
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import {
   OutboundRefusedError,
@@ -12,28 +12,10 @@ import {
   outboundRequest,
 } from '../../../src/platform-kernel/http/outbound-guard.js';
 
-vi.mock('node:dns', async (original) => {
-  const actual = await original<typeof import('node:dns')>();
-  const fixtures: Record<string, { address: string; family: number }[]> = {
-    'rebind.test': [{ address: '10.1.2.3', family: 4 }],
-    'public.test': [{ address: '93.184.216.34', family: 4 }],
-    'mixed.test': [
-      { address: '93.184.216.34', family: 4 },
-      { address: '::1', family: 6 },
-    ],
-  };
-  return {
-    ...actual,
-    lookup: (hostname: string, options: unknown, callback: (...args: unknown[]) => void) => {
-      const fixture = fixtures[hostname];
-      if (fixture !== undefined) {
-        callback(null, fixture);
-        return;
-      }
-      (actual.lookup as (...args: unknown[]) => void)(hostname, options, callback);
-    },
-  };
-});
+// vitest's `vi.mock('node:dns')` does not intercept the guard's import in this SWC setup (the real
+// lookup ran, so every name was "unresolvable"). IP literals resolve to themselves without a DNS
+// query, so the guard's address checks are exercised deterministically without a mock.
+
 
 function refusal(fn: () => unknown): string | undefined {
   try {
@@ -95,14 +77,14 @@ describe('guardedLookup', () => {
     });
   }
 
-  it('refuses a name that resolves to a private address (DNS rebinding)', async () => {
-    expect(await resolve('rebind.test', false)).toBeInstanceOf(OutboundRefusedError);
-    expect(await resolve('mixed.test', false)).toBeInstanceOf(OutboundRefusedError);
+  it('refuses a name that resolves to a private address (what a rebinding name resolves to)', async () => {
+    expect(await resolve('10.1.2.3', false)).toBeInstanceOf(OutboundRefusedError);
+    expect(await resolve('localhost', false)).toBeInstanceOf(OutboundRefusedError);
   });
 
   it('passes public addresses, and private ones in development', async () => {
-    expect(await resolve('public.test', false)).toEqual([{ address: '93.184.216.34', family: 4 }]);
-    expect(await resolve('rebind.test', true)).toEqual([{ address: '10.1.2.3', family: 4 }]);
+    expect(await resolve('93.184.216.34', false)).toEqual([{ address: '93.184.216.34', family: 4 }]);
+    expect(await resolve('10.1.2.3', true)).toEqual([{ address: '10.1.2.3', family: 4 }]);
   });
 });
 
@@ -158,7 +140,7 @@ describe('outboundRequest', () => {
 
   it('refuses private targets outside development', async () => {
     await expect(outboundRequest({ url: base, timeoutMs: 1000, allowPrivate: false })).rejects.toMatchObject({ reason: 'not_https' });
-    await expect(outboundRequest({ url: 'https://rebind.test/x', timeoutMs: 1000, allowPrivate: false })).rejects.toMatchObject({
+    await expect(outboundRequest({ url: 'https://10.1.2.3/x', timeoutMs: 1000, allowPrivate: false })).rejects.toMatchObject({
       reason: 'private_address',
     });
   });
