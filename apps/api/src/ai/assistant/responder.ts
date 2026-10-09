@@ -101,18 +101,27 @@ export class ResponderService {
     return ticket === undefined ? undefined : (await responderSnapshot(tx, ctx, ticket)).responder;
   }
 
-  /** Emits `conversation.responder_changed` to the ticket and the customer when the responder differs from `before`. */
+  /**
+   * Emits `conversation.responder_changed` when the responder differs from `before`: to the ticket,
+   * and to the customer only when this is the ticket their conversation shows (their active ticket,
+   * see `responderForCustomer`). A change on another of their tickets must not move their badge.
+   */
   async emitIfChanged(tx: TenantTransaction, ctx: TenantContext, ticketId: string, before: Responder | undefined): Promise<boolean> {
     const ticket = await new TicketsRepository(ctx).find(tx, ticketId);
     if (ticket === undefined) return false;
     const { responder: after } = await responderSnapshot(tx, ctx, ticket);
     if (before !== undefined && sameResponder(before, after)) return false;
+    const shownToCustomer = (await new ResponderRepository(ctx).activeTicketOf(tx, ticket.customer_id))?.id === ticketId;
     await this.outbox.append(tx, {
       type: 'conversation.responder_changed',
       payload: { ticketId, responder: after },
-      // The customer's projection drops the ticket id.
-      customerPayload: { type: 'conversation.responder_changed', data: { responder: after as unknown as JsonValue } },
-      streams: [ticketStream(ticketId), `conversation:${ticket.customer_id}`],
+      ...(shownToCustomer
+        ? {
+            // The customer's projection drops the ticket id.
+            customerPayload: { type: 'conversation.responder_changed', data: { responder: after as unknown as JsonValue } },
+            streams: [ticketStream(ticketId), `conversation:${ticket.customer_id}`],
+          }
+        : { streams: [ticketStream(ticketId)] }),
     });
     return true;
   }
