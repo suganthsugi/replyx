@@ -209,7 +209,7 @@ description: "Task list for AI Assist (first cut)"
   - **Responder** (assistant | agent | team, per [data-model.md](data-model.md)): add `responder` and `ai {stopped, stoppedReason, canTakeOver, canHandBack}` to TicketDetail, and `responder` to the customer conversation projection.
   - **Events**: emit `conversation.responder_changed` on owner change, stop, hand back and hand-off; emit `ai.responder_scope_changed` on mode or pause change.
 - [X] T025 [P] [US3] `GET /ai/runs` in `apps/api/src/ai/runs/` (`ai_usage.view`): cursor pagination with `from`, `to` and `purpose` filters, plus totals `{ runs, costUsd }` for the filter.
-- [ ] T026 [US3] API tests in `apps/api/test/integration/ai/assistant.test.ts` and `apps/api/test/cross-tenant/ai-assistant.test.ts`, using the fake providers:
+- [X] T026 [US3] API tests in `apps/api/test/integration/ai/assistant.test.ts` and `apps/api/test/cross-tenant/ai-assistant.test.ts`, using the fake providers:
   - **Conversation and orders**:
     - "where is my order" then `R100200` gives the status; `R999999` gives the same reply as an unknown number
     - a policy answer
