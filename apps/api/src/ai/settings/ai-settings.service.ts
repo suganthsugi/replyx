@@ -134,9 +134,9 @@ export class AiSettingsService {
 
       await repo.update(tx, change, this.editorOf(ctx), this.clock.now());
       const after = { ...before, ...change, models: change.models ?? before.models } as AiSettingsRow;
-      // First switched on (a reply mode or routing): a tenant that never set complexity factors gets the defaults (R12).
-      const switchedOn = (before.replyMode === 'off' && after.replyMode !== 'off') || (!before.routingEnabled && after.routingEnabled);
-      if (switchedOn) await new ComplexityRepository(ctx).seedDefaults(tx);
+      // While a reply mode or routing is on, a tenant that never set complexity factors gets the
+      // defaults (R12); `seedDefaults` does nothing once any factor exists, and a save always keeps one.
+      if (after.replyMode !== 'off' || after.routingEnabled) await new ComplexityRepository(ctx).seedDefaults(tx);
       if (change.replyMode !== undefined || isActive(after) !== isActive(before)) {
         await this.outbox.append(tx, { type: 'ai.responder_scope_changed', payload: {}, streams: ['tenant'] });
       }
