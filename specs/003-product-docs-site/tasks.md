@@ -99,7 +99,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   - `apps/docs/content/docs/meta.json`: `pages: ["concepts", "guides", "admin", "operators", "developers", "[API reference](https://console.replyx.example.com/api/docs)"]`. Use the existing API docs URL pattern; check `apps/docs/src/content/docs/developers/deployment.md` history for the production path, and keep it an external link only.
   - `meta.json` in each group folder (`guides`, `admin`, `operators`, `developers`), each with a `title` and an explicit `pages` order. Every file must be listed (data-model "Docs Page": "Every file must be listed").
   - Fix any Starlight-only syntax so the files render in Fumadocs without changing the wording. Keep the two ` ```mermaid ` blocks as code blocks (research R11).
-- [ ] T007 [US3] Add `apps/docs/scripts/check-links.mjs`:
+- [X] T007 [US3] Add `apps/docs/scripts/check-links.mjs`:
   - Walk `out/**/*.html` and collect `href`s that start with `/` or `#`.
   - Resolve each one to `out/<path>/index.html` or a file, and check that a `#fragment` matches an `id` in the target.
   - Print every broken link with its source file and exit 1 if any are found.
