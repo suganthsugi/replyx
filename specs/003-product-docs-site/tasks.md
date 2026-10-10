@@ -103,7 +103,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   - Walk `out/**/*.html` and collect `href`s that start with `/` or `#`.
   - Resolve each one to `out/<path>/index.html` or a file, and check that a `#fragment` matches an `id` in the target.
   - Print every broken link with its source file and exit 1 if any are found.
-- [ ] T008 [US3] Add `apps/docs/test/meta.test.ts`, which checks that every `.md` and `.mdx` file under `content/docs` is listed in its folder's `meta.json`, and that every file has a one-line `title` with no trailing period and a one-line `description`.
+- [X] T008 [US3] Add `apps/docs/test/meta.test.ts`, which checks that every `.md` and `.mdx` file under `content/docs` is listed in its folder's `meta.json`, and that every file has a one-line `title` with no trailing period and a one-line `description`.
 - [ ] T009 [US3] Add `apps/docs/e2e/legacy-routes.spec.ts`:
   - All 21 URLs from `contracts/routes.md` return 200 and show their `title` as the `h1`.
   - A sidebar item exists for each group (Guides, Admin, Operators, Developers).
