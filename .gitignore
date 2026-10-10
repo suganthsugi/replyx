@@ -16,7 +16,12 @@ build/
 /apps/*/dist/
 /apps/*/build/
 
-# astro (apps/docs generated types)
+# docs (Next.js + Fumadocs, apps/docs)
+/apps/docs/.next/
+/apps/docs/out/
+/apps/docs/.source/
+/apps/docs/next-env.d.ts
+# leftovers from the Starlight site in existing checkouts
 .astro/
 
 # turbo

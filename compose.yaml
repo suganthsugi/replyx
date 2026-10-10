@@ -161,6 +161,26 @@ services:
       api:
         condition: service_started
 
+  # Product docs (Fumadocs on Next.js, spec 003): http://localhost:4321
+  docs:
+    <<: *api-dev
+    working_dir: /repo/apps/docs
+    command: ["pnpm", "exec", "next", "dev", "-p", "4321", "-H", "0.0.0.0"]
+    environment:
+      CHOKIDAR_USEPOLLING: ${CHOKIDAR_USEPOLLING:-false}
+      WATCHPACK_POLLING: ${CHOKIDAR_USEPOLLING:-false}
+    ports:
+      - "4321:4321"
+    volumes:
+      - .:/repo
+      - node_modules_root:/repo/node_modules
+      - node_modules_api:/repo/apps/api/node_modules
+      - node_modules_web:/repo/apps/web/node_modules
+      - node_modules_docs:/repo/apps/docs/node_modules
+    depends_on:
+      install:
+        condition: service_completed_successfully
+
   # Runs repo scripts, tests and pnpm commands: `docker compose run --rm tools <cmd>`.
   tools:
     <<: *api-dev
