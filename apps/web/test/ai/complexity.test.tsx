@@ -120,8 +120,8 @@ describe('ComplexityPage', () => {
     renderComplexity();
     const advanced = await screen.findByRole('slider', { name: /Advanced from/ }, FIND);
     advanced.focus();
-    // From 80% down to 40%, below Standard (45%).
-    await userEvent.keyboard('{ArrowLeft>40/}');
+    // From 80% down to 40%, below Standard (45%): PageDown moves 10 points, so 4 presses, not 40 arrows.
+    await userEvent.keyboard('{PageDown>4/}');
     expect(advanced).toHaveAttribute('aria-valuetext', '40%');
     expect(screen.getByRole('alert')).toHaveTextContent('The Advanced threshold must be higher than the Standard one.');
     expect(advanced).toHaveAccessibleDescription('The Advanced threshold must be higher than the Standard one.');
