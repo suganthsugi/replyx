@@ -187,7 +187,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   - Add a short heading and subheading above the figure ("Every conversation, routed and answered by the right model").
   - Reserve the size with `aspect-ratio` so there is no layout shift (SC-002).
   - Render it in `app/(home)/page.tsx`.
-- [ ] T019 [US1] Add `apps/docs/components/flow/FlowPlayer.tsx` (`'use client'`). It is mounted inside `FlowHero` and is the only client JS for the flow. Target ≤ 15 KB gzip.
+- [X] T019 [US1] Add `apps/docs/components/flow/FlowPlayer.tsx` (`'use client'`). It is mounted inside `FlowHero` and is the only client JS for the flow. Target ≤ 15 KB gzip.
   - **Reduce motion**: if `matchMedia('(prefers-reduced-motion: reduce)')` matches, do nothing, and react to changes of that setting (FR-009).
   - **Visibility**: use an `IntersectionObserver` (threshold 0.2) and `document.visibilitychange` to pause and resume every running `Animation`. Do no work while hidden (FR-010).
   - **Sequencer**: for each scenario in `SCENARIOS`, drive the stage state machine from data-model.md (`idle → intake → rules → (decision →) groups|triage → factors → score → level → hold → next`), with roughly the timings in the contract:
