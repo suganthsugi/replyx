@@ -2,10 +2,12 @@
 
 ## Resume point
 
-- **Ticked**: T001–T005 (Phases 1–2). **Next**: US3, starting at T006.
+- **Ticked**: T001–T013 (Phases 1–2, US3, US2). **Next**: US1 (the animated home flow), starting at T014.
 - **Jira** (cloudId `f83a4d0c-9614-4404-8ea3-98d37ad873b8`):
   - RX-65 is the Story for Phases 1–2 (Done, screenshot attached).
   - Its tasks are RX-66 (T001), RX-67 (T002), RX-68 (T003), RX-69 (T004) and RX-70 (T005), all Done.
+  - RX-71 is the US3 Story (Done, screenshot attached), with tasks RX-72 (T006) to RX-76 (T010), all Done.
+  - RX-77 is the US2 Story (Done, light and dark screenshots attached), with tasks RX-78 (T011), RX-79 (T012) and RX-80 (T013), all Done.
   - Team-managed project: a Task can't have a Story as its parent, so each task description says "Part of story RX-xx" instead.
   - Screenshots use `uploadAttachmentToJiraIssue` through `executeWrite`. Phase 1 returns a curl command; run it, then embed the returned id inline in a comment.
 
@@ -32,3 +34,14 @@
 - Fumadocs normalizes page URLs without a trailing slash (`normalizeUrl`), and search results use those. Next adds the slash to rendered links. The production server must answer both forms (T026: `try_files {path} {path}/index.html`).
 - Fonts are `@fontsource-variable/inter` and `@fontsource-variable/sora`, loaded through `next/font/local`, so there is no external font origin.
 - axe flags color contrast on Fumadocs' default neutral muted text. T011 fixes this.
+- US3:
+  - The old "API reference" sidebar link was dropped. It pointed at `localhost:3000/api/docs`, and nothing in `apps/api` serves an API reference.
+  - The docs-style skill was corrected to say so.
+- US2:
+  - Added `--rx-primary-text` (light `#0F766E`), because light `#0D9488` is too low-contrast for link text.
+  - Code blocks use `github-light-high-contrast` and `github-dark-high-contrast`.
+  - Markdown task-list checkboxes are `aria-hidden`.
+  - axe is clean on all 21 pages in both themes.
+- next-themes puts its inline theme script at the top of `<body>`, not in `<head>`. The no-flash test checks that `<html>` has its theme class before the first h1 is parsed.
+- e2e flake: clicks can land before React hydrates the static HTML. Interactive steps retry with `expect(...).toPass()`.
+- Gotcha: a shell chain like `test | grep … && git commit` commits even when tests fail. Check the test exit code explicitly.
