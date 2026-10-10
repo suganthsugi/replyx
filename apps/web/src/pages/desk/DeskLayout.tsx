@@ -7,8 +7,9 @@ import Menu from '@mui/material/Menu';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import { useCallback, useMemo, useState } from 'react';
-import { Navigate, NavLink, Outlet, useNavigate, useParams } from 'react-router';
+import { Link, Navigate, NavLink, Outlet, useNavigate, useParams } from 'react-router';
 
+import { Logo } from '../../components/foundations/Logo';
 import { CommandBar } from '../../components/shell/CommandBar';
 import { ConnectionBanner } from '../../components/shell/ConnectionBanner';
 import { DesignSystemScope } from '../../components/shell/DesignSystemScope';
@@ -146,9 +147,14 @@ export default function DeskLayout() {
             flexShrink: 0,
           }}
         >
-          <Typography component="span" variant="h3" sx={{ fontWeight: 700 }}>
-            ReplyX
-          </Typography>
+          <Box
+            component={Link}
+            to={`${WORKSPACE_BASE}/inbox`}
+            aria-label="ReplyX home"
+            sx={{ display: 'inline-flex', borderRadius: 2, textDecoration: 'none', '&:focus-visible': { outline: 2, outlineColor: 'primary.main', outlineOffset: 2 } }}
+          >
+            <Logo />
+          </Box>
           <Box component="nav" aria-label="Workspace" sx={{ display: 'flex', gap: 1 }}>
             {WORKSPACE_LINKS.filter((link) => link.permission === undefined || permissions.has(link.permission)).map((link) => (
               <Box

@@ -4,6 +4,7 @@ import Typography from '@mui/material/Typography';
 import { useState } from 'react';
 import { useNavigate } from 'react-router';
 
+import { Logo } from '../../components/foundations/Logo';
 import { Form, FormError, FormField, SubmitButton } from '../../components/shell/Form';
 import { useOperatorSignIn } from '../../data/console';
 import { mapError } from '../../data/errors';
@@ -31,6 +32,9 @@ export default function ConsoleSignInPage() {
 
   return (
     <Box component="main" sx={{ maxWidth: 420, mx: 'auto', px: 4, py: 8 }}>
+      <Box sx={{ mb: 6 }}>
+        <Logo size={36} />
+      </Box>
       <Typography component="h1" variant="h4" sx={{ mb: 2 }}>
         Platform console
       </Typography>
