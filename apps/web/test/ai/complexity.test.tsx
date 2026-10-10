@@ -72,9 +72,14 @@ describe('ComplexityPage', () => {
     const card = screen.getByRole('listitem', { name: 'Order value' });
     await userEvent.click(within(card).getByRole('combobox', { name: 'Type' }));
     await userEvent.click(await screen.findByRole('option', { name: 'Multiple choice' }));
-    await userEvent.type(within(card).getByRole('textbox', { name: 'Question for the AI' }), 'How much is the order worth?');
-    await userEvent.type(within(card).getByRole('textbox', { name: 'Option 1 description' }), 'Under 50 euros');
-    await userEvent.type(within(card).getByRole('textbox', { name: 'Option 2 description' }), 'Over 500 euros');
+    // Pasted, not typed key by key: per-key typing made this test time out under full-suite load.
+    const fill = async (name: string, text: string) => {
+      await userEvent.click(within(card).getByRole('textbox', { name }));
+      await userEvent.paste(text);
+    };
+    await fill('Question for the AI', 'How much is the order worth?');
+    await fill('Option 1 description', 'Under 50 euros');
+    await fill('Option 2 description', 'Over 500 euros');
 
     await userEvent.click(screen.getByRole('button', { name: 'Move Order value up' }));
     expect(polite()).toHaveTextContent('Order value moved to position 2 of 3');
