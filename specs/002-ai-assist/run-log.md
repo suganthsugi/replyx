@@ -1,14 +1,24 @@
 # Run log: 002 AI Assist
 
-## Resume here (2026-10-10)
+## Resume here (2026-10-10, second session)
 
-**Next: the deferred e2e run and screenshots (needs the container restart), then T034 (needs the owner's keys), then close T036.**
+**Next: T034's real-model run. It needs an OpenRouter key re-entered in acme (Admin → AI); see `golden/results.md` for the steps. Everything else is done.**
 
 Status:
-- **Ticked**: T001–T028, T030–T033, T035.
-- **T029 is open**: the web tests pass (573da7d), and the e2e spec `apps/web/e2e/ai-assist.spec.ts` (project `desktop-ai`, after every other spec) is committed but has never run. Running it needs `docker compose restart api worker web`, because the dev api build predates T024. The user deferred that restart on 2026-10-10. After the restart: run only `--project desktop-ai`, take the RX-45 screenshots (badge, draft, chat) and the RX-57 screenshot (complexity page), then close RX-56 (T029), RX-45 (US3) and RX-57 (US4).
-- **T034** needs the owner's OpenRouter and Spree keys.
-- **T036** so far: deployment notes in `apps/docs/.../developers/deployment.md` (27d9a4b). That page is where deploy docs live, so `infra/README.md` was not created. The 001 superseded note is in (19634a4). Full run on 2026-10-10 (`turbo run lint typecheck test --concurrency=1`): api lint, typecheck and tests pass, and docs passes. Web had 1 failure in 720: the complexity "adds a choice factor" test hit the 5 s default timeout under load. It now has 30 s. Not run yet: the coverage gate (`scripts/check-coverage.sh`) and the e2e suite.
+- **Ticked**: T001–T033, T035, T036. **Open**: T034 (Jira RX-64, Blocked).
+- **T029** (f0c1938): after `docker compose restart api worker web`, `--project desktop-ai --no-deps` passes. Screenshots are in `specs/002-ai-assist/screenshots/` (b6c5be4) and attached to RX-45 (US3) and RX-57 (US4). RX-56, RX-45 and RX-57 are Done.
+- **T034**: golden `policy.md`, `questions.md` and the runner `run-golden.mjs` (d970b04); `results.md` holds the dry run and the run steps. Local Spree now has test orders R100201 (paid, not shipped), R100202 (canceled) and R100300 (someone.else@example.com), created with `bin/rails runner` in the ecom `web` container. The dry run (fake AI, real Spree) passed the harness and the store path. The **acme OpenRouter key is gone**: the `ai-assist` e2e `finally` deletes the tenant's key, and it ran on a tenant with the user's real key (last4 0001). A backup of the sealed row was taken first, but restoring it by SQL was refused by the permission classifier, so the user has to paste the key again. Before running that spec on a tenant with a real key, back the key up or point the spec elsewhere.
+- **Local Spree from ReplyX containers**: use `http://192.168.65.254:3100` (Docker Desktop host gateway). Rails in development refuses the `host.docker.internal` name (403) but allows IP hosts, so ecom needs no change. Node `fetch` drops a `Host` header, so scripts that call the API by tenant host use `node:http` (as `run-golden.mjs` does). In Git Bash, `docker compose exec ... /repo/...` needs `MSYS_NO_PATHCONV=1`.
+- **US3 review item #6 closed**: the dev key with exactly `read_orders`, `read_customers` and `read_fulfillments` reads orders with `expand=items,fulfillments`.
+- **T036 final checks (Jira RX-63)**:
+  - `turbo run lint typecheck test --concurrency=1`: all pass. API 1396 tests, web 721.
+  - Coverage gate `scripts/check-coverage.sh`: passes. API 93.4% lines (needs 80), web 83.3% (needs 70).
+  - Fixes made to get there: the complexity factor test pastes long text (ab8da8d), the threshold test uses PageDown (45110a7), the SLA notification tests get a tenant each (policies tied on position leaked between tests, d5fa397), the test sweeper visits only the file's own tenants (whole-database sweeps timed out as the suite grew, 017374e), and the "Searching…" test holds its response (97d4d13).
+  - Full e2e (`--workers=2`): 18 of 20 specs pass. Fixes along the way: the ticket row check box is presentational, because axe flagged a checkbox nested in the option (7faed34); the ticket column scrolls on phones, because the 002 header growth squeezed the composer over its own Send button (3fee250); and sign-out-everywhere uses the keyboard on phones (7ef3cb2).
+  - Two specs fail on **dev data, not code**: `triage` and `view-builder` assume Manager has no Support access and Agent has no Billing access. Someone edited the Agent, Manager and Support Agent roles in the UI at 11:46–11:47 UTC on 2026-10-10 (see the audit log), giving them those groups. Reset the roles (or reseed) and both should pass.
+  - Run e2e with AI off in acme: a leftover Auto-reply mode answers the SLA spec's customer, and the first-response target then shows as met.
+  - The deploy notes (27d9a4b) and the 001 superseded note (19634a4) were done earlier.
+- `.env` is back to `AI_PROVIDER=fake` and `COMMERCE_PROVIDER=fake`. acme: AI off, no key, store connection saved for `http://192.168.65.254:3100`, and the "Golden: returns, refunds and shipping" policy is loaded.
 
 **US3 review (2026-10-10)**: the reviewer's pass was partial, because it hit its turn limit. Verdict FAIL with 1 major and 7 minors. Fixed:
 - the major: badge caption opacity could drop contrast below 4.5:1 (42da0cf, plus a contrast test over light and dark themes and near-threshold accents)

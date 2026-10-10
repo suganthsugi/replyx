@@ -308,7 +308,7 @@ description: "Task list for AI Assist (first cut)"
   - the badge
   - routing and complexity
   - usage
-- [ ] T036 Final checks: `docker compose run --rm tools pnpm turbo run lint typecheck test` and the e2e suite pass. Note the deploy steps in `infra/README.md` (pgvector extension, `REPLYX_SECRETS_KEY`). Add a "Superseded by 002" note to the AI line in `specs/001-multi-tenant-helpdesk/spec.md` Assumptions. Record the session in `specs/002-ai-assist/run-log.md`.
+- [X] T036 Final checks: `docker compose run --rm tools pnpm turbo run lint typecheck test` and the e2e suite pass. Note the deploy steps in `infra/README.md` (pgvector extension, `REPLYX_SECRETS_KEY`). Add a "Superseded by 002" note to the AI line in `specs/001-multi-tenant-helpdesk/spec.md` Assumptions. Record the session in `specs/002-ai-assist/run-log.md`.
 
 ---
 
