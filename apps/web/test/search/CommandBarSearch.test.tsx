@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { delay, http, HttpResponse } from 'msw';
+import { http, HttpResponse } from 'msw';
 import { describe, expect, it, vi } from 'vitest';
 
 import { CommandBar } from '../../src/components/shell/CommandBar';
@@ -101,9 +101,14 @@ describe('CommandBar search', () => {
   });
 
   it('shows and announces "Searching…" while the request is in flight', async () => {
+    // Held until released, not a fixed delay: under load a short delay could end before the checks.
+    let release: () => void = () => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
     server.use(
       http.get(`${API}/search`, async () => {
-        await delay(300);
+        await held;
         return HttpResponse.json<SearchTickets200>({ items: [], nextCursor: null });
       }),
     );
@@ -112,6 +117,7 @@ describe('CommandBar search', () => {
     const dialog = await screen.findByRole('dialog');
     expect(await within(dialog).findByText('Searching…')).toBeInTheDocument();
     expect(document.querySelector('[aria-live="polite"]')).toHaveTextContent('Searching');
+    release();
     await waitFor(() => expect(within(dialog).queryByText('Searching…')).not.toBeInTheDocument());
   });
 
