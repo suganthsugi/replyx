@@ -200,7 +200,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
     - On a rule match, show the rule badge and skip the decision node.
   - **Loop**: loop forever. All moving and decorative elements are `aria-hidden`. Use the easing `cubic-bezier(0.2, 0, 0, 1)`.
   - **Theme**: switching theme mid-animation must not restart or flicker. Everything reads CSS variables, so no JS theme handling is needed.
-- [ ] T020 [US1] Add `apps/docs/e2e/home-flow.spec.ts`:
+- [X] T020 [US1] Add `apps/docs/e2e/home-flow.spec.ts`:
   - The figure is visible, and `document.getAnimations().length > 0` within 1 s of load.
   - Over about 40 s, the level pill text cycles through Fast, Standard and Advanced, and the Needs Triage node activates at least once. Speed this up with a `?speed=8` query param read only by FlowPlayer, which multiplies durations by 1/8.
   - When the page is hidden (`page.evaluate` dispatching `visibilitychange` with `document.hidden` stubbed), every animation's `playState` is `paused`.
