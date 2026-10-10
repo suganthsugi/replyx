@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body{margin:0;}
+  @keyframes typingBounce{0%,80%,100%{transform:translateY(0);opacity:.4}40%{transform:translateY(-4px);opacity:1}}
+</style>
+</helmet>
+<div style="min-height:100vh;background:{{ t.pageBg }};font-family:Inter,sans-serif;display:flex;flex-direction:column;align-items:center;padding:24px 16px 64px;transition:background .2s;">
+
+  <div style="width:100%;max-width:960px;display:flex;flex-direction:column;gap:16px;">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:{{ t.surface }};border:1px solid {{ t.border }};border-radius:12px;padding:12px 16px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:12px;font-weight:600;color:{{ t.textSecondary }};text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;">Scenario</span>
+        <sc-for list="{{ scenarioOptions }}" as="opt" hint-placeholder-count="8">
+          <button onClick="{{ opt.onSelect }}" style="{{ opt.style }}">{{ opt.label }}</button>
+        </sc-for>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <div style="display:flex;border:1px solid {{ t.border }};border-radius:8px;overflow:hidden;">
+          <button onClick="{{ setDeviceMobile }}" style="{{ deviceBtnMobileStyle }}">Mobile</button>
+          <button onClick="{{ setDeviceDesktop }}" style="{{ deviceBtnDesktopStyle }}">Desktop</button>
+        </div>
+        <button onClick="{{ toggleTheme }}" style="font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid {{ t.border }};background:{{ t.surface2 }};color:{{ t.textPrimary }};cursor:pointer;font-family:Inter,sans-serif;white-space:nowrap;">{{ themeLabel }}</button>
+      </div>
+    </div>
+
+    <div style="display:flex;justify-content:center;">
+      <div style="{{ frameStyle }}">
+        <div style="display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid {{ t.border }};background:{{ t.surface }};">
+          <div style="width:32px;height:32px;border-radius:9999px;background:{{ t.primarySoft }};color:{{ t.primary }};display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;font-family:Sora,sans-serif;">A</div>
+          <div style="flex:1;min-width:0;">
+            <div style="font-family:Sora,sans-serif;font-weight:600;font-size:14px;color:{{ t.textPrimary }};">Acme Support</div>
+            <div style="font-size:12px;color:{{ t.textSecondary }};">{{ headerSubtext }}</div>
+          </div>
+          <button aria-label="Profile" style="width:32px;height:32px;border-radius:9999px;border:1px solid {{ t.border }};background:{{ t.surface2 }};color:{{ t.textSecondary }};display:flex;align-items:center;justify-content:center;cursor:pointer;">⋯</button>
+        </div>
+
+        <sc-if value="{{ showBanner }}" hint-placeholder-val="{{ false }}">
+          <div style="{{ bannerStyle }}">{{ bannerText }}</div>
+        </sc-if>
+
+        <div style="flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px;background:{{ t.bg }};">
+          <sc-if value="{{ showWelcome }}" hint-placeholder-val="{{ false }}">
+            <div style="margin:auto;text-align:center;max-width:260px;display:flex;flex-direction:column;gap:8px;align-items:center;">
+              <div style="width:48px;height:48px;border-radius:12px;background:{{ t.primarySoft }};color:{{ t.primary }};display:flex;align-items:center;justify-content:center;font-size:22px;">💬</div>
+              <div style="font-family:Sora,sans-serif;font-weight:600;font-size:16px;color:{{ t.textPrimary }};">Hi there, how can we help?</div>
+              <div style="font-size:13px;color:{{ t.textSecondary }};">Send a message and our team will get back to you shortly.</div>
+            </div>
+          </sc-if>
+
+          <sc-for list="{{ timeline }}" as="item" hint-placeholder-count="4">
+            <sc-if value="{{ item.isBubble }}" hint-placeholder-val="{{ false }}">
+              <div style="{{ item.rowStyle }}">
+                <div style="{{ item.bubbleStyle }}">
+                  <div style="white-space:pre-wrap;">{{ item.text }}</div>
+                  <div style="{{ item.metaStyle }}">{{ item.time }} <sc-if value="{{ item.showStatus }}" hint-placeholder-val="{{ false }}">· {{ item.status }}</sc-if></div>
+                </div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ item.isResolved }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:10px;margin:8px 0;color:{{ t.textSecondary }};font-size:12px;">
+                <div style="flex:1;height:1px;background:{{ t.border }};"></div>
+                <span>{{ item.text }}</span>
+                <div style="flex:1;height:1px;background:{{ t.border }};"></div>
+              </div>
+            </sc-if>
+            <sc-if value="{{ item.isStatus }}" hint-placeholder-val="{{ false }}">
+              <div role="status" style="text-align:center;font-size:12px;color:{{ t.textSecondary }};margin:4px 0;">{{ item.text }}</div>
+            </sc-if>
+            <sc-if value="{{ item.isTyping }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:6px;">
+                <div style="font-size:11px;color:{{ t.textSecondary }};">Acme Support is typing</div>
+                <div style="display:flex;gap:3px;">
+                  <span style="width:5px;height:5px;border-radius:50%;background:{{ t.textSecondary }};display:inline-block;animation:typingBounce 1.2s infinite;"></span>
+                  <span style="width:5px;height:5px;border-radius:50%;background:{{ t.textSecondary }};display:inline-block;animation:typingBounce 1.2s infinite .15s;"></span>
+                  <span style="width:5px;height:5px;border-radius:50%;background:{{ t.textSecondary }};display:inline-block;animation:typingBounce 1.2s infinite .3s;"></span>
+                </div>
+              </div>
+            </sc-if>
+          </sc-for>
+
+          <sc-if value="{{ showRating }}" hint-placeholder-val="{{ false }}">
+            <div style="border:1px solid {{ t.border }};background:{{ t.surface }};border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:8px;align-self:center;max-width:280px;">
+              <div style="font-size:13px;font-weight:600;color:{{ t.textPrimary }};font-family:Sora,sans-serif;">How was your support experience?</div>
+              <div style="display:flex;gap:6px;">
+                <sc-for list="{{ ratingScores }}" as="n" hint-placeholder-count="5">
+                  <button style="width:32px;height:32px;border-radius:8px;border:1px solid {{ t.border }};background:{{ t.surface2 }};color:{{ t.textPrimary }};cursor:pointer;font-size:13px;">{{ n }}</button>
+                </sc-for>
+              </div>
+              <button style="align-self:flex-start;background:none;border:none;color:{{ t.textSecondary }};font-size:12px;cursor:pointer;text-decoration:underline;">Skip</button>
+            </div>
+          </sc-if>
+        </div>
+
+        <sc-if value="{{ showOutOfHours }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:8px 16px;font-size:12px;color:{{ t.warningText }};background:{{ t.warningSoft }};border-top:1px solid {{ t.border }};">We're currently out of office hours. Leave a message and we'll reply as soon as we're back.</div>
+        </sc-if>
+        <sc-if value="{{ showRateLimit }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:8px 16px;font-size:12px;color:{{ t.warningText }};background:{{ t.warningSoft }};border-top:1px solid {{ t.border }};">You're sending messages a bit fast — please wait a moment before sending another.</div>
+        </sc-if>
+
+        <div style="display:flex;gap:8px;padding:12px;border-top:1px solid {{ t.border }};background:{{ t.surface }};align-items:flex-end;">
+          <button aria-label="Attach file" style="width:36px;height:36px;border-radius:9999px;border:1px solid {{ t.border }};background:{{ t.surface2 }};color:{{ t.textSecondary }};cursor:pointer;flex-shrink:0;">＋</button>
+          <textarea placeholder="Type a message…" rows="1" disabled="{{ composerDisabled }}" style="flex:1;resize:none;border:1px solid {{ t.border }};border-radius:9999px;padding:9px 16px;font-size:14px;font-family:Inter,sans-serif;background:{{ t.surface2 }};color:{{ t.textPrimary }};outline:none;"></textarea>
+          <button disabled="{{ composerDisabled }}" style="{{ sendBtnStyle }}">Send</button>
+        </div>
+      </div>
+    </div>
+
+    <div style="background:{{ t.surface }};border:1px solid {{ t.border }};border-radius:12px;padding:14px 16px;font-size:12px;color:{{ t.textSecondary }};line-height:1.6;">
+      <strong style="color:{{ t.textPrimary }};">Inherits from this template:</strong> chat–empty, chat–first message, chat–active conversation, chat–resolved with rating, chat–multiple past issues, chat–out of hours, chat–offline/reconnecting, chat–rate-limited, mobile and centered-desktop layouts, light and dark scheme.
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { theme: 'light', device: 'mobile', scenario: 'active' };
+
+  tokens(theme) {
+    return theme === 'dark' ? {
+      pageBg:'#0B1120', bg:'#0B1120', surface:'#0F172A', surface2:'#1E293B',
+      border:'#1E293B', textPrimary:'#F1F5F9', textSecondary:'#94A3B8',
+      primary:'#2DD4BF', primaryContrast:'#0F172A', primarySoft:'#134E4A',
+      warningText:'#FBBF24', warningSoft:'#3F2D0B'
+    } : {
+      pageBg:'#F1F5F9', bg:'#F8FAFC', surface:'#FFFFFF', surface2:'#F1F5F9',
+      border:'#E2E8F0', textPrimary:'#0F172A', textSecondary:'#475569',
+      primary:'#0D9488', primaryContrast:'#FFFFFF', primarySoft:'#CCFBF1',
+      warningText:'#92400E', warningSoft:'#FEF3C7'
+    };
+  }
+
+  buildTimeline(scenario, t) {
+    const bubble = (from, text, time, statusVal) => {
+      const isCustomer = from === 'customer';
+      const align = isCustomer ? 'flex-end' : 'flex-start';
+      const colors = isCustomer
+        ? ('background:' + t.primary + ';color:' + t.primaryContrast + ';border-bottom-right-radius:4px;')
+        : ('background:' + t.surface + ';color:' + t.textPrimary + ';border:1px solid ' + t.border + ';border-bottom-left-radius:4px;');
+      return {
+        isBubble: true, isResolved: false, isStatus: false, isTyping: false,
+        text, time,
+        showStatus: isCustomer && !!statusVal, status: statusVal,
+        rowStyle: 'display:flex;justify-content:' + align + ';',
+        bubbleStyle: 'max-width:75%;padding:9px 13px;border-radius:16px;font-size:14px;line-height:1.4;' + colors,
+        metaStyle: 'font-size:10px;margin-top:4px;opacity:.7;'
+      };
+    };
+    const resolved = (text) => ({ isBubble:false, isResolved:true, isStatus:false, isTyping:false, text });
+    const status = (text) => ({ isBubble:false, isResolved:false, isStatus:true, isTyping:false, text });
+    const typing = () => ({ isBubble:false, isResolved:false, isStatus:false, isTyping:true });
+
+    switch (scenario) {
+      case 'empty': return [];
+      case 'first': return [
+        bubble('customer', "Hi, I was charged twice for my last order.", '9:14 AM', 'Sent'),
+        status('Support has your message')
+      ];
+      case 'resolved': return [
+        bubble('customer', "My invoice download link isn't working.", '2:01 PM', 'Read'),
+        bubble('agent', "Thanks for flagging that — try this fresh link instead.", '2:03 PM'),
+        bubble('customer', "That worked, thank you!", '2:04 PM', 'Read'),
+        resolved('Glad we could help — just reply if you need anything else')
+      ];
+      case 'multi': return [
+        bubble('customer', "Can I get a refund on order #4821?", 'Mon 10:02 AM', 'Read'),
+        bubble('agent', "Refund's processed, should land in 3-5 days.", 'Mon 10:20 AM'),
+        resolved('Resolved · Sep 22'),
+        bubble('customer', "My new order hasn't shipped yet.", 'Today 9:40 AM', 'Read'),
+        bubble('agent', "Checking with our warehouse now, one moment.", 'Today 9:42 AM')
+      ];
+      case 'hours': return [
+        bubble('customer', "Is anyone there? Need help with billing.", '11:32 PM', 'Sent')
+      ];
+      case 'reconnecting': return [
+        bubble('agent', "We're looking into your account access now.", '4:10 PM'),
+        bubble('customer', "Any update?", '4:22 PM', 'Sending…')
+      ];
+      case 'ratelimit': return [
+        bubble('customer', "Hello?", '5:01 PM', 'Sent'),
+        bubble('customer', "Anyone available?", '5:01 PM', 'Sent'),
+        bubble('customer', "This is urgent.", '5:02 PM', 'Sent')
+      ];
+      case 'active':
+      default: return [
+        bubble('customer', "I can't log into my account after resetting my password.", '3:12 PM', 'Read'),
+        bubble('agent', "Sorry about that! Can you tell me which email you're using?", '3:13 PM'),
+        bubble('customer', "sam@example.com", '3:14 PM', 'Read'),
+        typing()
+      ];
+    }
+  }
+
+  renderVals() {
+    const { theme, device, scenario } = this.state;
+    const t = this.tokens(theme);
+    const timeline = this.buildTimeline(scenario, t);
+
+    const headerSubtext = {
+      empty: 'Usually replies within an hour', first: 'We got your message',
+      active: 'Online', resolved: 'Conversation resolved', multi: 'Online',
+      hours: 'Away · back at 9 AM', reconnecting: 'Reconnecting…', ratelimit: 'Online'
+    }[scenario];
+
+    const showBanner = scenario === 'reconnecting';
+    const bannerStyle = `padding:8px 16px;font-size:12px;text-align:center;background:${t.warningSoft};color:${t.warningText};border-bottom:1px solid ${t.border};`;
+
+    const btnBase = `flex:1;padding:8px 14px;font-size:13px;border:none;cursor:pointer;font-family:Inter,sans-serif;`;
+    const activeBtn = `background:${t.primary};color:${t.primaryContrast};`;
+    const inactiveBtn = `background:${t.surface2};color:${t.textSecondary};`;
+
+    const frameStyle = device === 'mobile'
+      ? `width:390px;height:720px;border-radius:32px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 12px 32px rgba(0,0,0,.18);border:1px solid ${t.border};`
+      : `width:720px;height:640px;border-radius:16px;overflow:hidden;display:flex;flex-direction:column;box-shadow:0 8px 24px rgba(0,0,0,.12);border:1px solid ${t.border};`;
+
+    const composerDisabled = scenario === 'ratelimit';
+    const sendBtnColors = composerDisabled
+      ? ('background:' + t.surface2 + ';color:' + t.textSecondary + ';')
+      : ('background:' + t.primary + ';color:' + t.primaryContrast + ';');
+    const sendBtnStyle = 'padding:9px 18px;border-radius:9999px;border:none;font-size:13px;font-weight:600;cursor:pointer;font-family:Inter,sans-serif;' + sendBtnColors;
+
+    const pillBtn = (active) => 'font-size:12px;padding:6px 12px;border-radius:9999px;border:1px solid ' + t.border + ';cursor:pointer;font-family:Inter,sans-serif;white-space:nowrap;' +
+      (active ? ('background:' + t.primary + ';color:' + t.primaryContrast + ';border-color:' + t.primary + ';') : ('background:' + t.surface2 + ';color:' + t.textSecondary + ';'));
+    const scenarioDefs = [
+      { key: 'empty', label: 'Empty' },
+      { key: 'first', label: 'First message' },
+      { key: 'active', label: 'Active' },
+      { key: 'resolved', label: 'Resolved + rating' },
+      { key: 'multi', label: 'Past issues' },
+      { key: 'hours', label: 'Out of hours' },
+      { key: 'reconnecting', label: 'Reconnecting' },
+      { key: 'ratelimit', label: 'Rate limited' }
+    ];
+    const scenarioOptions = scenarioDefs.map((d) => ({
+      label: d.label,
+      style: pillBtn(scenario === d.key),
+      onSelect: () => this.setState({ scenario: d.key })
+    }));
+
+    return {
+      t, timeline, scenario, scenarioOptions,
+      setDeviceMobile: () => this.setState({ device: 'mobile' }),
+      setDeviceDesktop: () => this.setState({ device: 'desktop' }),
+      deviceBtnMobileStyle: btnBase + (device === 'mobile' ? activeBtn : inactiveBtn),
+      deviceBtnDesktopStyle: btnBase + (device === 'desktop' ? activeBtn : inactiveBtn),
+      toggleTheme: () => this.setState({ theme: theme === 'light' ? 'dark' : 'light' }),
+      themeLabel: theme === 'light' ? 'Dark mode' : 'Light mode',
+      frameStyle, headerSubtext,
+      showWelcome: scenario === 'empty',
+      showBanner, bannerText: 'Reconnecting…', bannerStyle,
+      showRating: scenario === 'resolved',
+      ratingScores: [1,2,3,4,5],
+      showOutOfHours: scenario === 'hours',
+      showRateLimit: scenario === 'ratelimit',
+      composerDisabled, sendBtnStyle
+    };
+  }
+}
+</script>
+</body>
+</html>

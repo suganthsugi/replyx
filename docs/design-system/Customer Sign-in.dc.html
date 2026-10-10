@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>body{margin:0;}</style>
+</helmet>
+<div style="min-height:100vh;background:{{ t.pageBg }};font-family:Inter,sans-serif;display:flex;flex-direction:column;align-items:center;padding:24px 16px 64px;">
+
+  <div style="width:100%;max-width:920px;display:flex;flex-direction:column;gap:16px;">
+    <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;background:{{ t.surface }};border:1px solid {{ t.border }};border-radius:12px;padding:12px 16px;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:12px;font-weight:600;color:{{ t.textSecondary }};text-transform:uppercase;letter-spacing:.04em;white-space:nowrap;">View</span>
+        <sc-for list="{{ viewOptions }}" as="opt" hint-placeholder-count="3">
+          <button onClick="{{ opt.onSelect }}" style="{{ opt.style }}">{{ opt.label }}</button>
+        </sc-for>
+      </div>
+      <button onClick="{{ toggleTheme }}" style="font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid {{ t.border }};background:{{ t.surface2 }};color:{{ t.textPrimary }};cursor:pointer;font-family:Inter,sans-serif;white-space:nowrap;">{{ themeLabel }}</button>
+    </div>
+
+    <div style="display:flex;justify-content:center;padding:32px 0;">
+      <div style="width:100%;max-width:400px;background:{{ t.surface }};border:1px solid {{ t.border }};border-radius:16px;padding:32px 28px;box-shadow:0 8px 24px rgba(0,0,0,.08);display:flex;flex-direction:column;gap:20px;">
+
+        <div style="display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;">
+          <div style="width:44px;height:44px;border-radius:12px;background:{{ t.primarySoft }};color:{{ t.primary }};display:flex;align-items:center;justify-content:center;font-family:Sora,sans-serif;font-weight:700;">A</div>
+          <div style="font-family:Sora,sans-serif;font-weight:700;font-size:19px;color:{{ t.textPrimary }};">{{ title }}</div>
+          <div style="font-size:13px;color:{{ t.textSecondary }};line-height:1.5;">{{ subtitle }}</div>
+        </div>
+
+        <sc-if value="{{ isEmailStep }}" hint-placeholder-val="{{ false }}">
+          <form style="display:flex;flex-direction:column;gap:14px;">
+            <label style="display:flex;flex-direction:column;gap:6px;">
+              <span style="font-size:13px;font-weight:500;color:{{ t.textPrimary }};">Email address</span>
+              <input type="email" placeholder="you@company.com" style="padding:10px 12px;border-radius:8px;border:1px solid {{ t.border }};background:{{ t.surface2 }};color:{{ t.textPrimary }};font-size:14px;font-family:Inter,sans-serif;outline:none;" />
+            </label>
+            <button style="padding:11px;border-radius:9999px;border:none;background:{{ t.primary }};color:{{ t.primaryContrast }};font-weight:600;font-size:14px;cursor:pointer;font-family:Inter,sans-serif;">Continue</button>
+            <sc-if value="{{ showSignUpLink }}" hint-placeholder-val="{{ false }}">
+              <div style="text-align:center;font-size:13px;color:{{ t.textSecondary }};">New here? <a href="#" style="color:{{ t.primary }};font-weight:500;">Create an account</a></div>
+            </sc-if>
+          </form>
+        </sc-if>
+
+        <sc-if value="{{ isCheckStep }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:16px;align-items:center;text-align:center;">
+            <div style="width:52px;height:52px;border-radius:9999px;background:{{ t.primarySoft }};color:{{ t.primary }};display:flex;align-items:center;justify-content:center;font-size:22px;">✉</div>
+            <div style="font-size:13px;color:{{ t.textSecondary }};line-height:1.6;">We sent a sign-in link to <strong style="color:{{ t.textPrimary }};">sam@example.com</strong>. Click the link to continue — it expires in 15 minutes.</div>
+            <button style="background:none;border:none;color:{{ t.primary }};font-size:13px;font-weight:500;cursor:pointer;text-decoration:underline;">Resend email</button>
+            <button style="background:none;border:none;color:{{ t.textSecondary }};font-size:13px;cursor:pointer;">Use a different email</button>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{ isStaff }}" hint-placeholder-val="{{ false }}">
+          <form style="display:flex;flex-direction:column;gap:14px;">
+            <label style="display:flex;flex-direction:column;gap:6px;">
+              <span style="font-size:13px;font-weight:500;color:{{ t.textPrimary }};">Work email</span>
+              <input type="email" placeholder="you@replyx.app" style="padding:10px 12px;border-radius:8px;border:1px solid {{ t.border }};background:{{ t.surface2 }};color:{{ t.textPrimary }};font-size:14px;font-family:Inter,sans-serif;outline:none;" />
+            </label>
+            <label style="display:flex;flex-direction:column;gap:6px;">
+              <span style="font-size:13px;font-weight:500;color:{{ t.textPrimary }};">Password</span>
+              <input type="password" placeholder="••••••••" style="padding:10px 12px;border-radius:8px;border:1px solid {{ t.border }};background:{{ t.surface2 }};color:{{ t.textPrimary }};font-size:14px;font-family:Inter,sans-serif;outline:none;" />
+            </label>
+            <div style="display:flex;justify-content:flex-end;">
+              <a href="#" style="font-size:12px;color:{{ t.primary }};">Forgot password?</a>
+            </div>
+            <button style="padding:11px;border-radius:9999px;border:none;background:{{ t.primary }};color:{{ t.primaryContrast }};font-weight:600;font-size:14px;cursor:pointer;font-family:Inter,sans-serif;">Sign in</button>
+          </form>
+        </sc-if>
+      </div>
+    </div>
+
+    <div style="background:{{ t.surface }};border:1px solid {{ t.border }};border-radius:12px;padding:14px 16px;font-size:12px;color:{{ t.textSecondary }};line-height:1.6;">
+      <strong style="color:{{ t.textPrimary }};">Inherits from this template:</strong> customer sign-in email step, check-your-email step, "same response whether or not account exists" state, inline self-sign-up, "sign-up not allowed" state, link expired/used, staff sign-in, forgot/reset password, accept invitation, account locked, session expired.
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { theme: 'light', view: 'customer_email' };
+
+  tokens(theme) {
+    return theme === 'dark' ? {
+      pageBg:'#0B1120', surface:'#0F172A', surface2:'#1E293B',
+      border:'#1E293B', textPrimary:'#F1F5F9', textSecondary:'#94A3B8',
+      primary:'#2DD4BF', primaryContrast:'#0F172A', primarySoft:'#134E4A'
+    } : {
+      pageBg:'#F1F5F9', surface:'#FFFFFF', surface2:'#F8FAFC',
+      border:'#E2E8F0', textPrimary:'#0F172A', textSecondary:'#475569',
+      primary:'#0D9488', primaryContrast:'#FFFFFF', primarySoft:'#CCFBF1'
+    };
+  }
+
+  renderVals() {
+    const { theme, view } = this.state;
+    const t = this.tokens(theme);
+    const copy = {
+      customer_email: { title: 'Sign in', subtitle: "Enter your email and we'll send you a secure sign-in link." },
+      customer_check: { title: 'Check your email', subtitle: '' },
+      staff: { title: 'Sign in to ReplyX', subtitle: 'Access your workspace with your work account.' }
+    }[view];
+
+    const pillBtn = (active) => 'font-size:12px;padding:6px 12px;border-radius:9999px;border:1px solid ' + t.border + ';cursor:pointer;font-family:Inter,sans-serif;white-space:nowrap;' +
+      (active ? ('background:' + t.primary + ';color:' + t.primaryContrast + ';border-color:' + t.primary + ';') : ('background:' + t.surface2 + ';color:' + t.textSecondary + ';'));
+    const viewDefs = [
+      { key: 'customer_email', label: 'Customer · email step' },
+      { key: 'customer_check', label: 'Customer · check email' },
+      { key: 'staff', label: 'Staff sign-in' }
+    ];
+    const viewOptions = viewDefs.map((d) => ({
+      label: d.label,
+      style: pillBtn(view === d.key),
+      onSelect: () => this.setState({ view: d.key })
+    }));
+
+    return {
+      t, view, viewOptions, title: copy.title, subtitle: copy.subtitle,
+      isEmailStep: view === 'customer_email',
+      isCheckStep: view === 'customer_check',
+      isStaff: view === 'staff',
+      showSignUpLink: view === 'customer_email',
+      toggleTheme: () => this.setState({ theme: theme === 'light' ? 'dark' : 'light' }),
+      themeLabel: theme === 'light' ? 'Dark mode' : 'Light mode'
+    };
+  }
+}
+</script>
+</body>
+</html>
