@@ -19,7 +19,7 @@ Weights: frustration 2, several issues 1, technical 1, VIP 1 (Σ 5). Thresholds:
 
 | # | Message (made up) | Route | Factors (fr, sev, tech, vip) | Score | Level |
 |---|---|---|---|---|---|
-| 1 | "Where is my order #1042? It said 3 days." | Decision model → **Orders & Shipping** 0.93 | 0.10, 0, 0, 0 | 0.04 | Fast |
+| 1 | "Where is my order 1042? It said 3 days." | Decision model → **Orders & Shipping** 0.93 | 0.10, 0, 0, 0 | 0.04 | Fast |
 | 2 | "Reset my password please" | Rule "Password reset" → **Accounts** (decision model skipped) | 0.25, 0, 0, 0 | 0.10 | Fast |
 | 3 | "Export to CSV crashes every time since the update, I've tried twice." | Decision model → **Technical Support** 0.88 | 0.75, 0, 1, 0 | 0.50 | Standard |
 | 4 | "Charged twice AGAIN, third time asking. Fix it and refund me." | Decision model → **Billing** 0.81 | 1.0, 1, 0.2, 1 | 0.84 | Advanced |

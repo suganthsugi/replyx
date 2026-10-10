@@ -28,7 +28,7 @@ There is no database. The entities below are content files and typed constants i
 | Field | Type | Rules |
 |---|---|---|
 | id | string | Unique. |
-| message | string ≤ 90 chars | Made up. No real names, emails or order numbers that look real (use `#10xx`). |
+| message | string ≤ 90 chars | Made up. No real names, emails or order numbers that look real (use plain `10xx` numbers; a `#` would read as a hex color to the token test). |
 | ruleMatch | `{ rule: string, group: string } \| null` | When set, `routing` is skipped and the ticket goes straight to `group`. |
 | routing | `{ candidates: { group: string, confidence: number }[] } \| null` | Required when `ruleMatch` is null. Confidences are in [0,1]. The top candidate wins only if confidence ≥ 0.70, otherwise the outcome is `triage`. |
 | factors | `{ frustration: number, severalIssues: number, technical: number, vip: 0 \| 1 } \| null` | Each value is in [0,1]. Null when the outcome is `triage`, because complexity is not shown. |
