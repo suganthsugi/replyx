@@ -95,7 +95,7 @@ All commands run in Docker (`docker compose run --rm docs …`). Do not migrate 
 
 Phase 3 goes first among the stories because US1's captions link to these pages.
 
-- [ ] T006 [US3] Add sidebar ordering:
+- [X] T006 [US3] Add sidebar ordering:
   - `apps/docs/content/docs/meta.json`: `pages: ["concepts", "guides", "admin", "operators", "developers", "[API reference](https://console.replyx.example.com/api/docs)"]`. Use the existing API docs URL pattern; check `apps/docs/src/content/docs/developers/deployment.md` history for the production path, and keep it an external link only.
   - `meta.json` in each group folder (`guides`, `admin`, `operators`, `developers`), each with a `title` and an explicit `pages` order. Every file must be listed (data-model "Docs Page": "Every file must be listed").
   - Fix any Starlight-only syntax so the files render in Fumadocs without changing the wording. Keep the two ` ```mermaid ` blocks as code blocks (research R11).
