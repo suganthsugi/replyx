@@ -90,7 +90,21 @@ rules live in `data-hooks`; tests in `web-testing`.
    `inputs`, `builders`, `chat` (plan.md §Shared component system). Not inside a page folder when
    used by more than one page.
 
+9. **Screens from Phase 5 onward follow the design system in `docs/design-system/`.** Read its
+   `README.md` (tokens, type, shapes, patterns) and the `.dc.html` template the screen inherits
+   from (Workspace Inbox, Customer Chat, Customer Sign-in). Teal/slate palette, Sora headings,
+   pill buttons and chips. **Don't restyle Phase 1–4 screens.** They keep the current theme until
+   a dedicated retheme task. The design-system values go into `src/theme/tokens.ts` as their own
+   token set, and a design-system variant of `createAppTheme` is applied with a scoped
+   `ThemeProvider` around the new pages. The tenant accent still goes through
+   `resolveBrandAccent`. The first Phase 5+ UI task adds these if they aren't there yet. Don't
+   inline the mock's hex values or styles. Rebuild them with MUI and the shared components. When
+   the mock conflicts with rules 1–8 (contrast, ticket concepts for customers), the rules win.
+   Wrong: a new Phase 5+ page on the indigo theme; switching the global `lightTheme` to teal;
+   copying `style="background:#0D9488"` from a `.dc.html` file
+
 ## Checklist (before reporting done)
+- [ ] Phase 5+ screen matches its `docs/design-system` template; Phase 1–4 screens untouched
 - [ ] Loading/empty/error branches with `Skeleton`/`EmptyState`; errors via `mapError`
 - [ ] Colors/spacing/type from the theme; tenant color only through `createAppTheme`
 - [ ] Live updates via `useAnnounce`/`useToast`, no ad-hoc `aria-live`

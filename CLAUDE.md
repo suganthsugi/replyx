@@ -12,7 +12,7 @@ Status: planned = not yet written; ready = in `.claude/skills/<name>/SKILL.md`.
 | api-conventions | ready | AppError and error format, validation pipe, cursor pagination, route decorators (`@RequirePermission`/`@StaffApi`/`@Public`/`@CustomerApi`/`@OperatorApi`), `openapi.yaml` operationIds and tags, customer vs staff APIs | backend-agent, frontend-connector, reviewer |
 | realtime-events | ready | Outbox append, domain event types, relay, Socket.IO rooms and streams, sync catch-up, customer projections | backend-agent, frontend-connector, test-automator |
 | testing-conventions | ready | Vitest/Supertest/Testcontainers harness, factories, `asUser`, success/403/cross-tenant-404 triad, cross-tenant fixtures | test-automator, reviewer |
-| ui-components | ready | MUI theme and tokens, shared component system, route areas (`AreaShell`), accessibility (loading/empty/error, focus, LiveRegion), no ticket concepts in the customer UI | frontend-agent |
+| ui-components | ready | MUI theme and tokens, `docs/design-system` for Phase 5+ screens, shared component system, route areas (`AreaShell`), accessibility (loading/empty/error, focus, LiveRegion), no ticket concepts in the customer UI | frontend-agent |
 | data-hooks | ready | Wrapping the orval generated client, http mutator and CSRF, query keys, socket stream cache updates, error mapping | frontend-connector |
 | web-testing | ready | `renderWithProviders`, RTL role queries, typed MSW handlers, axe checks, Playwright projects, axe fixture and Mailpit | frontend-automator |
 | docs-style | ready | Starlight guide/concept/developer page style and sidebar groups | documentator, dev-documentator |

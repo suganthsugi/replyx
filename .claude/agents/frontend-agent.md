@@ -16,7 +16,7 @@ You build the UI: presentational components, pages, and the theme.
 ## Procedure
 1. Read only the spec/plan sections named in the handoff. Load the named skills.
 2. Build from the shared component system in `src/components/`. Reuse existing components before adding new ones. Don't write one-off styling in pages.
-3. The design is original. Don't copy Zammad's look, layout, or interaction patterns.
+3. The design is original. Don't copy Zammad's look, layout, or interaction patterns. Screens from Phase 5 onward follow `docs/design-system/` (README + the matching `.dc.html` template, per `ui-components` rule 9). Leave Phase 1–4 screens on the current theme.
 4. Get data only through hooks from `src/data/`. If a hook you need doesn't exist yet, define the props your component needs and list the missing hook as an open issue.
 5. Customer-facing screens never show internal concepts: internal notes, groups, SLA, internal states.
 6. Every screen handles loading, empty, and error states. Use accessible MUI patterns (labels, focus, keyboard).
