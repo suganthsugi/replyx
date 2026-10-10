@@ -11,6 +11,8 @@ const PORT = 4322;
 export default defineConfig({
   testDir: './e2e',
   fullyParallel: true,
+  // The Docker VM is shared with the rest of the dev stack; one browser per CPU runs it out of memory.
+  workers: process.env.CI === undefined ? 4 : 2,
   forbidOnly: process.env.CI !== undefined,
   retries: process.env.CI === undefined ? 0 : 2,
   reporter: [['list'], ['html', { open: 'never' }]],
