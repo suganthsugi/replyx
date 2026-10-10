@@ -132,7 +132,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   - Map them to Fumadocs: `--color-fd-background`, `--color-fd-card`, `--color-fd-border`, `--color-fd-foreground`, `--color-fd-muted-foreground` and `--color-fd-primary`.
   - Set the heading font to Sora and the body font to Inter.
   - In `app/layout.tsx`, use `RootProvider theme={{ defaultTheme: 'system', enableSystem: true, attribute: 'class' }}`. Confirm the theme switch offers Light, Dark and System.
-- [ ] T012 [P] [US2] Add `apps/docs/test/tokens.test.ts`:
+- [X] T012 [P] [US2] Add `apps/docs/test/tokens.test.ts`:
   - Parse `app/global.css` and assert that every token in `contracts/theme-tokens.md` exists in both themes.
   - Compute WCAG contrast. Text tokens (`--rx-text`, `--rx-text-2`, `--rx-warning`) must be ≥ 4.5:1 on `--rx-bg` and `--rx-surface`. Stroke and level tokens (`--rx-ai`, `--rx-primary`, `--rx-level-*`) must be ≥ 3:1 on `--rx-bg`.
   - Assert that no file under `components/flow/` or `components/illustrations/` contains a `#[0-9a-fA-F]{3,8}` colour literal.
