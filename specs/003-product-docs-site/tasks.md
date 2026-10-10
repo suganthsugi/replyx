@@ -77,7 +77,7 @@ All commands run in Docker (`docker compose run --rm docs …`). Do not migrate 
   - In `app/layout.tsx`, set the metadata `icons` and the viewport `themeColor` to `#0D9488`.
   - Self-host the Sora (headings) and Inter (body) woff2 files in `apps/docs/public/fonts/`, loaded with `next/font/local` in `app/layout.tsx`. No external font origin is allowed.
   - Show the logo in the nav title of both layouts through the shared `baseOptions()` in `apps/docs/lib/layout.shared.tsx`.
-- [ ] T005 [P] Set up the docs test harness in `apps/docs/`:
+- [X] T005 [P] Set up the docs test harness in `apps/docs/`:
   - `vitest.config.ts`, which runs `test/**/*.test.ts`.
   - `playwright.config.ts`, which runs `e2e/` against a static server of `out/` on port 4322, started by `webServer: npx serve out -l 4322`. It has `chromium-desktop` and `mobile-360` (360×740) projects.
   - `e2e/fixtures.ts`, which exports an `axe` fixture using `@axe-core/playwright` and fails on `serious` and `critical` issues.
