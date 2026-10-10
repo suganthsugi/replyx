@@ -1,3 +1,85 @@
 @import 'tailwindcss';
 @import 'fumadocs-ui/css/neutral.css';
 @import 'fumadocs-ui/css/preset.css';
+
+/*
+ * ReplyX theme (specs/003-product-docs-site/contracts/theme-tokens.md). Values come from
+ * `designSystemTokens` in apps/web/src/theme/tokens.ts. Illustrations use only the --rx-* tokens;
+ * the Fumadocs --color-fd-* variables are mapped onto them so the docs chrome matches.
+ */
+:root {
+  --rx-bg: #f8fafc;
+  --rx-surface: #ffffff;
+  --rx-surface-2: #f1f5f9;
+  --rx-border: #e2e8f0;
+  --rx-text: #0f172a;
+  --rx-text-2: #475569;
+  --rx-primary: #0d9488;
+  /* Teal dark enough for link text and for white text on a primary fill (>= 4.5:1). */
+  --rx-primary-text: #0f766e;
+  --rx-ai: #0d9488;
+  --rx-ai-glow: rgb(13 148 136 / 0.35);
+  --rx-ai-glow-2: rgb(34 211 238 / 0.2);
+  --rx-warning: #92400e;
+  --rx-level-fast: #047857;
+  --rx-level-standard: #0d9488;
+  --rx-level-advanced: #6d28d9;
+}
+
+.dark {
+  --rx-bg: #0b1120;
+  --rx-surface: #0f172a;
+  --rx-surface-2: #1e293b;
+  --rx-border: #1e293b;
+  --rx-text: #f1f5f9;
+  --rx-text-2: #94a3b8;
+  --rx-primary: #2dd4bf;
+  --rx-primary-text: #2dd4bf;
+  --rx-ai: #2dd4bf;
+  --rx-ai-glow: rgb(45 212 191 / 0.85);
+  --rx-ai-glow-2: rgb(34 211 238 / 0.55);
+  --rx-warning: #fbbf24;
+  --rx-level-fast: #34d399;
+  --rx-level-standard: #2dd4bf;
+  --rx-level-advanced: #a78bfa;
+}
+
+:root,
+.dark,
+.dark #nd-sidebar {
+  --color-fd-background: var(--rx-bg);
+  --color-fd-foreground: var(--rx-text);
+  --color-fd-muted: var(--rx-surface-2);
+  --color-fd-muted-foreground: var(--rx-text-2);
+  --color-fd-popover: var(--rx-surface);
+  --color-fd-popover-foreground: var(--rx-text);
+  --color-fd-card: var(--rx-surface);
+  --color-fd-card-foreground: var(--rx-text);
+  --color-fd-border: var(--rx-border);
+  --color-fd-primary: var(--rx-primary-text);
+  --color-fd-primary-foreground: var(--rx-surface);
+  --color-fd-secondary: var(--rx-surface-2);
+  --color-fd-secondary-foreground: var(--rx-text);
+  --color-fd-accent: var(--rx-surface-2);
+  --color-fd-accent-foreground: var(--rx-text);
+  --color-fd-ring: var(--rx-primary);
+}
+
+.dark {
+  /* White on the dark-theme teal is too low-contrast; dark text on it reads at > 9:1. */
+  --color-fd-primary-foreground: var(--rx-bg);
+}
+
+@theme {
+  --font-sans: var(--font-inter), 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-heading: var(--font-sora), var(--font-inter), 'Segoe UI', system-ui, sans-serif;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.01em;
+  }
+}

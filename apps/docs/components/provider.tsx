@@ -4,5 +4,10 @@ import type { ReactNode } from 'react';
 import SearchDialog from '@/components/search';
 
 export function Provider({ children }: { children: ReactNode }) {
-  return <RootProvider search={{ SearchDialog }}>{children}</RootProvider>;
+  // System is the default for first-time visitors; a manual Light/Dark choice is remembered (FR-013).
+  return (
+    <RootProvider search={{ SearchDialog }} theme={{ defaultTheme: 'system', enableSystem: true, attribute: 'class' }}>
+      {children}
+    </RootProvider>
+  );
 }

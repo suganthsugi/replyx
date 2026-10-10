@@ -10,7 +10,8 @@ Source of truth: `designSystemTokens` in `apps/web/src/theme/tokens.ts`. The doc
 | `--rx-border` | `#E2E8F0` | `#1E293B` | node strokes, non-AI paths |
 | `--rx-text` | `#0F172A` | `#F1F5F9` | labels |
 | `--rx-text-2` | `#475569` | `#94A3B8` | secondary labels |
-| `--rx-primary` | `#0D9488` | `#2DD4BF` | brand accent, links |
+| `--rx-primary` | `#0D9488` | `#2DD4BF` | brand accent, focus rings, strokes |
+| `--rx-primary-text` | `#0F766E` | `#2DD4BF` | link text and primary button fills (white text on it ≥ 4.5:1 in light) |
 | `--rx-ai` | `#0D9488` | `#2DD4BF` | AI node and path strokes |
 | `--rx-ai-glow` | `rgb(13 148 136 / 0.35)` | `rgb(45 212 191 / 0.85)` | neon filter flood colour |
 | `--rx-ai-glow-2` | `rgb(34 211 238 / 0.20)` | `rgb(34 211 238 / 0.55)` | outer neon halo (cyan tint) |
@@ -25,10 +26,11 @@ Fumadocs mapping:
 - `--color-fd-border` → `--rx-border`
 - `--color-fd-foreground` → `--rx-text`
 - `--color-fd-muted-foreground` → `--rx-text-2`
-- `--color-fd-primary` → `--rx-primary`
+- `--color-fd-primary` → `--rx-primary-text`
+- `--color-fd-ring` → `--rx-primary`
 
 Fonts: headings use Sora and body text uses Inter, both self-hosted.
 
-Contrast requirements (checked by axe and a unit test over the table): text tokens are ≥ 4.5:1 on `--rx-bg` and `--rx-surface`. Stroke and level tokens are ≥ 3:1 on `--rx-bg`, in both themes.
+Contrast requirements (checked by axe and a unit test over the table): text tokens (`--rx-text`, `--rx-text-2`, `--rx-primary-text`, `--rx-warning`) are ≥ 4.5:1 on `--rx-bg` and `--rx-surface`. Stroke and level tokens are ≥ 3:1 on `--rx-bg`, in both themes.
 
 `--rx-level-advanced` is a new token. It is added to the docs only, and the app tokens are unchanged.

@@ -8,5 +8,7 @@ export function baseOptions(): BaseLayoutProps {
       title: <Logo />,
       transparentMode: 'top',
     },
+    // Light, Dark and System (the default) in the theme switch (FR-013).
+    themeSwitch: { mode: 'light-dark-system' },
   };
 }

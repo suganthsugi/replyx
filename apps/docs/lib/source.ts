@@ -1,10 +1,18 @@
 import { loader } from 'fumadocs-core/source';
 import { metaSchema, pageSchema } from 'fumadocs-core/source/schema';
+import { applyMdxPreset } from 'fumadocs-mdx/config';
 import { defineDocs } from 'fumadocs-mdx/macro';
 
 const docs = defineDocs({
   dir: 'content/docs',
-  docs: { schema: pageSchema },
+  docs: {
+    schema: pageSchema,
+    // GitHub's high-contrast code themes keep every token >= 4.5:1 in both themes (FR-017); the
+    // default github-light/-dark have orange and comment colors below AA.
+    mdxOptions: applyMdxPreset({
+      rehypeCodeOptions: { themes: { light: 'github-light-high-contrast', dark: 'github-dark-high-contrast' } },
+    }),
+  },
   meta: { schema: metaSchema },
 });
 

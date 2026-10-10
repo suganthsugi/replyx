@@ -17,7 +17,7 @@ export const viewport: Viewport = {
 export default function Layout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${sora.variable}`} suppressHydrationWarning>
-      <body className="flex min-h-screen flex-col font-[family-name:var(--font-inter)]">
+      <body className="flex min-h-screen flex-col">
         <Provider>{children}</Provider>
       </body>
     </html>
