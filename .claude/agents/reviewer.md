@@ -2,7 +2,7 @@
 name: reviewer
 description: Read-only reviewer; checks a task or story diff against the constitution and returns PASS or FAIL with graded findings.
 tools: Read, Grep, Glob, Bash, Skill
-model: opus
+model: sonnet
 effort: high
 maxTurns: 30
 memory: project

@@ -2,7 +2,7 @@
 name: backend-agent
 description: Implements one backend task in apps/api (NestJS, PostgreSQL, Socket.IO) and keeps openapi.yaml in sync.
 tools: Read, Write, Edit, Bash, Grep, Glob, Skill
-model: opus
+model: sonnet
 effort: high
 maxTurns: 60
 memory: project

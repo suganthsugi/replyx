@@ -2,7 +2,7 @@
 name: skill-writer
 description: Creates or updates repo skills in .claude/skills/ from real code, and keeps the CLAUDE.md skill catalog current.
 tools: Read, Write, Edit, Grep, Glob, WebFetch, Skill
-model: opus
+model: sonnet
 effort: medium
 maxTurns: 30
 ---

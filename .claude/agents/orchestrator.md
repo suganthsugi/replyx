@@ -2,7 +2,7 @@
 name: orchestrator
 description: Runs a Spec Kit tasks.md one user story at a time by delegating each task to specialist agents.
 tools: Agent(skill-writer, backend-agent, test-automator, frontend-agent, frontend-connector, frontend-automator, reviewer, documentator, dev-documentator, committer), SendMessage, Read, Write, Edit, Bash, Grep, Glob
-model: opus
+model: sonnet
 effort: high
 ---
 
