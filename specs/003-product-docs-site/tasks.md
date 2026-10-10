@@ -136,7 +136,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   - Parse `app/global.css` and assert that every token in `contracts/theme-tokens.md` exists in both themes.
   - Compute WCAG contrast. Text tokens (`--rx-text`, `--rx-text-2`, `--rx-warning`) must be ≥ 4.5:1 on `--rx-bg` and `--rx-surface`. Stroke and level tokens (`--rx-ai`, `--rx-primary`, `--rx-level-*`) must be ≥ 3:1 on `--rx-bg`.
   - Assert that no file under `components/flow/` or `components/illustrations/` contains a `#[0-9a-fA-F]{3,8}` colour literal.
-- [ ] T013 [US2] Add `apps/docs/e2e/theme.spec.ts`:
+- [X] T013 [US2] Add `apps/docs/e2e/theme.spec.ts`:
   - With `colorScheme: 'dark'`, a first visit has `html.dark` at `DOMContentLoaded`. Check the class before hydration with `page.waitForFunction` on the initial HTML; there must be no light flash.
   - Emulating a media change switches the theme live.
   - Choosing Light, reloading, and having the system still dark keeps Light.
