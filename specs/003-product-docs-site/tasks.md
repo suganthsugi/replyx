@@ -169,7 +169,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   3. The loop has at least one each of Fast, Standard, Advanced, Needs Triage and a rule match, and Fast + Standard > Advanced.
   4. The hrefs are well-formed internal paths. The link checker covers whether they resolve.
   5. No message contains an email address, a phone number or a capitalised first-name-plus-surname pattern.
-- [ ] T017 [US1] Add the artwork, `apps/docs/components/flow/flow-svg.tsx`. It is a server component that renders one original inline `<svg viewBox>` in two layouts: horizontal (≥ 768 px) and vertical (< 768 px), switched with CSS `@container` or a media query on the wrapper.
+- [X] T017 [US1] Add the artwork, `apps/docs/components/flow/flow-svg.tsx`. It is a server component that renders one original inline `<svg viewBox>` in two layouts: horizontal (≥ 768 px) and vertical (< 768 px), switched with CSS `@container` or a media query on the wrapper.
   - **Nodes**: a rounded rect for each stage, plus three level "pills" and four group chips: Orders & Shipping, Accounts, Technical Support, Billing. Add a Needs Triage node using `--rx-warning`.
   - **Connecting paths**: `<path id>` elements reused by the player for `offset-path`.
   - **`<defs>`**:
