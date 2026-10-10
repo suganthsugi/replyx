@@ -109,7 +109,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   - A sidebar item exists for each group (Guides, Admin, Operators, Developers).
   - Search for "triage", "SLA" and "complexity" returns `/guides/triage/`, `/admin/sla-and-business-hours/` and `/guides/ai-assist/` respectively.
   - Then run `check:links` and fix the content until it reports 0 broken links (SC-004).
-- [ ] T010 [US3] Update `.claude/skills/docs-style/SKILL.md` (skill-writer) for Fumadocs:
+- [X] T010 [US3] Update `.claude/skills/docs-style/SKILL.md` (skill-writer) for Fumadocs:
   - Paths are `apps/docs/content/docs/<group>/`.
   - Ordering uses `meta.json` `pages`, so a new page must be added there.
   - The new `concepts/` group is for "how it works" pages that may use the illustration components.
