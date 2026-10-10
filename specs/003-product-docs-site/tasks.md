@@ -63,7 +63,7 @@ All commands run in Docker (`docker compose run --rm docs …`). Do not migrate 
 
 ## Phase 2: Foundational (blocks every story)
 
-- [ ] T003 Build the layout shell, page routing and search in `apps/docs/`:
+- [X] T003 Build the layout shell, page routing and search in `apps/docs/`:
   - `lib/source.ts`: `loader({ baseUrl: '/', source: docs.toFumadocsSource() })`.
   - `app/layout.tsx`: `RootProvider` with `search: { options: { type: 'static' } }`, `<html lang="en" suppressHydrationWarning>`, and the site title "ReplyX Docs".
   - `app/[...slug]/page.tsx`: `DocsLayout`, `DocsPage`, `DocsTitle`, `DocsDescription`, `DocsBody`, table of contents and previous/next links, with `generateStaticParams` and `generateMetadata` from the frontmatter `title` and `description`.
