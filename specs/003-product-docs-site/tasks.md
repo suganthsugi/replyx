@@ -71,7 +71,7 @@ All commands run in Docker (`docker compose run --rm docs …`). Do not migrate 
   - `app/api/search/route.ts`: `createFromSource(source)`, `export const revalidate = false`, `export const { staticGET: GET }`.
   - `app/not-found.tsx`: a themed 404 page with a link home.
   - `app/global.css`: Tailwind with the `fumadocs-ui` neutral preset and the `fumadocs-ui/css/preset.css` imports.
-- [ ] T004 [P] Add the ReplyX brand assets:
+- [X] T004 [P] Add the ReplyX brand assets:
   - `apps/docs/components/Logo.tsx`: the same path data and `LOGO_COLORS` as `apps/web/src/components/foundations/Logo.tsx`, with a comment telling readers to change both together.
   - Copy `apps/web/public/favicon.svg` to `apps/docs/public/favicon.svg`.
   - In `app/layout.tsx`, set the metadata `icons` and the viewport `themeColor` to `#0D9488`.
