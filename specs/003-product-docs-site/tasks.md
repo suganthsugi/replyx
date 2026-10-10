@@ -163,7 +163,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
 - [X] T015 [P] [US1] Add `apps/docs/components/flow/scenarios.ts`:
   - `STAGES`: the 8 stages from `contracts/flow-scenarios.md`, each with `id`, `caption` (≤ 40 chars), `href` and `ai` (true only for `decision`, `factors`, `score` and `levels`).
   - `SCENARIOS`: the 5 scenarios in loop order, with `message` (≤ 90 chars, made up), `ruleMatch`, `routing.candidates`, `factors` and `expected`, exactly as in the contract table.
-- [ ] T016 [US1] Add `apps/docs/test/flow.test.ts`, covering the 5 invariants in `contracts/flow-scenarios.md`:
+- [X] T016 [US1] Add `apps/docs/test/flow.test.ts`, covering the 5 invariants in `contracts/flow-scenarios.md`:
   1. The expected score and level match `complexity.ts`, rounded to 2 decimal places.
   2. The routing outcome follows the 0.70 rule.
   3. The loop has at least one each of Fast, Standard, Advanced, Needs Triage and a rule match, and Fast + Standard > Advanced.
