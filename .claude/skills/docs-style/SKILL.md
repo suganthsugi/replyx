@@ -1,36 +1,34 @@
 ---
 name: docs-style
-description: Starlight guide/concept/developer page style, frontmatter, and sidebar groups for apps/docs. Use when adding or editing a page under apps/docs/src/content/docs/.
+description: Fumadocs guide/concept/developer page style, frontmatter, and meta.json sidebar groups for apps/docs. Use when adding or editing a page under apps/docs/content/docs/.
 ---
 
 # docs-style
 
-Scope: writing or editing Markdown pages in `apps/docs/src/content/docs/`. Loaded
+Scope: writing or editing Markdown/MDX pages in `apps/docs/content/docs/`. Loaded
 by documentator and dev-documentator.
 
 ## Rules
 
-1. **Directory picks the sidebar group and the page type.** `apps/docs/astro.config.mjs`
-   autogenerates four sidebar groups from directories, plus a static link to the
-   Scalar-rendered API reference:
-   ```js
-   // from apps/docs/astro.config.mjs
-   sidebar: [
-     { label: 'Guides', items: [{ autogenerate: { directory: 'guides' } }] },
-     { label: 'Admin', items: [{ autogenerate: { directory: 'admin' } }] },
-     { label: 'Operators', items: [{ autogenerate: { directory: 'operators' } }] },
-     { label: 'Developers', items: [{ autogenerate: { directory: 'developers' } }] },
-     { label: 'API reference', link: 'http://localhost:3000/api/docs', attrs: { target: '_blank' } },
-   ]
+1. **Directory picks the sidebar group; `meta.json` picks the order.** Each group is
+   a folder under `apps/docs/content/docs/` with a `meta.json` that lists every page
+   by file name, in reading order. A page missing from `pages` fails
+   `apps/docs/test/meta.test.ts`. The root `meta.json` orders the groups:
+   ```json
+   // from apps/docs/content/docs/meta.json and guides/meta.json
+   { "pages": ["guides", "admin", "operators", "developers"] }
+   { "title": "Guides", "defaultOpen": true, "pages": ["signing-in", "working-tickets", "triage", "..."] }
    ```
-   Never hand-author API reference pages — that group only links to the
-   generated Scalar UI over `apps/api/openapi.yaml`. Put a new page in the one
-   directory whose audience matches it; don't add a fifth top-level group.
-   Wrong: adding `label: 'FAQ'` as a new sidebar entry instead of an `items` array under an existing group's directory.
+   The groups are `concepts` ("how it works" pages, which may use the illustration
+   components registered in `apps/docs/components/mdx.tsx`), `guides`, `admin`,
+   `operators` and `developers`. Put a page in the one folder whose audience matches,
+   and don't add another group. There is no API reference page: the API serves none
+   (`apps/api` mounts no Scalar or `/api/docs`), so never hand-write one.
+   Wrong: adding `faq/` as a new group, or a new `.md` file without adding it to its folder's `meta.json`.
 
 2. **`guides/*` pages are for the end user doing the task now** — customers or
    staff, second person, one flow per page, no file paths or code. See
-   `apps/docs/src/content/docs/guides/customer-chat.md` and `guides/signing-in.md`:
+   `apps/docs/content/docs/guides/customer-chat.md` and `guides/signing-in.md`:
    ```md
    Type in the box at the bottom and press **Enter** to send. Press
    **Shift+Enter** to start a new line without sending.
@@ -42,13 +40,13 @@ by documentator and dev-documentator.
 3. **`admin/*` and `operators/*` pages are concept pages**: they mix an admin or
    platform-operator task with the domain rule that governs it, including
    tables and matrices for the rule, not just click-paths. See
-   `apps/docs/src/content/docs/admin/roles-and-groups.md`:
+   `apps/docs/content/docs/admin/roles-and-groups.md`:
    ```md
    - **View** — see the group's tickets and their full conversation, including
      internal notes. Without View, a group's tickets are invisible to the
      role — they don't appear in lists, search, or counts.
    ```
-   and `apps/docs/src/content/docs/operators/tenants.md`, which documents
+   and `apps/docs/content/docs/operators/tenants.md`, which documents
    platform-console actions (suspend, reactivate, support sessions) separately
    from tenant-side `admin/*` pages. Still second person, still no code, but
    explains *why* (effects, reversibility, what's kept vs removed) alongside
@@ -58,7 +56,7 @@ by documentator and dev-documentator.
 4. **`developers/*` pages are for engineers**: third person, cite real files
    and symbols, use tables for state/decision matrices, use a fenced ` ```ts `
    or ` ```mermaid ` block for a sequence, and end complex ones with a
-   checklist. See `apps/docs/src/content/docs/developers/conversation-routing.md`:
+   checklist. See `apps/docs/content/docs/developers/conversation-routing.md`:
    ```md
    `CustomerMessageRouter.accept(ctx, customer, { body, clientMessageId, attachmentIds })`
    (`apps/api/src/messaging/customer-message-router.ts`) handles
@@ -95,7 +93,7 @@ by documentator and dev-documentator.
    Wrong: telling a customer their message "created ticket #42" in a guide page.
 
 ## Checklist (before reporting done)
-- [ ] Page is under the directory matching its audience (guides/admin/operators/developers) — no new sidebar group added.
+- [ ] Page is under the folder matching its audience (concepts/guides/admin/operators/developers) and listed in that folder's `meta.json` — no new group added.
 - [ ] Frontmatter has only `title` and `description`, description is a full sentence.
 - [ ] Guide pages have no file paths, code, or ticket vocabulary; developer pages cite a real path for every named symbol.
-- [ ] Cross-links use `/section/page/` (trailing slash, no `.md`).
+- [ ] Cross-links use `/section/page/` (trailing slash, no `.md`), and `pnpm --filter docs build && pnpm --filter docs check:links` reports 0 broken links.
