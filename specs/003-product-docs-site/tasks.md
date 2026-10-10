@@ -127,7 +127,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
 
 **Independent Test**: Quickstart step 4's theme checks pass, and axe is clean in both themes.
 
-- [ ] T011 [US2] Add the theme tokens and provider config:
+- [X] T011 [US2] Add the theme tokens and provider config:
   - In `apps/docs/app/global.css`, define every variable from `contracts/theme-tokens.md`: `--rx-*` on `:root` (light) and `.dark` (dark), with the exact values from the table.
   - Map them to Fumadocs: `--color-fd-background`, `--color-fd-card`, `--color-fd-border`, `--color-fd-foreground`, `--color-fd-muted-foreground` and `--color-fd-primary`.
   - Set the heading font to Sora and the body font to Inter.
