@@ -1,0 +1,152 @@
+/*
+ * The home flow artwork. Colours come only from the --rx-* theme tokens (contracts/theme-tokens.md),
+ * so the artwork follows the theme live. State is set with data attributes:
+ *   data-lit       a path the current ticket has travelled
+ *   data-reached   a stage the ticket has reached (its result is shown)
+ *   data-active    the stage the ticket is at now
+ *   data-chosen    the group, triage node or level the ticket ended up at
+ *   data-playing   on the svg while the player runs (enables the ambient motion)
+ */
+
+.svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  font-family: var(--font-inter), system-ui, sans-serif;
+  color: var(--rx-text-2);
+}
+
+.horizontal { display: none; }
+.vertical { display: block; }
+
+@container flow (min-width: 768px) {
+  .horizontal { display: block; }
+  .vertical { display: none; }
+}
+
+/* ---- background ------------------------------------------------------------------------------ */
+.dot { fill: var(--rx-border); }
+.aiWash { opacity: 0.55; }
+
+/* ---- connecting paths ------------------------------------------------------------------------ */
+.path {
+  fill: none;
+  stroke: var(--rx-border);
+  stroke-width: 2;
+  stroke-linecap: round;
+  transition: stroke 300ms ease, opacity 300ms ease;
+}
+.path[data-optional='true'] { stroke-dasharray: 4 6; opacity: 0.7; }
+.path[data-hidden='true'] { opacity: 0; }
+.path[data-lit='true'] { stroke: var(--rx-text-2); opacity: 1; stroke-dasharray: none; }
+.path[data-ai='true'][data-lit='true'] { stroke: var(--rx-ai); stroke-width: 2.5; }
+.svg[data-playing='true'] .path[data-ai='true'][data-lit='true'] {
+  stroke-dasharray: 8 10;
+  animation: rx-march 900ms linear infinite;
+}
+
+@keyframes rx-march {
+  to { stroke-dashoffset: -18; }
+}
+
+/* ---- nodes ----------------------------------------------------------------------------------- */
+.node {
+  fill: var(--rx-surface);
+  stroke: var(--rx-border);
+  stroke-width: 1.5;
+  transition: stroke 300ms ease, fill 300ms ease;
+}
+[data-reached='true'] > .node { stroke: var(--rx-text-2); }
+[data-active='true'] > .node { stroke: var(--rx-primary); }
+
+/* AI stages: a neon outline drawn over the node (the text itself is never blurred). */
+.neon {
+  fill: none;
+  stroke: var(--rx-ai);
+  stroke-width: 1.75;
+  opacity: 0.55;
+  transition: opacity 300ms ease;
+}
+[data-reached='true'] > .neon { opacity: 0.85; }
+[data-active='true'] > .neon { opacity: 1; stroke-width: 2.25; }
+
+.icon { color: var(--rx-text-2); }
+[data-ai='true'] .icon { color: var(--rx-ai); }
+
+.title { fill: var(--rx-text); font-size: 14px; font-weight: 600; font-family: var(--font-sora), var(--font-inter), sans-serif; }
+.sub { fill: var(--rx-text-2); font-size: 11.5px; }
+.small { fill: var(--rx-text-2); font-size: 11px; }
+.value { fill: var(--rx-text); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.message { fill: var(--rx-text); font-size: 13px; }
+
+/* ---- message bubble -------------------------------------------------------------------------- */
+.bubble { fill: var(--rx-surface); stroke: var(--rx-primary); stroke-width: 1.5; }
+.bubbleTag { fill: var(--rx-primary-text); font-size: 10.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; }
+
+/* ---- bars (confidence, factors) -------------------------------------------------------------- */
+.track { fill: var(--rx-surface-2); }
+.fill {
+  fill: var(--rx-ai);
+  transform-box: fill-box;
+  transform-origin: left center;
+  transition: transform 700ms cubic-bezier(0.2, 0, 0, 1);
+}
+.fillMuted { fill: var(--rx-text-2); }
+.threshold { stroke: var(--rx-text); stroke-width: 1.25; stroke-dasharray: 2 2; }
+
+/* ---- groups and triage ----------------------------------------------------------------------- */
+.chip { fill: var(--rx-surface); stroke: var(--rx-border); stroke-width: 1.5; transition: stroke 300ms ease, fill 300ms ease; }
+.chipLabel { fill: var(--rx-text); font-size: 12.5px; font-weight: 500; }
+[data-chosen='true'] > .chip { stroke: var(--rx-primary); fill: var(--rx-surface-2); stroke-width: 2; }
+.badge { opacity: 0; transition: opacity 300ms ease; }
+[data-chosen='true'] > .badge { opacity: 1; }
+.badgeBg { fill: var(--rx-primary-text); }
+.badgeText { fill: var(--rx-surface); font-size: 10.5px; font-weight: 700; font-variant-numeric: tabular-nums; }
+:global(.dark) .badgeText { fill: var(--rx-bg); }
+
+.triage { fill: var(--rx-surface); stroke: var(--rx-warning); stroke-width: 1.5; stroke-dasharray: 5 4; transition: fill 300ms ease; }
+.triageIcon .icon { color: var(--rx-warning); }
+.triageLabel { fill: var(--rx-warning); font-size: 12.5px; font-weight: 600; }
+[data-chosen='true'] > .triage { stroke-dasharray: none; stroke-width: 2; fill: var(--rx-surface-2); }
+
+.ruleBadge { opacity: 0; transition: opacity 300ms ease; }
+.ruleBadge[data-shown='true'] { opacity: 1; }
+.ruleBadgeBg { fill: var(--rx-surface-2); stroke: var(--rx-text-2); stroke-width: 1; }
+
+/* ---- score dial and levels ------------------------------------------------------------------- */
+.arc { fill: none; stroke-width: 9; stroke-linecap: butt; opacity: 0.35; transition: opacity 300ms ease; }
+[data-reached='true'] .arc { opacity: 1; }
+.arcFast { stroke: var(--rx-level-fast); }
+.arcStandard { stroke: var(--rx-level-standard); }
+.arcAdvanced { stroke: var(--rx-level-advanced); }
+.tick { stroke: var(--rx-text); stroke-width: 1.5; }
+.needle {
+  stroke: var(--rx-text);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  transition: transform 800ms cubic-bezier(0.2, 0, 0, 1);
+}
+.hub { fill: var(--rx-text); }
+.score { fill: var(--rx-text); font-size: 22px; font-weight: 700; font-family: var(--font-sora), var(--font-inter), sans-serif; font-variant-numeric: tabular-nums; }
+
+.pill { fill: var(--rx-surface); stroke: var(--rx-border); stroke-width: 1.5; transition: stroke 300ms ease, fill 300ms ease; }
+.pillLabel { fill: var(--rx-text); font-size: 12.5px; font-weight: 600; }
+.pillDotFast { fill: var(--rx-level-fast); }
+.pillDotStandard { fill: var(--rx-level-standard); }
+.pillDotAdvanced { fill: var(--rx-level-advanced); }
+[data-chosen='true'][data-level='Fast'] > .pill { stroke: var(--rx-level-fast); stroke-width: 2.25; fill: var(--rx-surface-2); }
+[data-chosen='true'][data-level='Standard'] > .pill { stroke: var(--rx-level-standard); stroke-width: 2.25; fill: var(--rx-surface-2); }
+[data-chosen='true'][data-level='Advanced'] > .pill { stroke: var(--rx-level-advanced); stroke-width: 2.25; fill: var(--rx-surface-2); }
+
+/* ---- the travelling ticket ------------------------------------------------------------------- */
+.particle { opacity: 0; pointer-events: none; }
+.particleGlow { fill: var(--rx-ai-glow); }
+.particleCore { fill: var(--rx-primary); }
+
+@media (prefers-reduced-motion: reduce) {
+  .path, .node, .neon, .fill, .chip, .badge, .triage, .ruleBadge, .arc, .needle, .pill {
+    transition: none;
+  }
+  .svg[data-playing='true'] .path[data-ai='true'][data-lit='true'] { animation: none; stroke-dasharray: none; }
+}
