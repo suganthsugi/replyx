@@ -1,5 +1,4 @@
 import Box from '@mui/material/Box';
-import Checkbox from '@mui/material/Checkbox';
 import { useLayoutEffect, useRef, useState } from 'react';
 
 import { EmptyState } from '../foundations/EmptyState';
@@ -17,8 +16,8 @@ import type { FocusEvent, KeyboardEvent } from 'react';
  * "all caught up" empty state for a view with no tickets right now.
  *
  * With `checkedIds`/`onToggleChecked` (bulk actions, US14) each row shows a checkbox and `x`
- * checks or unchecks the active row; the row carries `aria-checked`, so the checkbox itself is not
- * a separate tab stop inside the option.
+ * checks or unchecks the active row. The row carries `aria-checked`, so the box is only a visual
+ * mouse target: a real checkbox inside the option would be nested interactive content (axe).
  */
 
 export interface TicketListProps {
@@ -197,14 +196,10 @@ export function TicketList({
               >
                 {checkable ? (
                   <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                    <Checkbox
-                      size="small"
+                    <RowCheck
                       checked={checkedIds.has(ticket.id)}
-                      tabIndex={-1}
-                      slotProps={{ input: { 'aria-label': `Select #${ticket.number}` } }}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={() => onToggleChecked(ticket)}
-                      sx={{ ml: 1 }}
+                      testId={`select-${ticket.number}`}
+                      onToggle={() => onToggleChecked(ticket)}
                     />
                     <Box sx={{ flex: 1, minWidth: 0, height: '100%' }}>
                       <TicketRow ticket={ticket} unread={unreadIds?.has(ticket.id) ?? false} selected={selected} />
@@ -217,6 +212,40 @@ export function TicketList({
             );
           })}
         </Box>
+      </Box>
+    </Box>
+  );
+}
+
+/** The row's check box: presentational (the option's `aria-checked` carries the state), clickable with a mouse. */
+function RowCheck({ checked, testId, onToggle }: { checked: boolean; testId: string; onToggle: () => void }) {
+  return (
+    <Box
+      aria-hidden
+      data-testid={testId}
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 40, height: '100%', flexShrink: 0, ml: 0.5 }}
+    >
+      <Box
+        sx={{
+          width: 18,
+          height: 18,
+          borderRadius: 0.5,
+          border: 2,
+          borderColor: checked ? 'primary.main' : 'text.secondary',
+          bgcolor: checked ? 'primary.main' : 'transparent',
+          color: 'primary.contrastText',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontSize: 14,
+          lineHeight: 1,
+        }}
+      >
+        {checked ? '✓' : null}
       </Box>
     </Box>
   );

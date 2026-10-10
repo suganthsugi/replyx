@@ -163,7 +163,7 @@ describe('SplitTicketDialog', () => {
 });
 
 describe('bulk selection', () => {
-  it('checks rows with x and the checkbox, exposed as aria-checked', async () => {
+  it('checks rows with x and the row box, exposed as aria-checked with no nested checkbox', async () => {
     Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, value: 600 });
     const tickets = [makeTicketSummary({ id: 'a', number: 11, title: 'A' }), makeTicketSummary({ id: 'b', number: 12, title: 'B' })];
     const onToggle = vi.fn();
@@ -175,7 +175,9 @@ describe('bulk selection', () => {
     first?.focus();
     await userEvent.keyboard('x');
     expect(onToggle).toHaveBeenCalledWith(tickets[0]);
-    await userEvent.click(screen.getByRole('checkbox', { name: 'Select #12' }));
+    // The box is a mouse target only; the option itself carries the checked state.
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    await userEvent.click(screen.getByTestId('select-12'));
     expect(onToggle).toHaveBeenLastCalledWith(tickets[1]);
     Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, value: 0 });
   });
