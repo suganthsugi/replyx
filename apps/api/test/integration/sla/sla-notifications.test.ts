@@ -51,11 +51,13 @@ let tenant: TestTenant;
 beforeAll(async () => {
   await getTestApp();
   await getTestWorker();
-  tenant = await createTenant({ timezone: 'UTC' });
 });
 
+// A tenant per test: each test adds a position-0 policy, and policies tied on position match in id
+// order, so a shared tenant would apply the first test's catch-all policy to the second test's ticket.
 beforeEach(async () => {
   (await getTestApp()).clock.set(T0);
+  tenant = await createTenant({ timezone: 'UTC' });
 });
 
 describe('sla notifications', () => {
