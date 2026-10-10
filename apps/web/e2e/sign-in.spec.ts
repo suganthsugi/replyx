@@ -72,7 +72,9 @@ test('an invited agent accepts, signs in and signs out everywhere', async ({ pag
   // suite signs in as few times as it can.)
   await invitee.goto('/desk/me');
   await expect(invitee.getByRole('heading', { level: 1, name: 'Your profile' })).toBeVisible();
-  await invitee.getByRole('button', { name: 'Sign out of all sessions' }).click();
+  // Pressed from the keyboard: on the phone viewport the profile sections shift while the page
+  // settles, and a pointer click kept landing on the password form above the button.
+  await invitee.getByRole('button', { name: 'Sign out of all sessions' }).press('Enter');
   await expect(invitee).toHaveURL(/\/desk\/sign-in$/);
 
   await invitee.goto('/desk/me');
