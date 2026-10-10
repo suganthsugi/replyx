@@ -319,7 +319,9 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
   };
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
+    // On phones the header and fields take most of the height: the column scrolls, and the
+    // conversation keeps a usable minimum instead of squeezing the composer over its own controls.
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0, overflowY: { xs: 'auto', md: 'visible' } }}>
       {removed !== null && (
         <Box role="alert" sx={{ px: 4, py: 2, bgcolor: 'error.light', color: 'error.main', borderBottom: 1, borderColor: 'divider' }}>
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
@@ -485,7 +487,7 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
       </Tabs>
 
       {tab === 'conversation' ? (
-        <Box id="ticket-tabpanel-conversation" role="tabpanel" aria-labelledby="ticket-tab-conversation" sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <Box id="ticket-tabpanel-conversation" role="tabpanel" aria-labelledby="ticket-tab-conversation" sx={{ flex: 1, flexShrink: { xs: 0, md: 1 }, minHeight: { xs: 480, md: 0 }, display: 'flex', flexDirection: 'column' }}>
           {messages.isPending ? (
             <Box sx={{ p: 4 }}>
               <Skeleton variant="list" rows={4} label="the conversation" />
