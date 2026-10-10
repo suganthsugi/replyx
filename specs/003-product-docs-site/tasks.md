@@ -180,7 +180,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   - **Score**: a dial with tick marks at 0.45 and 0.80.
   - **Colours**: use only `var(--rx-*)`, with no hex values (T012 enforces this). Use a consistent 1.5 px stroke, 12 px radius and Inter labels.
   - **Static state**: the default render is the complete static diagram showing scenario 3 (Technical Support, 0.50, Standard), so no-JS and reduce-motion visitors see a full outcome (research R5).
-- [ ] T018 [US1] Add `apps/docs/components/flow/FlowHero.tsx` (server):
+- [X] T018 [US1] Add `apps/docs/components/flow/FlowHero.tsx` (server):
   - Wrap the SVG in `<figure role="img" aria-labelledby="flow-desc">`.
   - Add a visually hidden `<p id="flow-desc">` that describes the whole flow in order, including the confidence threshold, the Needs Triage fallback, and the three levels with the cheaper levels used most (FR-011).
   - Lay the 8 stage captions over the SVG as real `<a href>` links, using the `STAGES` captions and hrefs. They need visible `:focus-visible` rings that use `--rx-primary` (FR-007).
