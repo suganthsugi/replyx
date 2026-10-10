@@ -31,6 +31,14 @@ const flashState = (page: Page) =>
   page.evaluate(() => (window as unknown as { __flash: { themedFirst: boolean | null; theme: string } }).__flash);
 const htmlClasses = (page: Page) => page.evaluate(() => [...document.documentElement.classList]);
 
+/** Picks a theme in the switch, retrying until hydration has wired the button up. */
+async function chooseTheme(page: Page, name: 'Light' | 'Dark' | 'System', expected: 'light' | 'dark') {
+  await expect(async () => {
+    await page.locator('[data-theme-toggle]').getByRole('button', { name }).filter({ visible: true }).first().click();
+    expect(await htmlClasses(page)).toContain(expected);
+  }).toPass({ timeout: 15_000 });
+}
+
 for (const scheme of ['dark', 'light'] as const) {
   test(`a first visit follows a ${scheme} system preference with no flash`, async ({ page }) => {
     await page.emulateMedia({ colorScheme: scheme });
@@ -54,8 +62,7 @@ test('a manual Light choice persists while the system stays dark', async ({ page
   test.skip(isMobile, 'The theme switch sits in the closed sidebar drawer on phones.');
   await page.emulateMedia({ colorScheme: 'dark' });
   await page.goto('/guides/triage/', { waitUntil: 'networkidle' });
-  await page.locator('[data-theme-toggle]').getByRole('button', { name: 'Light' }).filter({ visible: true }).first().click();
-  await expect.poll(() => htmlClasses(page)).toContain('light');
+  await chooseTheme(page, 'Light', 'light');
 
   await watchForFlash(page);
   await page.reload();
@@ -63,8 +70,7 @@ test('a manual Light choice persists while the system stays dark', async ({ page
 
   // Back to System follows the dark preference again.
   await page.waitForLoadState('networkidle');
-  await page.locator('[data-theme-toggle]').getByRole('button', { name: 'System' }).filter({ visible: true }).first().click();
-  await expect.poll(() => htmlClasses(page)).toContain('dark');
+  await chooseTheme(page, 'System', 'dark');
 });
 
 for (const scheme of ['light', 'dark'] as const) {

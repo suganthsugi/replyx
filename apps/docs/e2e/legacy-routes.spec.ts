@@ -58,10 +58,14 @@ const SEARCHES: [query: string, title: string, path: string][] = [
 
 for (const [query, title, path] of SEARCHES) {
   test(`search for "${query}" finds ${path}/`, async ({ page }) => {
-    // Wait for hydration: the static HTML renders the search button before it is interactive.
+    // The static HTML renders the search button before React hydrates it, so retry the click until
+    // the dialog opens.
     await page.goto('/guides/signing-in/', { waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: /search/i }).filter({ visible: true }).first().click();
     const dialog = page.getByRole('dialog', { name: 'Search' });
+    await expect(async () => {
+      await page.getByRole('button', { name: /search/i }).filter({ visible: true }).first().click();
+      await expect(dialog).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 15_000 });
     await dialog.getByRole('combobox', { name: 'Search' }).fill(query);
     await dialog.getByRole('option', { name: new RegExp(title) }).first().click();
     await expect(page).toHaveURL(new RegExp(`${path}/?(#.*)?$`));
