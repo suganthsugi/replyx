@@ -1,0 +1,2 @@
+- [Recurring review checks](review_recurring_checks.md) — how to run tests in compose; web vitest/coverage deps, turbo strict env, volume ownership
+- [Routing rules review](review_routing_rules.md) — test gaps on router changes (event payload, skip paths); regex-from-admin-text was safe

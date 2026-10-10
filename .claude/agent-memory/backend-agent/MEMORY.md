@@ -1,0 +1,26 @@
+- [Host tooling](project_host-tooling.md) — no pnpm/turbo/python on Windows host; redocly and actionlint via docker; compose config needs .env
+- [Postgres RLS gotchas](project_postgres-rls-gotchas.md) — container localhost is trust auth; current_setting returns '' so wrap it in NULLIF before the ::uuid cast
+- [pnpm 12 behaviour](reference_pnpm12.md) — deploy/allowBuilds/PNPM_CONFIG_* facts; docker build --check for Dockerfile lint
+- [pnpm 12 policies](project_pnpm12-policies.md) — release-age auto-edits workspace yaml; allowBuilds required; container install recipe
+- [Cross-tenant fixtures](project_cross-tenant-fixtures.md) — new mutating route needs a `bodies` entry in test/cross-tenant/fixtures.ts or it 400s not 404s; that file is test-automator's, not mine
+- [Quick migration verify](project_quick-migration-verify.md) — psql `\d+` + role_table_grants query via docker compose exec postgres, faster than test-affected.sh for schema-only tasks
+- [Condition-tree modules](project_condition-tree-modules.md) — jsonb condition trees (views/routing/automation/SLA) validated with recursive zod + manual depth/count walk, no ajv in apps/api
+- [Shared cross-module DTO helpers](project_shared-cross-module-dto-helpers.md) — TagsService and ticket-dto.ts export reusable helpers; check before duplicating a join; TicketRow isn't re-exported from ticket-dto.ts
+- [Cross-module service export](project_cross-module-service-export.md) — expose a service to a concurrently-edited sibling module via a @Global module in app.module.ts's shared list, methods take TenantTransaction + requireScope(tx)
+- [Repeated canView/require helpers](project_repeated-canview-require-helpers.md) — tickets/messaging services duplicate a private canView/require/SUPPORT trio per file; don't extract a shared one
+- [FORCE RLS hides rows from plain psql](project_force-rls-hides-rows-from-plain-psql.md) — bare psql as table owner on a tenant table always returns 0 rows without app.tenant_id set; looks like a missing write, isn't
+- [Audit + DomainEvent typing](project_audit-and-domain-event-typing.md) — DomainEvent<Union> doesn't narrow; audit details key filter; audit_logs uuid/inet columns; TestClient has no .query
+- [Shell edit pitfalls](project_shell-edit-pitfalls.md) — heredoc backslashes get halved, .env.example is CRLF, audit drops messages/body keys, retention role optional
+- [Lint flake + shared tree](project_lint-flake-and-shared-tree.md) — eslint ENODATA rerun; unrelated red web files from other agents; use Write/Edit not nested-quote heredocs
+- [notFound + jsonb typing](project_notfound-and-jsonb-typing.md) — notFound needs snake_case resource; ColumnType<Obj,string,string> for jsonb; no 422, use 400
+- [Prod VM deploy](project_prod-vm-deploy.md) — nginx+Caddy+compose.prod.yml; worker needs CLAMAV_HOST in prod; pg_dump as superuser (FORCE RLS); nginx name uniqueness
+- [SLA sweeper/consumer gotchas](project_sla-sweeper-and-consumer-gotchas.md) — positional sweeper ctor in tests, outbox time != Clock, forUpdate(table), counts consumer registration
+- [T224 SLA admin gotchas](project_t224-sla-admin-gotchas.md) — pnpm filter is 'api'; paged recompute avoids advisory-lock exhaustion; TicketRefs carries per-ticket extras; use Write for big YAML
+- [Search module gotchas](project_search-module-gotchas.md) — migration 0015, unaccent IMMUTABLE wrapper, required-query GET breaks generated cross-tenant test, dev-stack curl recipe
+- [Macros module gotchas](project_macros-module-gotchas.md) — T236 migration 0016, SET NULL (col) composite FK, apply-macro composition, CRLF fixtures.ts
+- [Policies API gotchas](project_policies-api-gotchas.md) — T014: openapi yaml colon bug, generate script host install, ai_knowledge cross-tenant fixture needed
+- [AI indexer gotchas](project_ai-indexer-gotchas.md) — T015: BullMQ ids no colon, DelayedError reschedule, NUL/BOM shell corruption, smoke recipe
+- [Assistant writer gotchas](project_assistant-writer-gotchas.md) — T020: shared PublicReplyService, null-author idempotency, SLA derived from ticket row, triage flake
+- [Commerce connector gotchas](project_commerce-connector-gotchas.md) — T019: Spree v3 names readable offline in ecom repo, openapi edit vanished, outbound-guard unit test fails in docker
+- [AI drafts gotchas](project_ai-drafts-gotchas.md) — T023: aiDraftId in message metadata, assertOpenAiDraft entry point, probe-module test trick, one turn per trigger message
+- [AI responder gotchas](project_ai-responder-gotchas.md) — T021-T024: worker vs api fakes, lock order, responder helpers, generated-client git noise
