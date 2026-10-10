@@ -43,7 +43,7 @@ All commands run in Docker (`docker compose run --rm docs …`). Do not migrate 
 
 **Purpose**: Replace the Starlight app with an empty Fumadocs app that builds as a static export.
 
-- [ ] T001 Replace `apps/docs` with a Fumadocs v16 + Next.js 16 app, keeping the package name `docs`:
+- [X] T001 Replace `apps/docs` with a Fumadocs v16 + Next.js 16 app, keeping the package name `docs`:
   - Remove `astro.config.mjs`, `src/content.config.ts`, `tsconfig.json` (Astro) and the Astro dependencies.
   - Move every file from `apps/docs/src/content/docs/<group>/` to `apps/docs/content/docs/<group>/` with `git mv`, unchanged. Delete `src/content/docs/index.mdx`, which is superseded by `/`.
   - Add `apps/docs/package.json` with `next`, `react`, `react-dom`, `fumadocs-core`, `fumadocs-ui` and `fumadocs-mdx` (exact versions, current at 2026-10-11), plus `tailwindcss` v4 and `@tailwindcss/postcss`.
