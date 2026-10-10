@@ -1,0 +1,12 @@
+{
+  "title": "Admin",
+  "pages": [
+    "organization-settings",
+    "users",
+    "roles-and-groups",
+    "routing-rules",
+    "sla-and-business-hours",
+    "audit-and-retention",
+    "support-access"
+  ]
+}

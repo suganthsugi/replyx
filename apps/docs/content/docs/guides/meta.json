@@ -1,0 +1,15 @@
+{
+  "title": "Guides",
+  "defaultOpen": true,
+  "pages": [
+    "signing-in",
+    "working-tickets",
+    "triage",
+    "views-and-notifications",
+    "custom-views",
+    "search",
+    "macros-merge-split",
+    "customer-chat",
+    "ai-assist"
+  ]
+}
