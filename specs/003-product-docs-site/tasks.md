@@ -152,7 +152,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
 
 **Independent Test**: Quickstart step 4's home checks pass, and the owner watches it for 30 seconds in both themes.
 
-- [ ] T014 [P] [US1] Add `apps/docs/components/flow/complexity.ts`:
+- [X] T014 [P] [US1] Add `apps/docs/components/flow/complexity.ts`:
   - `export const WEIGHTS = { frustration: 2, severalIssues: 1, technical: 1, vip: 1 }`.
   - `export const THRESHOLDS = { standard: 0.45, advanced: 0.8 }`.
   - `export const ROUTING_CONFIDENCE = 0.7`.
@@ -160,7 +160,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   - `level(score)`: `'Fast'` if score < 0.45, `'Standard'` if score < 0.80, otherwise `'Advanced'`.
   - `route(candidates)`: the top candidate if its confidence ≥ 0.70, otherwise `'Needs Triage'`.
   - Add a comment linking to spec 002 research R12.
-- [ ] T015 [P] [US1] Add `apps/docs/components/flow/scenarios.ts`:
+- [X] T015 [P] [US1] Add `apps/docs/components/flow/scenarios.ts`:
   - `STAGES`: the 8 stages from `contracts/flow-scenarios.md`, each with `id`, `caption` (≤ 40 chars), `href` and `ai` (true only for `decision`, `factors`, `score` and `levels`).
   - `SCENARIOS`: the 5 scenarios in loop order, with `message` (≤ 90 chars, made up), `ruleMatch`, `routing.candidates`, `factors` and `expected`, exactly as in the contract table.
 - [ ] T016 [US1] Add `apps/docs/test/flow.test.ts`, covering the 5 invariants in `contracts/flow-scenarios.md`:
