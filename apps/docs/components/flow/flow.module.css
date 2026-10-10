@@ -18,9 +18,11 @@
 }
 
 .horizontal { display: none; }
-.vertical { display: block; }
+/* Narrow screens stack the flow; capped so it doesn't grow huge on tablets. */
+.vertical { display: block; max-width: 440px; margin-inline: auto; }
 
-@container flow (min-width: 768px) {
+/* The wide layout needs about 1000 px for its smallest labels to stay legible. */
+@container flow (min-width: 1000px) {
   .horizontal { display: block; }
   .vertical { display: none; }
 }
@@ -138,6 +140,21 @@
 [data-chosen='true'][data-level='Fast'] > .pill { stroke: var(--rx-level-fast); stroke-width: 2.25; fill: var(--rx-surface-2); }
 [data-chosen='true'][data-level='Standard'] > .pill { stroke: var(--rx-level-standard); stroke-width: 2.25; fill: var(--rx-surface-2); }
 [data-chosen='true'][data-level='Advanced'] > .pill { stroke: var(--rx-level-advanced); stroke-width: 2.25; fill: var(--rx-surface-2); }
+
+/* ---- stage captions (links) ----------------------------------------------------------------- */
+.caption text {
+  fill: var(--rx-primary-text);
+  font-size: 12.5px;
+  font-weight: 600;
+  /* A halo in the background colour keeps captions readable where a path passes behind them. */
+  paint-order: stroke;
+  stroke: var(--rx-bg);
+  stroke-width: 6px;
+  stroke-linejoin: round;
+}
+.caption:hover text,
+.caption:focus-visible text { text-decoration: underline; }
+.caption:focus-visible { outline: 2px solid var(--rx-primary); outline-offset: 4px; border-radius: 4px; }
 
 /* ---- the travelling ticket ------------------------------------------------------------------- */
 .particle { opacity: 0; pointer-events: none; }

@@ -43,7 +43,10 @@ All Technical Context unknowns are resolved below. Sources: fumadocs.dev (static
   - `FlowPlayer` checks `matchMedia('(prefers-reduced-motion: reduce)')` and listens for changes. It does not start when that is set.
   - It uses an `IntersectionObserver` with threshold 0.2 and the `visibilitychange` event to call pause and resume.
   - It reserves the hero size with `aspect-ratio` so there is no CLS.
-- **Text alternative**: the SVG is wrapped as `<figure>` with `role="img"` and `aria-labelledby`, pointing to a visually hidden `<p>` that describes the whole flow in order (FR-011). The moving particles and the counting score are `aria-hidden`. The captions are real `<a>` links outside the SVG graphics, laid over it, so they get keyboard focus and visible focus rings.
+- **Text alternative** (revised in T018): the artwork sits in a `<figure aria-labelledby>` that points to a visually hidden `<p>` describing the whole flow in order (FR-011). The figure is not `role="img"`, because that role makes its children presentational and would hide the caption links.
+  - The decorative drawing is wrapped in `aria-hidden="true"`.
+  - The 8 stage captions are SVG `<a href>` links inside the artwork. They scale with the drawing instead of overlapping as HTML overlays would, and they get keyboard focus and a visible focus ring.
+- **Breakpoint** (revised in T018): the horizontal layout starts at a 1000 px container width, not 768 px. At 768 px its labels would scale down to about 9 px. Below 1000 px the vertical layout is used, capped at 440 px wide.
 
 ## R6 Theme and CSP
 

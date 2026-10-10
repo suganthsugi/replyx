@@ -75,7 +75,7 @@ function horizontal(): Geometry {
 
   return {
     width: 1200,
-    height: 380,
+    height: 390,
     message: { x: 24, y: 30, w: 236, h: 92 },
     intake,
     rules,
@@ -94,8 +94,8 @@ function horizontal(): Geometry {
       groups: { x: midX(groups[0]!), y: 64 },
       triage: { x: midX(triage), y: triage.y + triage.h + 8 },
       factors: { x: midX(factors), y: factors.y + factors.h + 10 },
-      score: { x: dial.cx, y: 104 },
-      levels: { x: midX(levels[0]!), y: levels[2]!.y + levels[2]!.h + 8 },
+      score: { x: dial.cx, y: 82 },
+      levels: { x: 1120, y: levels[2]!.y + levels[2]!.h + 8 },
     },
     messageChars: 30,
   };
@@ -105,11 +105,11 @@ function vertical(): Geometry {
   const intake = { x: 115, y: 124, w: 150, h: 64 };
   const rules = { x: 125, y: 244, w: 130, h: 60 };
   const decision = { x: 80, y: 356, w: 220, h: 156 };
-  const groups = [556, 594, 632, 670].map((y) => ({ x: 95, y, w: 190, h: 30 }));
-  const triage = { x: 110, y: 738, w: 160, h: 38 };
-  const factors = { x: 50, y: 836, w: 280, h: 196 };
-  const dial = { cx: 190, cy: 1146, r: 56 };
-  const levels = [18, 138, 258].map((x) => ({ x, y: 1232, w: 104, h: 30 }));
+  const groups = [586, 624, 662, 700].map((y) => ({ x: 95, y, w: 190, h: 30 }));
+  const triage = { x: 110, y: 768, w: 160, h: 38 };
+  const factors = { x: 50, y: 866, w: 280, h: 196 };
+  const dial = { cx: 190, cy: 1222, r: 56 };
+  const levels = [18, 138, 258].map((x) => ({ x, y: 1308, w: 104, h: 30 }));
 
   const paths = {
     'intake-rules': `M190 ${intake.y + intake.h} L190 ${rules.y}`,
@@ -129,7 +129,7 @@ function vertical(): Geometry {
 
   return {
     width: 380,
-    height: 1300,
+    height: 1376,
     message: { x: 30, y: 16, w: 320, h: 80 },
     intake,
     rules,
@@ -148,7 +148,7 @@ function vertical(): Geometry {
       groups: { x: 190, y: groups[0]!.y - 26 },
       triage: { x: 190, y: triage.y + triage.h + 8 },
       factors: { x: 190, y: factors.y + factors.h + 8 },
-      score: { x: 190, y: dial.cy - dial.r - 30 },
+      score: { x: 190, y: dial.cy - dial.r - 54 },
       levels: { x: 190, y: levels[0]!.y + levels[0]!.h + 8 },
     },
     messageChars: 44,

@@ -2,7 +2,7 @@ import type { Factor, Level } from './complexity';
 import { WEIGHTS, THRESHOLDS, ROUTING_CONFIDENCE } from './complexity';
 import { dialArc, dialPoint, GEOMETRY, wrap, type Layout, type PathId } from './geometry';
 import { Bar, Icon, NeonDefs, NodeBox } from './primitives';
-import { GROUPS, type Scenario, type StageId } from './scenarios';
+import { GROUPS, STAGES, type Scenario, type StageId } from './scenarios';
 import styles from './flow.module.css';
 
 /**
@@ -103,10 +103,11 @@ export function FlowArtwork({ layout, scenario, step, scoreText, playing }: Flow
       viewBox={`0 0 ${g.width} ${g.height}`}
       data-layout={layout}
       data-playing={playing ? 'true' : undefined}
-      aria-hidden="true"
-      focusable="false"
+      role="group"
+      aria-label="Stages of the flow"
     >
       <NeonDefs id={id} />
+      <g aria-hidden="true">
       <rect x="0" y="0" width={g.width} height={g.height} fill={`url(#${id}-dots)`} />
       <ellipse
         className={styles.aiWash}
@@ -303,6 +304,19 @@ export function FlowArtwork({ layout, scenario, step, scoreText, playing }: Flow
         <circle className={styles.particleGlow} r={11} />
         <circle className={styles.particleCore} r={4.5} />
       </g>
+      </g>
+
+      {/* Stage captions: real links to the page that explains each stage (FR-007). */}
+      {STAGES.map((stage) => {
+        const c = g.captions[stage.id];
+        return (
+          <a key={stage.id} href={stage.href} className={styles.caption} data-caption={stage.id}>
+            <text x={c.x} y={c.y + 12} textAnchor="middle">
+              {stage.caption}
+            </text>
+          </a>
+        );
+      })}
     </svg>
   );
 }
