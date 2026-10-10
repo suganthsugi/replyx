@@ -239,7 +239,7 @@ description: "Task list for AI Assist (first cut)"
   - **Ticket view**: Take over and Hand back to AI buttons per `ai.canTakeOver`/`canHandBack`, and an "AI draft — Use / Discard" bar above the composer.
   - **Threads**: an "Assistant · AI" author chip in the staff and customer threads.
   - **Admin**: a store connection panel in `AiSettingsPage.tsx` and `apps/web/src/pages/admin/ai/AiUsagePage.tsx` (filters, table, totals).
-- [ ] T029 [US3] Web and e2e tests:
+- [X] T029 [US3] Web and e2e tests:
   - **Web tests** in `apps/web/test/ai/assistant.test.tsx`:
     - the badge variants, with an axe check
     - reduced motion stops the animation
