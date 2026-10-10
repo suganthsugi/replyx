@@ -1,6 +1,5 @@
 import Link from 'next/link';
-import { FlowArtwork } from './flow-svg';
-import { STATIC_SCENARIO } from './scenarios';
+import { FlowPlayer } from './FlowPlayer';
 
 /**
  * Home page hero (US1): the headline, then the routing and complexity flow. The artwork sits in a
@@ -55,8 +54,7 @@ export function FlowHero() {
           level, so the cheaper levels handle most conversations. The animation loops through five example
           conversations.
         </p>
-        <FlowArtwork layout="horizontal" scenario={STATIC_SCENARIO} step="complete" />
-        <FlowArtwork layout="vertical" scenario={STATIC_SCENARIO} step="complete" />
+        <FlowPlayer />
       </figure>
     </section>
   );
