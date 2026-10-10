@@ -52,7 +52,7 @@ All commands run in Docker (`docker compose run --rm docs …`). Do not migrate 
   - Add `source.config.ts`, which defines the `docs` collection over `content/docs`.
   - Add `tsconfig.json`, which extends `../../tsconfig.base.json`.
   - Update `pnpm-lock.yaml` with `pnpm install`.
-- [ ] T002 Add the docs dev service and tooling:
+- [X] T002 Add the docs dev service and tooling:
   - `compose.yaml`: a `docs` service running `pnpm --filter docs dev` on `4321:4321`, reusing the existing `node_modules_docs` volume and the install dependency.
   - `.claude/launch.json`: the `docs` entry runs `pnpm --dir apps/docs exec next dev -p 4321`.
   - `.gitignore`: add `apps/docs/.next/`, `apps/docs/out/` and `apps/docs/.source/`.
