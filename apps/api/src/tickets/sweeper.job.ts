@@ -137,7 +137,8 @@ export class TicketSweeperJob extends JobProcessor implements OnApplicationBoots
     }
   }
 
-  private async sweepTenant(tenantId: string, now: Date): Promise<void> {
+  /** One tenant's due timers. Public so tests can sweep only their own tenants (test/support/jobs.ts). */
+  async sweepTenant(tenantId: string, now: Date): Promise<void> {
     const ctx = TenantContext.create({ tenantId, actor: { kind: 'system' }, requestId: `sweeper:${uuidv7()}` });
     let ids: string[];
     try {

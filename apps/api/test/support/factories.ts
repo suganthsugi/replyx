@@ -71,6 +71,9 @@ function roleId(tenant: TestTenant, role: RoleRef): string {
   return typeof role === 'string' ? tenant.roles[role] : role.id;
 }
 
+/** Ids of the tenants this test file created (module state is per file), for the scoped sweeper in jobs.ts. */
+export const createdTenantIds = new Set<string>();
+
 export async function createTenant(options: { name?: string; slug?: string; timezone?: string } = {}): Promise<TestTenant> {
   const slug = options.slug ?? `tenant-${unique()}`;
   const tenant = await (await service(TenantProvisioningService)).provision({
@@ -78,6 +81,7 @@ export async function createTenant(options: { name?: string; slug?: string; time
     slug,
     ...(options.timezone === undefined ? {} : { timezone: options.timezone }),
   });
+  createdTenantIds.add(tenant.id);
   return { ...tenant, host: `${slug}.localhost` };
 }
 

@@ -13,6 +13,7 @@ import { TicketSweeperJob } from '../../src/tickets/sweeper.job.js';
 import { TicketHistoryService } from '../../src/tickets/ticket-history.service.js';
 
 import { getTestApp, getTestWorker, service } from './app.js';
+import { createdTenantIds } from './factories.js';
 
 import type { Clock } from '../../src/platform-kernel/clock.js';
 
@@ -41,6 +42,30 @@ export async function runAccessLoss(tenantId: string, type: string): Promise<voi
   if (result !== 'handled') throw new Error(`Access-loss consumer did not run ${type}: ${result}`);
 }
 
+/**
+ * The sweeper limited to the tenants this test file created. The real `process()` visits every
+ * active tenant, and the shared test database holds hundreds by the time the later files run, so
+ * whole-database sweeps made sweeper tests time out under load. Falls back to every tenant when the
+ * file created none.
+ */
+class FileScopedSweeperJob extends TicketSweeperJob {
+  constructor(
+    private readonly sweepClock: Clock,
+    private readonly tenantsDb: Kysely<Database>,
+    ...rest: ConstructorParameters<typeof TicketSweeperJob>
+  ) {
+    super(...rest);
+  }
+
+  override async process(): Promise<void> {
+    if (createdTenantIds.size === 0) return super.process();
+    const now = this.sweepClock.now();
+    // The same rule as process(): active tenants only.
+    const tenants = await this.tenantsDb.selectFrom('tenants').select('id').where('status', '=', 'active').where('id', 'in', [...createdTenantIds]).execute();
+    for (const { id } of tenants) await this.sweepTenant(id, now);
+  }
+}
+
 /** `sweeperClock` overrides the sweeper's own view of time (default: the app's TestClock), to stage a sweeper that sees a timer as due before the router does. */
 export async function sweeperJob(sweeperClock?: Clock): Promise<TicketSweeperJob> {
   const { app, clock } = await getTestApp();
@@ -51,7 +76,7 @@ export async function sweeperJob(sweeperClock?: Clock): Promise<TicketSweeperJob
     service(QueueRegistry),
   ]);
   const platformDb = app.get<Kysely<Database>>(PLATFORM_DB);
-  return new TicketSweeperJob(unitOfWork, outbox, sweeperClock ?? clock, history, queues, platformDb);
+  return new FileScopedSweeperJob(sweeperClock ?? clock, platformDb, unitOfWork, outbox, sweeperClock ?? clock, history, queues, platformDb);
 }
 
 class LatestEventRepository extends TenantRepository {
