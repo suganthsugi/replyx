@@ -1,7 +1,7 @@
-import { useInfiniteQuery, useQuery, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type InfiniteData, type QueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { getConversation, sendCustomerMessage, useMarkConversationRead } from '../api/generated/customer/customer';
+import { getConversation, rateConversation, sendCustomerMessage, useMarkConversationRead } from '../api/generated/customer/customer';
 
 import { mapError } from './errors';
 import { useRealtime } from './realtime';
@@ -11,6 +11,7 @@ import type {
   ConversationMessage,
   FriendlyStatus,
   GetConversation200,
+  RateConversationBody,
   ResolvedMarker,
 } from '../api/generated/model';
 import type { ChatAttachment, ChatItem, ChatMessage, ChatStatus, TypingIndicator } from '../components/chat/types';
@@ -27,6 +28,8 @@ import type { ChatAttachment, ChatItem, ChatMessage, ChatStatus, TypingIndicator
  *   dedupes and replays them after a reconnect).
  * - `useSupportTyping()` / `useTypingSignal()`: ephemeral typing both ways.
  * - `useMarkRead()`: read receipts for support replies the customer has on screen.
+ * - `useRateConversation()`: rate or skip the satisfaction offer (`pendingRating`, US16). A new
+ *   offer arrives after `conversation.resolved`: the handler re-reads only the newest page's offer.
  */
 
 export const conversationKeys = {
@@ -79,6 +82,8 @@ export function useConversation() {
   const status: ChatStatus | undefined = query.data?.pages[0]?.status;
   // Who is answering now (specs/002-ai-assist US3); kept live by `useConversationResponderEvents`.
   const responder = query.data?.pages[0]?.responder;
+  // The satisfaction rating offered after a resolution (US16); an opaque id, never a ticket's.
+  const pendingRating = query.data?.pages[0]?.pendingRating ?? null;
 
   // Once the thread actually contains a `sent` entry's message, `buildItems` already dedupes it;
   // drop it from the outbox too so it doesn't linger forever in memory.
@@ -96,6 +101,7 @@ export function useConversation() {
     items,
     status,
     responder,
+    pendingRating,
     isPending: query.isPending,
     isError: query.isError,
     error: query.error ? mapError(query.error) : undefined,
@@ -211,6 +217,7 @@ export function useConversationEvents(): void {
       client.onEvent('conversation.resolved', (envelope, queryClient) => {
         const marker = envelope.data as ResolvedMarker;
         patchThread(queryClient, (data) => appendItem(data, { type: 'resolved_marker', marker }));
+        void refreshPendingRating(queryClient);
       }),
     ];
     return () => off.forEach((unsubscribe) => unsubscribe());
@@ -417,4 +424,24 @@ function buildItems(data: ThreadData | undefined, outbox: OutboxEntry[]): ChatIt
     });
   }
   return items;
+}
+
+/** Re-reads only the satisfaction offer (one-item page) and puts it on the newest cached page. */
+async function refreshPendingRating(queryClient: QueryClient): Promise<void> {
+  try {
+    const { pendingRating } = await getConversation({ limit: 1 });
+    patchThread(queryClient, (data) => withFirstPage(data, (page) => ({ ...page, pendingRating: pendingRating ?? null })));
+  } catch {
+    // The offer is optional: a failed refresh just doesn't show it until the next load.
+  }
+}
+
+/** Rates (`{ score, comment? }`) or skips (`{ skip: true }`) the offered conversation; the offer then disappears. */
+export function useRateConversation() {
+  const queryClient = useQueryClient();
+  const mutation = useMutation({
+    mutationFn: ({ ratingId, body }: { ratingId: string; body: RateConversationBody }) => rateConversation(ratingId, body),
+    onSuccess: () => patchThread(queryClient, (data) => withFirstPage(data, (page) => ({ ...page, pendingRating: null }))),
+  });
+  return { ...mutation, error: mutation.error ? mapError(mutation.error) : undefined };
 }
