@@ -279,7 +279,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   - `infra/scripts/deploy.sh`: after app readiness, wait for `http://127.0.0.1:${DOCS_PORT:-8082}/` in the same way.
 - [X] T028 [P] Update CI, `.github/workflows/ci.yml`: add the docs `typecheck`, `test`, `build` and `check:links` steps, plus `test:e2e` against the static export. Add `apps/docs/Dockerfile` to the image build matrix.
 - [X] T029 [P] Update `apps/docs/content/docs/developers/deployment.md` (dev-documentator): document the `docs` service, the apex nginx block, `DOCS_PORT`, the docs-only CSP and why it differs (from plan Complexity Tracking), and how to roll back.
-- [ ] T030 Run all of `quickstart.md` steps 1–5 in Docker and record the results in `specs/003-product-docs-site/run-log.md`. Measure the home page on a Slow 4G profile (LCP ≤ 2.5 s, CLS < 0.05) and check the flow JS size (≤ 15 KB gzip). Give the owner the step 6 deploy commands. Do not run them on the VM.
+- [X] T030 Run all of `quickstart.md` steps 1–5 in Docker and record the results in `specs/003-product-docs-site/run-log.md`. Measure the home page on a Slow 4G profile (LCP ≤ 2.5 s, CLS < 0.05) and check the flow JS size (≤ 15 KB gzip). Give the owner the step 6 deploy commands. Do not run them on the VM.
 
 ---
 
