@@ -52,6 +52,10 @@ could help, just reply if you need anything else"**. If you have something
 new or more to add, just write in the same chat. You never have to start over
 or find an old thread.
 
+Below it, you may see **How did we do?** Pick a score from **1** to **5**, add
+a comment if you like, and select **Send rating**. It's optional: select
+**Skip** and you won't be asked again about that issue.
+
 Scroll to the top (or choose **Show earlier messages**) to load older
 messages.
 

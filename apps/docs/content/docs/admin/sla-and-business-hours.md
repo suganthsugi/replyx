@@ -101,7 +101,8 @@ The desk dashboard shows live counts:
   and SLA breaches
 - created today and resolved today
 - average first-response and resolution times over the last **7 days**
-- satisfaction, which is **not available yet**
+- customer satisfaction: the average rating from the last **7 days** (see
+  [Customer profile and satisfaction](/guides/customer-profile-and-satisfaction/))
 
 Only tickets the viewer can access are counted, so two people can see
 different numbers (see [Roles and groups](/admin/roles-and-groups/)). The
