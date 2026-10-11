@@ -1,6 +1,6 @@
 ---
 title: Deployment
-description: How to set up the shared VM, obtain the wildcard certificate, deploy, roll back, back up and troubleshoot the production stack as it is built today.
+description: How to set up the shared VM, obtain the wildcard certificate, deploy the app and the docs site, roll back, back up and troubleshoot the production stack as it is built today.
 ---
 
 The production stack runs on one VM that also hosts other sites. Images are built on the VM from a
@@ -13,7 +13,8 @@ backups are a nightly local dump only. Examples use `replyx.example.com` as the 
 ```mermaid
 flowchart LR
   B[Browser] -->|443, wildcard TLS| N[Host nginx]
-  N -->|HTTP, 127.0.0.1:8081| C[caddy container]
+  N -->|apex only, 127.0.0.1:8082| D[docs container]
+  N -->|tenant and console hosts, 127.0.0.1:8081| C[caddy container]
   C -->|/api/*, /rt/*| A[api:3000]
   C -->|everything else| S[SPA files]
   A --> P[(postgres)]
@@ -22,21 +23,27 @@ flowchart LR
   W --> V
 ```
 
-- `infra/compose.prod.yml` defines the stack (project name `replyx`). Only `caddy` publishes a port,
-  and only on `127.0.0.1:${CADDY_PORT:-8081}`. Postgres, Valkey and ClamAV are reachable inside the
-  compose network only.
-- `infra/nginx/replyx.conf` is the host nginx site. It redirects 80 to 443, proxies to
-  `127.0.0.1:8081` with `Host` unchanged (the api resolves the tenant from it), overwrites
-  `X-Forwarded-For`, and answers 404 for `/health/`.
+- `infra/compose.prod.yml` defines the stack (project name `replyx`). Only `caddy` and `docs` publish
+  a port, and only on loopback: `127.0.0.1:${CADDY_PORT:-8081}` and `127.0.0.1:${DOCS_PORT:-8082}`.
+  Postgres, Valkey and ClamAV are reachable inside the compose network only.
+- `infra/nginx/replyx.conf` is the host nginx site. It redirects 80 to 443 for every host
+  and has two 443 blocks:
+  - `server_name replyx.example.com` (the apex) proxies to the docs container on `127.0.0.1:8082`.
+  - `server_name *.replyx.example.com` (tenants and the console) proxies to `127.0.0.1:8081` with
+    `Host` unchanged (the api resolves the tenant from it), overwrites `X-Forwarded-For`, and answers
+    404 for `/health/`.
 - `infra/caddy/Caddyfile` is an internal HTTP-only server: it serves the SPA, proxies `/api/*` and
   `/rt/*` to the api, and adds security headers. It does no TLS.
+- `apps/docs/Caddyfile` is the docs container's server: static files only, with its own headers. See
+  [The docs site](#the-docs-site).
 
 ## VM prerequisites
 
 - Docker with Compose v2 (`docker compose`), and a user that may run `docker`.
 - A host nginx and certbot already installed.
 - About 2-3 GB of free RAM for the stack (more with ClamAV, see below).
-- `127.0.0.1:8081` free (or set `CADDY_PORT` in `infra/.env.prod` and edit the nginx site to match).
+- `127.0.0.1:8081` and `127.0.0.1:8082` free (or set `CADDY_PORT` and `DOCS_PORT` in
+  `infra/.env.prod` and edit the nginx site to match).
 - `git`, `curl` and `openssl` (used by the scripts).
 
 ## DNS
@@ -45,7 +52,7 @@ Create two A records pointing at the VM's public address:
 
 | Name | Purpose |
 |------|---------|
-| `<base>` | Apex |
+| `<base>` | Apex: the docs site |
 | `*.<base>` | Tenants (`<slug>.<base>`) and the operator console (`console.<base>`) |
 
 ## Wildcard certificate
@@ -80,6 +87,16 @@ or an API auth hook for the DNS provider, then renewals work without interventio
 ## Install the nginx site
 
 Obtain the certificate first: `nginx -t` fails while the certificate files are missing.
+
+When replacing an installed site, compare it with the repo first. If the live file has changes that
+are not in the repo, keep a dated backup before copying:
+
+```bash
+diff /etc/nginx/sites-available/replyx.example.com infra/nginx/replyx.conf
+sudo cp /etc/nginx/sites-available/replyx.example.com   /etc/nginx/sites-available/replyx.example.com.bak-$(date +%F)
+```
+
+Then install it:
 
 ```bash
 sudo cp infra/nginx/replyx.conf /etc/nginx/sites-available/replyx.example.com
@@ -149,6 +166,8 @@ From the repo root, `infra/scripts/deploy.sh`:
 6. Runs the one-off `migrate` service as `replyx_owner`, then `docker compose up -d`.
 7. Polls `http://127.0.0.1:8081/health/ready` for up to 3 minutes. On failure it prints the api log
    tail and the command to roll back.
+8. Polls the docs site on `http://127.0.0.1:${DOCS_PORT:-8082}/` for up to 1 minute, with the same
+   log tail and rollback hint on failure.
 
 ## Rollback
 
@@ -164,6 +183,51 @@ Old image tags stay on disk for a quick rollback (`docker image ls 'replyx-*'`, 
 
 Migrations are forward-only. Rolling back across a schema change needs a restore from the
 pre-deploy dump (see Backups) before or after redeploying the older ref.
+
+## The docs site
+
+The docs (`apps/docs`, a Fumadocs site) are a static export served on the apex host,
+`https://<base>/`, by their own container.
+
+- **Image**: `apps/docs/Dockerfile` builds the site with `pnpm --filter docs build` (Next.js
+  `output: 'export'`) in a Node stage and copies `apps/docs/out` into a `caddy:2` image. `deploy.sh`
+  builds it with the rest of the stack, tagged `replyx-docs:<commit>`.
+- **Service**: `docs` in `infra/compose.prod.yml`, with `mem_limit: 64m` (Caddy serving static files
+  uses about 20 MB), published on `127.0.0.1:${DOCS_PORT:-8082}` and health-checked with `wget`.
+  `DOCS_PORT` defaults to `8082` in `infra/.env.prod.example`; if you change it, change the apex
+  block's `proxy_pass` too.
+- **nginx**: the apex 443 block proxies everything to the docs container. Tenant and console hosts
+  never reach it, and the apex never reaches the app.
+- **Serving** (`apps/docs/Caddyfile`): `try_files {path} {path}/index.html`, so `/guides/triage` and
+  `/guides/triage/` both work (search results link without the slash). Unknown paths get
+  `/404.html` with status 404. Files under `/_next/static/` are cached for a year (`immutable`, their
+  names are content hashes); everything else is `no-cache`.
+
+### Why the docs CSP differs
+
+The docs host sends the same headers as the app (HSTS, `nosniff`, `X-Frame-Options: DENY`,
+`Referrer-Policy`, `Permissions-Policy`) with a stricter CSP in most ways (`form-action 'none'`, no
+`connect-src` beyond `'self'`, no `blob:`). The one relaxation is `script-src 'self' 'unsafe-inline'`:
+a Next.js static export writes inline `<script>` tags on every page, and the theme script must run
+inline before paint to avoid a flash of the wrong theme. Per-page hashes would need a post-build
+rewrite of every HTML file that breaks silently when Next changes its output.
+
+The risk is low because the docs host has no cookies, sessions, forms or user content. App cookies
+are host-only (no `domain` is set), so the apex can't read tenant sessions. This deviation is
+recorded in `specs/003-product-docs-site/plan.md` (Complexity Tracking).
+
+### Rolling back the docs
+
+The docs deploy with the app, so the normal [rollback](#rollback) (`deploy.sh <older-ref>`) also
+rolls back the docs. To roll back only the docs to an image still on disk, without touching the app:
+
+```bash
+docker image ls replyx-docs
+IMAGE_TAG=<older-tag> docker compose -p replyx -f infra/compose.prod.yml --env-file infra/.env.prod   up -d --no-deps --no-build docs
+```
+
+To take the docs off the apex entirely, restore the previous nginx site from its `.bak-` copy, then
+`sudo nginx -t && sudo systemctl reload nginx`.
 
 ## Operator bootstrap and the first tenant
 
@@ -213,7 +277,7 @@ docker compose -p replyx -f infra/compose.prod.yml --env-file infra/.env.prod lo
 docker compose -p replyx -f infra/compose.prod.yml --env-file infra/.env.prod ps
 ```
 
-Replace `api` with `worker`, `migrate`, `caddy` or `postgres`. Add `--profile scan` if ClamAV is
+Replace `api` with `worker`, `migrate`, `caddy`, `docs` or `postgres`. Add `--profile scan` if ClamAV is
 enabled.
 
 | Symptom | Check |
@@ -223,6 +287,9 @@ enabled.
 | Browser certificate warning on a tenant host | The certificate must cover `*.<base>`; check the TXT records and `sudo certbot certificates`. |
 | Worker exits at start | Neither `CLAMAV_HOST` nor `SCAN_DISABLED=true` is set. |
 | Port 8081 already in use | Set `CADDY_PORT` and update `proxy_pass` in the nginx site. |
+| Port 8082 already in use | Set `DOCS_PORT` and update the apex block's `proxy_pass` in the nginx site. |
+| The apex shows the app, or a tenant host shows the docs | The installed nginx site is older than the repo's: the apex needs its own `server_name <base>` block, and the app block must be `*.<base>` only. |
+| `deploy.sh` says the docs site did not answer | Check `docker compose ... logs docs`; on the VM, `curl -I http://127.0.0.1:8082/` should return 200. |
 | No emails arrive | `SMTP_*` still placeholders; check the worker logs. |
 | Migration `0017_ai` fails with `type "vector" does not exist` | The `vector` extension was not created. `deploy.sh` creates it as `postgres` before migrating; on a hand-run migration, run `CREATE EXTENSION IF NOT EXISTS vector WITH SCHEMA public` as `postgres` first. The image must be `pgvector/pgvector:0.8.7-pg17-trixie`. |
 | api or worker exits with "REPLYX_SECRETS_KEY must be set to 64 hex characters" | The key is missing or malformed in `infra/.env.prod`. |
