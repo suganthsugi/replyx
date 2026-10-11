@@ -6,9 +6,11 @@ import { useState } from 'react';
 
 import { ChatComposer } from '../../components/chat/ChatComposer';
 import { ChatThread } from '../../components/chat/ChatThread';
+import { RatingPrompt } from '../../components/chat/RatingPrompt';
 import { ResponderBadge } from '../../components/data-display/ResponderBadge';
 import { EmptyState } from '../../components/foundations/EmptyState';
 import { ChatIcon, MoreIcon } from '../../components/foundations/icons';
+import { useAnnounce } from '../../components/foundations/LiveRegion';
 import { Skeleton } from '../../components/foundations/Skeleton';
 import { DesignSystemScope } from '../../components/shell/DesignSystemScope';
 import { useConversationResponderEvents } from '../../data/ai/responder';
@@ -18,10 +20,12 @@ import {
   useConversation,
   useConversationEvents,
   useMarkRead,
+  useRateConversation,
   useSendMessage,
   useSupportTyping,
   useTypingSignal,
 } from '../../data/conversation';
+import { mapError } from '../../data/errors';
 import { useRealtime } from '../../data/realtime';
 
 import { ProfileSheet } from './ProfileSheet';
@@ -32,7 +36,8 @@ import type { Branding, CustomerMe } from '../../api/generated/model';
  * The customer's chat (spec US1, docs/design-system "Customer Chat"): the workspace's name and
  * logo on top with who is replying now, one continuous conversation, and the composer. Full height on a phone, a centered
  * 720 px column on a desktop. There is no ticket anywhere in it (constitution XI): the thread
- * comes only from the customer conversation projection.
+ * comes only from the customer conversation projection. After a resolution it may offer a quick,
+ * skippable satisfaction rating above the composer (US16).
  */
 export default function ChatPage({ me, branding }: { me: CustomerMe; branding: Branding }) {
   const [profileOpen, setProfileOpen] = useState(false);
@@ -106,6 +111,8 @@ function Conversation({ conversation, welcomeMessage }: { conversation: ReturnTy
   const { send, retry, rateLimitedUntil } = useSendMessage();
   const uploads = useAttachmentUploads();
   const { onTyping, stopTyping } = useTypingSignal();
+  const rate = useRateConversation();
+  const announce = useAnnounce();
   useMarkRead(conversation.items);
 
   if (conversation.isPending) {
@@ -136,6 +143,26 @@ function Conversation({ conversation, welcomeMessage }: { conversation: ReturnTy
         onRetry={(message) => void retry(message.clientMessageId ?? message.id)}
         emptyState={<WelcomeCard message={welcomeMessage} />}
       />
+      {conversation.pendingRating !== null && (
+        <RatingPrompt
+          key={conversation.pendingRating.ratingId}
+          onRate={async (score, comment) => {
+            try {
+              await rate.mutateAsync({ ratingId: conversation.pendingRating!.ratingId, body: comment === '' ? { score } : { score, comment } });
+            } catch (caught) {
+              throw new Error(mapError(caught).message);
+            }
+            announce('Thanks for your feedback');
+          }}
+          onSkip={async () => {
+            try {
+              await rate.mutateAsync({ ratingId: conversation.pendingRating!.ratingId, body: { skip: true } });
+            } catch (caught) {
+              throw new Error(mapError(caught).message);
+            }
+          }}
+        />
+      )}
       <ChatComposer
         onSend={(body) => {
           stopTyping();
