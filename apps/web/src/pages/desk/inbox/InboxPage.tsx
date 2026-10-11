@@ -3,7 +3,7 @@ import Button from '@mui/material/Button';
 import Typography from '@mui/material/Typography';
 import useMediaQuery from '@mui/material/useMediaQuery';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router';
+import { Navigate, useNavigate, useParams, useSearchParams } from 'react-router';
 
 import { EmptyState } from '../../../components/foundations/EmptyState';
 import { useAnnounce } from '../../../components/foundations/LiveRegion';
@@ -43,6 +43,8 @@ const CustomerDrawer = lazy(() => import('../customers/CustomerDrawer').then((mo
 export default function InboxPage() {
   const params = useParams<{ viewId?: string; ticketId?: string }>();
   const navigate = useNavigate();
+  // `?ticket=` comes from desktop and email notifications, which don't know the agent's views.
+  const [searchParams] = useSearchParams();
   const isMobile = useMediaQuery(MOBILE_QUERY);
 
   const views = useViews();
@@ -94,7 +96,8 @@ export default function InboxPage() {
         </Box>
       );
     }
-    return <Navigate to={`${WORKSPACE_BASE}/inbox/${first.id}`} replace />;
+    const linkedTicket = searchParams.get('ticket');
+    return <Navigate to={`${WORKSPACE_BASE}/inbox/${first.id}${linkedTicket === null ? '' : `/${encodeURIComponent(linkedTicket)}`}`} replace />;
   }
 
   const activeView = visibleViews.find((view) => view.id === params.viewId);
