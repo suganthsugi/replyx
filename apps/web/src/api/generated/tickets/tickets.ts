@@ -33,6 +33,8 @@ import type {
   CustomerProfile,
   ErrorResponse,
   GetViewCounts200,
+  ListCustomerMessages200,
+  ListCustomerMessagesParams,
   ListMacros200,
   ListMentionCandidates200,
   ListMentionCandidatesParams,
@@ -2750,6 +2752,184 @@ export const useDeleteTag = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * Replies and internal notes across the customer's tickets that the caller may view, each with its ticket number. Tickets in groups the caller cannot see add nothing. An unknown customer is 404.
+ * @summary The customer's full message history on tickets the caller can view, newest first (user.view, US16)
+ */
+export const getListCustomerMessagesUrl = (id: string, params?: ListCustomerMessagesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/customers/${id}/messages?${stringifiedParams}`
+    : `/customers/${id}/messages`;
+};
+
+export const listCustomerMessages = async (
+  id: string,
+  params?: ListCustomerMessagesParams,
+  options?: RequestInit,
+): Promise<ListCustomerMessages200> => {
+  return http<ListCustomerMessages200>(getListCustomerMessagesUrl(id, params), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListCustomerMessagesQueryKey = (
+  id?: string,
+  params?: ListCustomerMessagesParams,
+) => {
+  return [`/customers/${id}/messages`, ...(params ? [params] : [])] as const;
+};
+
+export const getListCustomerMessagesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCustomerMessages>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params?: ListCustomerMessagesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCustomerMessages>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListCustomerMessagesQueryKey(id, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listCustomerMessages>>> = ({ signal }) =>
+    listCustomerMessages(id, params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCustomerMessages>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListCustomerMessagesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCustomerMessages>>
+>;
+export type ListCustomerMessagesQueryError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+export function useListCustomerMessages<
+  TData = Awaited<ReturnType<typeof listCustomerMessages>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params: undefined | ListCustomerMessagesParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCustomerMessages>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCustomerMessages>>,
+          TError,
+          Awaited<ReturnType<typeof listCustomerMessages>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListCustomerMessages<
+  TData = Awaited<ReturnType<typeof listCustomerMessages>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params?: ListCustomerMessagesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCustomerMessages>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listCustomerMessages>>,
+          TError,
+          Awaited<ReturnType<typeof listCustomerMessages>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListCustomerMessages<
+  TData = Awaited<ReturnType<typeof listCustomerMessages>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params?: ListCustomerMessagesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCustomerMessages>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary The customer's full message history on tickets the caller can view, newest first (user.view, US16)
+ */
+
+export function useListCustomerMessages<
+  TData = Awaited<ReturnType<typeof listCustomerMessages>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params?: ListCustomerMessagesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listCustomerMessages>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListCustomerMessagesQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
 /**
  * @summary Customer profile (FR-069); ticket lists limited to the caller's access (user.view)
  */

@@ -9,13 +9,15 @@
 import type { ThreadItem } from './threadItem';
 import type { GetConversation200OlderCursor } from './getConversation200OlderCursor';
 import type { FriendlyStatus } from './friendlyStatus';
+import type { GetConversation200PendingRating } from './getConversation200PendingRating';
 import type { Responder } from './responder';
 
 export type GetConversation200 = {
   items: ThreadItem[];
   olderCursor: GetConversation200OlderCursor;
   status: FriendlyStatus;
-  pendingRating?: null;
+  /** A satisfaction rating offered for the most recently resolved conversation (US16), while it is resolved and was neither rated nor skipped. ratingId is opaque (not a ticket id). */
+  pendingRating?: GetConversation200PendingRating;
   /** Latest seq of the conversation stream, for real-time catch-up */
   streamSeq: number;
   responder?: Responder;

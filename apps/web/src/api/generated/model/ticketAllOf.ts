@@ -28,6 +28,7 @@ export type TicketAllOf = {
   origin: TicketAllOfOrigin;
   mergedInto: TicketAllOfMergedInto;
   links: TicketLink[];
+  /** The customer's satisfaction rating (US16); null until they rate */
   csat: TicketAllOfCsat;
   /** What the caller may do now (drives UI; server re-checks) */
   allowedActions: TicketAllOfAllowedActionsItem[];

@@ -569,7 +569,7 @@ export const useRevokeSupportAccessGrant = <
   return useMutation(mutationOptions, queryClient);
 };
 /**
- * Computed per request over the tickets the caller may view (the same access filter as ticket lists), so a group the caller cannot see adds nothing to any number. open is new, open, pending_reminder and pending_close; waitingOnSupport is new or open tickets waiting on support; slaBreached is tickets not closed whose SLA status is breached. today counts from local midnight in the workspace timezone. Averages cover the last 7 days, in minutes, and are null when no ticket qualifies. satisfaction stays at a null average and 0 responses until ratings exist.
+ * Computed per request over the tickets the caller may view (the same access filter as ticket lists), so a group the caller cannot see adds nothing to any number. open is new, open, pending_reminder and pending_close; waitingOnSupport is new or open tickets waiting on support; slaBreached is tickets not closed whose SLA status is breached. today counts from local midnight in the workspace timezone. Averages cover the last 7 days, in minutes, and are null when no ticket qualifies. satisfaction is the mean customer rating (1-5) and the number of ratings given in the same 7 days; average is null with no ratings.
  * @summary Live operational numbers over the caller's accessible tickets (dashboard.view, FR-086)
  */
 export const getGetDashboardUrl = () => {

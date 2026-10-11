@@ -33,6 +33,7 @@ import type {
   GetConversationParams,
   MarkConversationReadBody,
   NotFoundResponse,
+  RateConversationBody,
   RateLimitedResponse,
   RedeemSignInLinkBody,
   RequestSignInLinkBody,
@@ -939,6 +940,97 @@ export const useMarkConversationRead = <
   TContext
 > => {
   const mutationOptions = getMarkConversationReadMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * The id is a pendingRating.ratingId. A score (1-5, optional comment up to 1000 characters) rates the conversation; rating again changes it. skip records that the customer declined, so the offer is not shown again (a rated conversation keeps its rating). An id that is not one of the caller's own resolved conversations is 404.
+ * @summary Rate or skip a resolved conversation (FR-087, spec US16)
+ */
+export const getRateConversationUrl = (id: string) => {
+  return `/customer/ratings/${id}`;
+};
+
+export const rateConversation = async (
+  id: string,
+  rateConversationBody: RateConversationBody,
+  options?: RequestInit,
+): Promise<void> => {
+  return http<void>(getRateConversationUrl(id), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(rateConversationBody),
+  });
+};
+
+export const getRateConversationMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rateConversation>>,
+    TError,
+    { id: string; data: RateConversationBody },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rateConversation>>,
+  TError,
+  { id: string; data: RateConversationBody },
+  TContext
+> => {
+  const mutationKey = ['rateConversation'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rateConversation>>,
+    { id: string; data: RateConversationBody }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return rateConversation(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RateConversationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rateConversation>>
+>;
+export type RateConversationMutationBody = RateConversationBody;
+export type RateConversationMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | NotFoundResponse;
+
+/**
+ * @summary Rate or skip a resolved conversation (FR-087, spec US16)
+ */
+export const useRateConversation = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof rateConversation>>,
+      TError,
+      { id: string; data: RateConversationBody },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof rateConversation>>,
+  TError,
+  { id: string; data: RateConversationBody },
+  TContext
+> => {
+  const mutationOptions = getRateConversationMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };

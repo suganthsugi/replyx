@@ -8,4 +8,7 @@
  */
 import type { TicketAllOfCsatAnyOf } from './ticketAllOfCsatAnyOf';
 
+/**
+ * The customer's satisfaction rating (US16); null until they rate
+ */
 export type TicketAllOfCsat = TicketAllOfCsatAnyOf | null;

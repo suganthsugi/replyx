@@ -6,8 +6,17 @@
 
  * OpenAPI spec version: 0.1.0
  */
+import type { TicketAllOfCsatAnyOfComment } from './ticketAllOfCsatAnyOfComment';
 
+/**
+ * The customer's satisfaction rating (US16); null until they rate
+ */
 export type TicketAllOfCsatAnyOf = {
-  score?: number;
-  comment?: string;
+  /**
+   * @minimum 1
+   * @maximum 5
+   */
+  score: number;
+  comment: TicketAllOfCsatAnyOfComment;
+  ratedAt: string;
 };

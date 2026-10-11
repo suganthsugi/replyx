@@ -13,6 +13,7 @@ import type { CustomerProfileCompany } from './customerProfileCompany';
 import type { TagRef } from './tagRef';
 import type { CustomerProfileLastMessageAt } from './customerProfileLastMessageAt';
 import type { TicketSummary } from './ticketSummary';
+import type { CustomerProfileSatisfaction } from './customerProfileSatisfaction';
 
 export interface CustomerProfile {
   id: Id;
@@ -26,4 +27,6 @@ export interface CustomerProfile {
   lastMessageAt: CustomerProfileLastMessageAt;
   openTickets: TicketSummary[];
   closedTickets: TicketSummary[];
+  /** The customer's ratings on tickets the caller can view (US16), all time; average is null with no ratings */
+  satisfaction: CustomerProfileSatisfaction;
 }
