@@ -606,9 +606,9 @@ customer profile and in the dashboard (spec US16).
 - [X] T248 [US16] Migration `apps/api/migrations/0015_csat.ts` (`csat_ratings`: `ticket_id` unique, `score` 1–5, `comment` ≤ 1000); offer `pendingRating` in `GET /customer/conversation` after resolution and implement `PUT /customer/ratings/{id}`; include the rating on tickets and the satisfaction figure in `GET /dashboard`
 - [X] T249 [US16] Extend `GET /customers/{id}` with contact details, closed tickets and a paginated full conversation history (access-filtered); merge changes into `apps/api/openapi.yaml`
 - [X] T250 [P] [US16] Integration tests `apps/api/test/integration/customers/csat-profile.test.ts` (rating once per ticket, only the ticket's customer, dashboard average, profile limited by access)
-- [ ] T251 [P] [US16] Create `apps/web/src/components/chat/RatingPrompt.tsx` (skippable chips) and `apps/web/src/pages/desk/customers/CustomerProfilePage.tsx`
-- [ ] T252 [US16] Extend `apps/web/src/data/conversation.ts` and `apps/web/src/data/customers.ts`
-- [ ] T253 [P] [US16] Guide `apps/docs/src/content/docs/guides/customer-profile-and-satisfaction.md`
+- [X] T251 [P] [US16] Create `apps/web/src/components/chat/RatingPrompt.tsx` (skippable chips) and `apps/web/src/pages/desk/customers/CustomerProfilePage.tsx`
+- [X] T252 [US16] Extend `apps/web/src/data/conversation.ts` and `apps/web/src/data/customers.ts`
+- [X] T253 [P] [US16] Guide `apps/docs/src/content/docs/guides/customer-profile-and-satisfaction.md`
 
 ---
 
