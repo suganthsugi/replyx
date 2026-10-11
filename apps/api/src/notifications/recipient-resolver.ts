@@ -20,7 +20,8 @@ import type { TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
  * 2. The actor is dropped: nobody is notified about their own action (FR-081).
  * 3. Anyone who can't view the ticket now is dropped (the policy service). Customers hold no
  *    staff access, so they never receive these, internal-note mentions included (FR-081).
- * 4. Preferences: the master switch and the event's toggle for the channel (FR-080).
+ * 4. Preferences: the event's toggle for the channel, and for push and email the master switch
+ *    too (FR-080; in-app entries are kept with it off).
  *
  * `resolveRecipients` is the whole rule over injectable lookups, so unit tests can drive it
  * without a database.

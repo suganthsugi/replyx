@@ -11,7 +11,10 @@ import type { TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
  * A user's row stores only what they changed. Each toggle resolves as: the user's choice, else
  * the tenant default (`tenant_settings.notification_defaults`, written at provisioning by
  * notification-defaults.contributor.ts and later editable by admins), else the built-in default
- * below. In-app is on for every event. Push and email are stored now and delivered from US15.
+ * below. In-app is on for every event.
+ *
+ * The master switch silences alerts, not the record (spec US15 scenario 2): with it off, push and
+ * email stop, while in-app entries are still written to the notification center.
  */
 
 export interface ChannelToggles {
@@ -28,7 +31,7 @@ export interface ResolvedPreferences {
 /** What the user (or the tenant) set: any subset of events and channels. */
 export type PartialEvents = Partial<Record<NotificationEventType, Partial<ChannelToggles>>>;
 
-/** Push for what needs attention now; email off until US15 adds digests. */
+/** Push for what needs attention now; email is opt-in (it arrives as a 2-minute digest). */
 const PUSH_BY_DEFAULT: ReadonlySet<NotificationEventType> = new Set([
   'ticket.assigned_to_me',
   'message.customer_on_my_ticket',
@@ -71,7 +74,9 @@ export function resolvePreferences(user: { enabled: boolean; events: PartialEven
 }
 
 export function wants(preferences: ResolvedPreferences, event: NotificationEventType, channel: NotificationChannel): boolean {
-  return preferences.enabled && preferences.events[event][CHANNEL_KEYS[channel]];
+  const toggle = preferences.events[event][CHANNEL_KEYS[channel]];
+  // In-app entries are kept with the master switch off; only the alerting channels stop.
+  return channel === 'in_app' ? toggle : preferences.enabled && toggle;
 }
 
 export class NotificationPreferencesRepository extends TenantRepository {

@@ -167,12 +167,14 @@ describe('resolveRecipients', () => {
     expect(recipients).not.toContain(CUSTOMER);
   });
 
-  it('applies preferences: the master switch off drops the recipient', async () => {
+  it('applies preferences: the master switch off drops push and email but keeps the in-app entry (US15)', async () => {
     const sources = fakeSources({
-      preferences: (userIds) => new Map(userIds.map((id) => [id, { enabled: false, events: BUILT_IN_DEFAULTS }])),
+      preferences: (userIds) =>
+        new Map(userIds.map((id) => [id, { enabled: false, events: { ...BUILT_IN_DEFAULTS, 'ticket.assigned_to_me': { inApp: true, push: true, email: true } } }])),
     });
-    const recipients = await resolveRecipients(target('ticket.assigned_to_me'), sources, 'in_app');
-    expect(recipients).toEqual([]);
+    expect(await resolveRecipients(target('ticket.assigned_to_me'), sources, 'push')).toEqual([]);
+    expect(await resolveRecipients(target('ticket.assigned_to_me'), sources, 'email')).toEqual([]);
+    expect(await resolveRecipients(target('ticket.assigned_to_me'), sources, 'in_app')).not.toEqual([]);
   });
 
   it('applies preferences: the event/channel toggle off drops the recipient for that channel only', async () => {
