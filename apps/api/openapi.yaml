@@ -3195,8 +3195,8 @@ paths:
       tags:
         - operations
       summary: Replace own preferences (FR-080)
-      description: Events or channels left out fall back to the tenant defaults. Push and email toggles are stored now and
-        delivered from US15.
+      description: Events or channels left out fall back to the tenant defaults. With enabled false no push or email is
+        sent; in-app entries are still recorded (spec US15).
       requestBody:
         required: true
         content:
@@ -3214,6 +3214,93 @@ paths:
           $ref: "#/components/responses/ValidationFailed"
         "401":
           $ref: "#/components/responses/Unauthenticated"
+  /notification-preferences/push-subscriptions:
+    post:
+      operationId: registerPushSubscription
+      tags:
+        - operations
+      summary: Register this browser for push notifications (after the user grants permission, spec US15)
+      description: The PushSubscription from the browser's Push API. Registering the same endpoint again replaces its
+        keys; a user keeps at most 10 browsers (the oldest is dropped). The endpoint must be an https URL on a host name
+        (no IP addresses or localhost). Expired subscriptions are removed when the push service refuses them.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushSubscriptionInput"
+      responses:
+        "204":
+          description: Registered
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /notification-preferences/push-key:
+    get:
+      operationId: getPushPublicKey
+      tags:
+        - operations
+      summary: The VAPID public key a browser needs to subscribe to push (null when push is not set up)
+      responses:
+        "200":
+          description: Public key
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - publicKey
+                properties:
+                  publicKey:
+                    type: string
+                    nullable: true
+                    description: URL-safe base64 application server key
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+  /notification-defaults:
+    get:
+      operationId: getNotificationDefaults
+      tags:
+        - operations
+      summary: The tenant's default notification channels per event (tenant_settings.view, FR-080)
+      responses:
+        "200":
+          description: Defaults
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationDefaults"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    put:
+      operationId: updateNotificationDefaults
+      tags:
+        - operations
+      summary: Change the tenant's default notification channels (tenant_settings.edit, FR-080)
+      description: Events or channels left out keep their current default. Users who changed an event themselves keep
+        their own choice. Audited as notification_defaults.changed.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificationDefaultsInput"
+      responses:
+        "200":
+          description: Saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationDefaults"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
   /routing-rules:
     get:
       operationId: listRoutingRules
@@ -6221,6 +6308,95 @@ components:
               $ref: "#/components/schemas/NotificationChannelsInput"
             ai.paused:
               $ref: "#/components/schemas/NotificationChannelsInput"
+    NotificationDefaults:
+      type: object
+      required:
+        - events
+      properties:
+        events:
+          type: object
+          description: Every event type, with each channel resolved
+          required: *a1
+          properties:
+            ticket.ungrouped_created:
+              $ref: "#/components/schemas/NotificationChannels"
+            ticket.arrived_in_group:
+              $ref: "#/components/schemas/NotificationChannels"
+            message.customer_on_my_ticket:
+              $ref: "#/components/schemas/NotificationChannels"
+            message.customer_on_unassigned:
+              $ref: "#/components/schemas/NotificationChannels"
+            ticket.assigned_to_me:
+              $ref: "#/components/schemas/NotificationChannels"
+            ticket.my_ticket_changed:
+              $ref: "#/components/schemas/NotificationChannels"
+            mention:
+              $ref: "#/components/schemas/NotificationChannels"
+            sla.warning:
+              $ref: "#/components/schemas/NotificationChannels"
+            sla.breached:
+              $ref: "#/components/schemas/NotificationChannels"
+            ticket.reminder_reached:
+              $ref: "#/components/schemas/NotificationChannels"
+            ai.paused:
+              $ref: "#/components/schemas/NotificationChannels"
+    NotificationDefaultsInput:
+      type: object
+      additionalProperties: false
+      required:
+        - events
+      properties:
+        events:
+          type: object
+          additionalProperties: false
+          description: Only the events and channels to change
+          properties:
+            ticket.ungrouped_created:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            ticket.arrived_in_group:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            message.customer_on_my_ticket:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            message.customer_on_unassigned:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            ticket.assigned_to_me:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            ticket.my_ticket_changed:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            mention:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            sla.warning:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            sla.breached:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            ticket.reminder_reached:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            ai.paused:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+    PushSubscriptionInput:
+      type: object
+      additionalProperties: false
+      required:
+        - endpoint
+        - keys
+      properties:
+        endpoint:
+          type: string
+          format: uri
+          maxLength: 2048
+        keys:
+          type: object
+          additionalProperties: false
+          required:
+            - p256dh
+            - auth
+          properties:
+            p256dh:
+              type: string
+              maxLength: 512
+            auth:
+              type: string
+              maxLength: 512
     RoutingConditions:
       type: object
       additionalProperties: false
