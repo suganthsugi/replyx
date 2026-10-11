@@ -272,7 +272,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   - `/_next/static/*` gets `Cache-Control: public, max-age=31536000, immutable`, and everything else gets `no-cache`.
   - Serve with `try_files {path} {path}/index.html` and `handle_errors` returning `/404.html`.
   - Add a healthcheck.
-- [ ] T027 Wire production:
+- [X] T027 Wire production:
   - `infra/compose.prod.yml`: a `docs` service with build context `..`, `dockerfile: apps/docs/Dockerfile`, `image: replyx-docs:${IMAGE_TAG:-local}`, `restart: unless-stopped`, the shared logging, `no-new-privileges`, `mem_limit: 64m`, `ports: "127.0.0.1:${DOCS_PORT:-8082}:80"`, and a wget healthcheck.
   - `infra/.env.prod.example`: add `DOCS_PORT=8082`.
   - `infra/nginx/replyx.conf`: add an exact-host 443 server block, `server_name replyx.example.com;`, with the same TLS settings, `access_log` and proxy headers, proxying `/` to `127.0.0.1:8082`. Narrow the existing 443 block to `server_name *.replyx.example.com;`. Keep the port 80 redirect block for both. Update the header comment with the diff-before-replace step from quickstart step 6.
