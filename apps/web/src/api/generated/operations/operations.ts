@@ -23,6 +23,8 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AutomationRule,
+  AutomationRuleInput,
   BusinessHours,
   BusinessHoursInput,
   ConflictResponse,
@@ -32,6 +34,7 @@ import type {
   GetPushPublicKey200,
   ListAuditLogs200,
   ListAuditLogsParams,
+  ListAutomationRules200,
   ListBusinessHours200,
   ListNotifications200,
   ListNotificationsParams,
@@ -1979,6 +1982,411 @@ export const useReorderRoutingRules = <
   TContext
 > => {
   const mutationOptions = getReorderRoutingRulesMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Automation rules in run order (automation_rule.view, US17)
+ */
+export const getListAutomationRulesUrl = () => {
+  return `/automation-rules`;
+};
+
+export const listAutomationRules = async (
+  options?: RequestInit,
+): Promise<ListAutomationRules200> => {
+  return http<ListAutomationRules200>(getListAutomationRulesUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListAutomationRulesQueryKey = () => {
+  return [`/automation-rules`] as const;
+};
+
+export const getListAutomationRulesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAutomationRules>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listAutomationRules>>, TError, TData>>;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAutomationRulesQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAutomationRules>>> = ({ signal }) =>
+    listAutomationRules({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAutomationRules>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListAutomationRulesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAutomationRules>>
+>;
+export type ListAutomationRulesQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useListAutomationRules<
+  TData = Awaited<ReturnType<typeof listAutomationRules>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listAutomationRules>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAutomationRules>>,
+          TError,
+          Awaited<ReturnType<typeof listAutomationRules>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListAutomationRules<
+  TData = Awaited<ReturnType<typeof listAutomationRules>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listAutomationRules>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listAutomationRules>>,
+          TError,
+          Awaited<ReturnType<typeof listAutomationRules>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListAutomationRules<
+  TData = Awaited<ReturnType<typeof listAutomationRules>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listAutomationRules>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Automation rules in run order (automation_rule.view, US17)
+ */
+
+export function useListAutomationRules<
+  TData = Awaited<ReturnType<typeof listAutomationRules>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listAutomationRules>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListAutomationRulesQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * The rule goes last. Ids in actions must exist (the group active for an enabled rule, the owner and notified users active staff, the tags existing), else 400 with details[].issue invalid_value. Conditions use the view condition tree, without owner "me". A workspace has at most 100 rules (409 AUTOMATION_RULE_LIMIT). Audited.
+ * @summary Create an automation rule (automation_rule.create, FR-088)
+ */
+export const getCreateAutomationRuleUrl = () => {
+  return `/automation-rules`;
+};
+
+export const createAutomationRule = async (
+  automationRuleInput: AutomationRuleInput,
+  options?: RequestInit,
+): Promise<AutomationRule> => {
+  return http<AutomationRule>(getCreateAutomationRuleUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(automationRuleInput),
+  });
+};
+
+export const getCreateAutomationRuleMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | ConflictResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAutomationRule>>,
+    TError,
+    { data: AutomationRuleInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createAutomationRule>>,
+  TError,
+  { data: AutomationRuleInput },
+  TContext
+> => {
+  const mutationKey = ['createAutomationRule'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createAutomationRule>>,
+    { data: AutomationRuleInput }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createAutomationRule(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateAutomationRuleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createAutomationRule>>
+>;
+export type CreateAutomationRuleMutationBody = AutomationRuleInput;
+export type CreateAutomationRuleMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse;
+
+/**
+ * @summary Create an automation rule (automation_rule.create, FR-088)
+ */
+export const useCreateAutomationRule = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | ConflictResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createAutomationRule>>,
+      TError,
+      { data: AutomationRuleInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createAutomationRule>>,
+  TError,
+  { data: AutomationRuleInput },
+  TContext
+> => {
+  const mutationOptions = getCreateAutomationRuleMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Replace an automation rule (automation_rule.edit); its position stays
+ */
+export const getUpdateAutomationRuleUrl = (id: string) => {
+  return `/automation-rules/${id}`;
+};
+
+export const updateAutomationRule = async (
+  id: string,
+  automationRuleInput: AutomationRuleInput,
+  options?: RequestInit,
+): Promise<AutomationRule> => {
+  return http<AutomationRule>(getUpdateAutomationRuleUrl(id), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(automationRuleInput),
+  });
+};
+
+export const getUpdateAutomationRuleMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAutomationRule>>,
+    TError,
+    { id: string; data: AutomationRuleInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAutomationRule>>,
+  TError,
+  { id: string; data: AutomationRuleInput },
+  TContext
+> => {
+  const mutationKey = ['updateAutomationRule'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAutomationRule>>,
+    { id: string; data: AutomationRuleInput }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateAutomationRule(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateAutomationRuleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAutomationRule>>
+>;
+export type UpdateAutomationRuleMutationBody = AutomationRuleInput;
+export type UpdateAutomationRuleMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Replace an automation rule (automation_rule.edit); its position stays
+ */
+export const useUpdateAutomationRule = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateAutomationRule>>,
+      TError,
+      { id: string; data: AutomationRuleInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateAutomationRule>>,
+  TError,
+  { id: string; data: AutomationRuleInput },
+  TContext
+> => {
+  const mutationOptions = getUpdateAutomationRuleMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Delete an automation rule (automation_rule.delete); history keeps crediting it as a deleted rule
+ */
+export const getDeleteAutomationRuleUrl = (id: string) => {
+  return `/automation-rules/${id}`;
+};
+
+export const deleteAutomationRule = async (id: string, options?: RequestInit): Promise<void> => {
+  return http<void>(getDeleteAutomationRuleUrl(id), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteAutomationRuleMutationOptions = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteAutomationRule>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteAutomationRule>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ['deleteAutomationRule'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteAutomationRule>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return deleteAutomationRule(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteAutomationRuleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteAutomationRule>>
+>;
+
+export type DeleteAutomationRuleMutationError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Delete an automation rule (automation_rule.delete); history keeps crediting it as a deleted rule
+ */
+export const useDeleteAutomationRule = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteAutomationRule>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteAutomationRule>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationOptions = getDeleteAutomationRuleMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };

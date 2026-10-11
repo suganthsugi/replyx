@@ -8,7 +8,7 @@
  */
 
 /**
- * What a notification is about (FR-079)
+ * What a notification is about (FR-079); automation.rule is an automation rule's notify action (US17)
  */
 export type NotificationEventType =
   (typeof NotificationEventType)[keyof typeof NotificationEventType];
@@ -26,4 +26,5 @@ export const NotificationEventType = {
   slabreached: 'sla.breached',
   ticketreminder_reached: 'ticket.reminder_reached',
   aipaused: 'ai.paused',
+  automationrule: 'automation.rule',
 } as const;

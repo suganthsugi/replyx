@@ -23,4 +23,5 @@ export type NotificationDefaultsInputEvents = {
   'sla.breached'?: NotificationChannelsInput;
   'ticket.reminder_reached'?: NotificationChannelsInput;
   'ai.paused'?: NotificationChannelsInput;
+  'automation.rule'?: NotificationChannelsInput;
 };
