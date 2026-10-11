@@ -3,6 +3,7 @@ import { TenantContext } from '../../src/platform-kernel/db/tenant-context.js';
 import { TenantRepository } from '../../src/platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../../src/platform-kernel/db/unit-of-work.js';
 import { uuidv7 } from '../../src/platform-kernel/ids.js';
+import { ratingOfferId } from '../../src/satisfaction/rating-offer.js';
 import { getTestApp, service } from '../support/app.js';
 import { createCustomer } from '../support/customer-profiles.js';
 import { createGroup, createRole, createTicket, createUser, type RoleRef, type TestTenant, type TestUser } from '../support/factories.js';
@@ -192,6 +193,15 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
         actions: { groupId: uuidv7() },
       }),
     },
+  },
+  // US16: a rating id resolves only among the caller's own resolved tickets; tenant B's customer gets 404.
+  'customer:ratings': {
+    async create(tenant) {
+      const customer = await createUser(tenant, { roles: ['customer'] });
+      const ticket = await createTicket(tenant, { customer, state: 'resolved' });
+      return { params: { id: ratingOfferId(tenant.id, ticket.id) }, ids: [ticket.id] };
+    },
+    bodies: { 'CustomerRatingsController.rate': () => ({ score: 3 }) },
   },
   'customer:me': {
     async create(tenant) {
