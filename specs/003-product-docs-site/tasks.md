@@ -265,7 +265,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
 
 ## Phase 8: Production serving and polish
 
-- [ ] T026 Add `apps/docs/Dockerfile` and `apps/docs/Caddyfile`:
+- [X] T026 Add `apps/docs/Dockerfile` and `apps/docs/Caddyfile`:
   - The Dockerfile has a `node:24-slim` build stage with corepack `pnpm@12.5.1`, `pnpm install --frozen-lockfile --filter docs...` and `pnpm --filter docs build`, then a `caddy:2` stage that copies `out/` to `/srv`.
   - The Caddyfile has `:80`, `auto_https off`, `admin off`, and `encode zstd gzip`.
   - Headers are exactly as in `contracts/routes.md`: the CSP with `script-src 'self' 'unsafe-inline'`, HSTS, nosniff, Referrer-Policy, X-Frame-Options and Permissions-Policy, with `-Server`.
