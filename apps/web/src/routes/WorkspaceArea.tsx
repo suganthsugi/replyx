@@ -32,6 +32,7 @@ const AuditLogPage = lazy(() => import('../pages/admin/audit/AuditLogPage'));
 const MacrosPage = lazy(() => import('../pages/admin/macros/MacrosPage'));
 const SlaPoliciesPage = lazy(() => import('../pages/admin/sla/SlaPoliciesPage'));
 const BusinessHoursPage = lazy(() => import('../pages/admin/sla/BusinessHoursPage'));
+const NotificationDefaultsPage = lazy(() => import('../pages/admin/notifications/NotificationDefaultsPage'));
 const AiSettingsPage = lazy(() => import('../pages/admin/ai/AiSettingsPage'));
 const AiPoliciesPage = lazy(() => import('../pages/admin/ai/PoliciesPage'));
 const AiComplexityPage = lazy(() => import('../pages/admin/ai/ComplexityPage'));
@@ -115,6 +116,7 @@ export default function WorkspaceArea() {
               <Route path="macros" element={<MacrosPage />} />
               <Route path="sla-policies" element={<SlaPoliciesPage />} />
               <Route path="business-hours" element={<BusinessHoursPage />} />
+              <Route path="notifications" element={<NotificationDefaultsPage />} />
               <Route path="support-access" element={<SupportAccessPage />} />
               <Route path="settings" element={<OrganizationSettingsPage />} />
               <Route path="audit" element={<AuditLogPage />} />

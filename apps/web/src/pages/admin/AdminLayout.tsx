@@ -35,6 +35,7 @@ export const ADMIN_SECTIONS: readonly AdminSection[] = [
   { path: 'business-hours', label: 'Business hours', permission: 'sla_policy.view' },
   { path: 'support-access', label: 'Support access', permission: 'support_access.view' },
   { path: 'settings', label: 'Organization', permission: 'tenant_settings.view' },
+  { path: 'notifications', label: 'Notification defaults', permission: 'tenant_settings.view' },
   { path: 'audit', label: 'Audit log', permission: 'audit_log.view' },
   { path: 'ai', label: 'AI settings', permission: 'ai_settings.manage', group: 'AI' },
   { path: 'ai/policies', label: 'Policies', permission: 'ai_knowledge.manage', group: 'AI' },
