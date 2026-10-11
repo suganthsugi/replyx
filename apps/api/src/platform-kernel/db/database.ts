@@ -6,6 +6,7 @@ import { UnitOfWork } from './unit-of-work.js';
 
 import type { AiTables } from './tables/ai.js';
 import type { AuthorizationTables } from './tables/authorization.js';
+import type { CsatTables } from './tables/csat.js';
 import type { IdentityTables } from './tables/identity.js';
 import type { MacroTables } from './tables/macros.js';
 import type { NotificationTables } from './tables/notifications.js';
@@ -30,6 +31,7 @@ export type Database = TenancyTables &
   RoutingTables &
   SlaTables &
   MacroTables &
+  CsatTables &
   AiTables;
 
 export type DB = Database;
