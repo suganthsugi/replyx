@@ -220,7 +220,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
 
 **Independent Test**: Both pages render, each has at least one illustration and a worked numeric example, they link to the admin and guide pages, and axe is clean in both themes.
 
-- [ ] T021 [P] [US4] Add `apps/docs/components/illustrations/RoutingDiagram.tsx` and `ComplexityDiagram.tsx`:
+- [X] T021 [P] [US4] Add `apps/docs/components/illustrations/RoutingDiagram.tsx` and `ComplexityDiagram.tsx`:
   - Both are still SVGs that reuse the node shapes, `rx-neon` filter and tokens from `flow-svg.tsx`. Extract the shared primitives (`Node`, `NeonDefs`, `Gauge`, `LevelPill`) into `apps/docs/components/flow/primitives.tsx` and use them from both places.
   - The routing diagram shows: rules first → no match → decision model with group AI descriptions → confidence vs 0.70 → group, or Needs Triage. Manual triage wins.
   - The complexity diagram shows: the 4 default factors with weights → the weighted average → the 0.45 and 0.80 thresholds → the three levels, with Fast as the fallback when complexity is not set up.
