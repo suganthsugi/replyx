@@ -381,7 +381,17 @@ paths:
                   status:
                     $ref: "#/components/schemas/FriendlyStatus"
                   pendingRating:
-                    type: "null"
+                    type:
+                      - object
+                      - "null"
+                    description: A satisfaction rating offered for the most recently resolved conversation (US16), while it
+                      is resolved and was neither rated nor skipped. ratingId is opaque (not a ticket id).
+                    required:
+                      - ratingId
+                    properties:
+                      ratingId:
+                        type: string
+                        format: uuid
                   streamSeq:
                     type: integer
                     description: Latest seq of the conversation stream, for real-time catch-up
@@ -455,6 +465,53 @@ paths:
       responses:
         "204":
           description: Recorded
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /customer/ratings/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    put:
+      operationId: rateConversation
+      tags:
+        - customer
+      summary: Rate or skip a resolved conversation (FR-087, spec US16)
+      description: The id is a pendingRating.ratingId. A score (1-5, optional comment up to 1000 characters) rates the
+        conversation; rating again changes it. skip records that the customer declined, so the offer is not shown again
+        (a rated conversation keeps its rating). An id that is not one of the caller's own resolved conversations is 404.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  additionalProperties: false
+                  required:
+                    - score
+                  properties:
+                    score:
+                      type: integer
+                      minimum: 1
+                      maximum: 5
+                    comment:
+                      type: string
+                      maxLength: 1000
+                - type: object
+                  additionalProperties: false
+                  required:
+                    - skip
+                  properties:
+                    skip:
+                      type: boolean
+                      enum:
+                        - true
+      responses:
+        "204":
+          description: Saved
         "400":
           $ref: "#/components/responses/ValidationFailed"
         "401":
@@ -2689,6 +2746,46 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+  /customers/{id}/messages:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: listCustomerMessages
+      tags:
+        - tickets
+      summary: The customer's full message history on tickets the caller can view, newest first (user.view, US16)
+      description: Replies and internal notes across the customer's tickets that the caller may view, each with its ticket
+        number. Tickets in groups the caller cannot see add nothing. An unknown customer is 404.
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Page of messages
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                  - nextCursor
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/CustomerHistoryMessage"
+                  nextCursor:
+                    type:
+                      - string
+                      - "null"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /customers/{id}:
     parameters:
       - $ref: "#/components/parameters/IdPath"
@@ -3006,7 +3103,7 @@ paths:
         group the caller cannot see adds nothing to any number. open is new, open, pending_reminder and pending_close;
         waitingOnSupport is new or open tickets waiting on support; slaBreached is tickets not closed whose SLA status is
         breached. today counts from local midnight in the workspace timezone. Averages cover the last 7 days, in minutes,
-        and are null when no ticket qualifies. satisfaction stays at a null average and 0 responses until ratings exist.
+        and are null when no ticket qualifies. satisfaction is the mean customer rating (1-5) and the number of ratings given in the same 7 days; average is null with no ratings.
       responses:
         "200":
           description: Dashboard
@@ -5828,11 +5925,23 @@ components:
               type:
                 - object
                 - "null"
+              description: The customer's satisfaction rating (US16); null until they rate
+              required:
+                - score
+                - comment
+                - ratedAt
               properties:
                 score:
                   type: integer
+                  minimum: 1
+                  maximum: 5
                 comment:
+                  type:
+                    - string
+                    - "null"
+                ratedAt:
                   type: string
+                  format: date-time
             allowedActions:
               type: array
               description: What the caller may do now (drives UI; server re-checks)
@@ -5957,6 +6066,7 @@ components:
         - lastMessageAt
         - openTickets
         - closedTickets
+        - satisfaction
       properties:
         id:
           $ref: "#/components/schemas/Id"
@@ -5995,6 +6105,29 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TicketSummary"
+        satisfaction:
+          type: object
+          description: The customer's ratings on tickets the caller can view (US16), all time; average is null with no
+            ratings
+          required:
+            - average
+            - responses
+          properties:
+            average:
+              type:
+                - number
+                - "null"
+            responses:
+              type: integer
+    CustomerHistoryMessage:
+      allOf:
+        - $ref: "#/components/schemas/Message"
+        - type: object
+          required:
+            - ticketNumber
+          properties:
+            ticketNumber:
+              type: integer
     ViewInput:
       type: object
       additionalProperties: false
