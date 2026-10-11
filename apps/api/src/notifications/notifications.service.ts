@@ -2,15 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { sql } from 'kysely';
 import { z } from 'zod';
 
+import { AuditService } from '../audit/audit.service.js';
 import { Clock } from '../platform-kernel/clock.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 import { UnitOfWork, type TenantTransaction } from '../platform-kernel/db/unit-of-work.js';
 import { decodeCursor, toPage, type Page } from '../platform-kernel/http/pagination.js';
 import { OutboxService } from '../platform-kernel/outbox/outbox.service.js';
 
+import { PushSubscriptionsRepository, type PushSubscription } from './channels/push-subscriptions.js';
+import { vapidPublicKey } from './channels/push.channel.js';
 import { toNotificationDto, type NotificationDto, type NotificationRow } from './notification-dto.js';
-import { NotificationPreferencesRepository, type PartialEvents, type ResolvedPreferences } from './notification-preferences.js';
+import { NotificationPreferencesRepository, type ChannelToggles, type PartialEvents, type ResolvedPreferences } from './notification-preferences.js';
 
+import type { NotificationEventType } from '../platform-kernel/db/tables/notifications.js';
 import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
 
 /**
@@ -21,7 +25,13 @@ import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
  *
  * Newest first by id (UUIDv7, so creation order). Marking read announces `notification.read` with
  * the new unread count on the user's stream, so every open session updates (FR-083).
+ *
+ * US15 (T243): the caller registers browser push subscriptions here and reads the VAPID public key
+ * the browser needs to subscribe. The tenant's defaults (`/notification-defaults`, FR-080) are
+ * edited by `tenant_settings.edit` holders and audited as `notification_defaults.changed`.
  */
+
+export type NotificationDefaults = { events: Record<NotificationEventType, ChannelToggles> };
 
 const Cursor = z.object({ id: z.uuid() }).strict();
 
@@ -46,6 +56,7 @@ export class NotificationsService {
     private readonly unitOfWork: UnitOfWork,
     private readonly outbox: OutboxService,
     private readonly clock: Clock,
+    private readonly audit: AuditService,
   ) {}
 
   list(ctx: TenantContext, query: NotificationListQuery): Promise<NotificationPage> {
@@ -95,6 +106,42 @@ export class NotificationsService {
       const resolved = (await repo.forUsers(tx, [userId])).get(userId);
       if (resolved === undefined) throw new Error('Preferences resolve for every requested user');
       return resolved;
+    });
+  }
+
+  registerPushSubscription(ctx: TenantContext, subscription: PushSubscription): Promise<void> {
+    const userId = userIdOf(ctx);
+    return this.unitOfWork.withTenant(ctx, (tx) => new PushSubscriptionsRepository(ctx).add(tx, userId, subscription));
+  }
+
+  /** `null` when push is not set up on this server (no VAPID keys). */
+  pushPublicKey(): { publicKey: string | null } {
+    return { publicKey: vapidPublicKey() };
+  }
+
+  defaults(ctx: TenantContext): Promise<NotificationDefaults> {
+    return this.unitOfWork.withTenantReadOnly(ctx, async (tx) => ({ events: await new NotificationPreferencesRepository(ctx).resolvedTenantDefaults(tx) }));
+  }
+
+  /** Events or channels left out keep their current default. */
+  saveDefaults(ctx: TenantContext, events: PartialEvents): Promise<NotificationDefaults> {
+    return this.unitOfWork.withTenant(ctx, async (tx) => {
+      const repo = new NotificationPreferencesRepository(ctx);
+      const before = await repo.resolvedTenantDefaults(tx);
+      const after = { ...before };
+      for (const [event, toggles] of Object.entries(events) as [NotificationEventType, Partial<ChannelToggles>][]) {
+        after[event] = { ...before[event], ...toggles };
+      }
+      const changed = Object.fromEntries(
+        (Object.keys(after) as NotificationEventType[])
+          .filter((event) => JSON.stringify(before[event]) !== JSON.stringify(after[event]))
+          .map((event) => [event, { old: { ...before[event] }, new: { ...after[event] } }]),
+      );
+      if (Object.keys(changed).length > 0) {
+        await repo.saveTenantDefaults(tx, after);
+        await this.audit.record(tx, { action: 'notification_defaults.changed', resourceType: 'tenant_settings', resourceId: ctx.tenantId, details: changed });
+      }
+      return { events: after };
     });
   }
 }

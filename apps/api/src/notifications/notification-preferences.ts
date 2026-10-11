@@ -85,6 +85,15 @@ export class NotificationPreferencesRepository extends TenantRepository {
     return toPartialEvents(row?.notification_defaults);
   }
 
+  /** Every event with each channel resolved over the built-in defaults. */
+  async resolvedTenantDefaults(tx: TenantTransaction): Promise<Record<NotificationEventType, ChannelToggles>> {
+    return resolvePreferences(undefined, await this.tenantDefaults(tx)).events;
+  }
+
+  async saveTenantDefaults(tx: TenantTransaction, events: Record<NotificationEventType, ChannelToggles>): Promise<void> {
+    await this.updateTable(tx, 'tenant_settings').set({ notification_defaults: JSON.stringify(events) }).execute();
+  }
+
   async forUsers(tx: TenantTransaction, userIds: readonly string[]): Promise<Map<string, ResolvedPreferences>> {
     const defaults = await this.tenantDefaults(tx);
     const rows =
