@@ -10,6 +10,7 @@ import { notFound } from '../platform-kernel/http/app-error.js';
 import { decodeCursor, encodeCursor } from '../platform-kernel/http/pagination.js';
 import { OutboxService } from '../platform-kernel/outbox/outbox.service.js';
 import { PresenceService } from '../platform-kernel/realtime/presence.service.js';
+import { SatisfactionService } from '../satisfaction/satisfaction.service.js';
 import { ticketStream } from '../tickets/ticket-events.js';
 import { ACTIVE_STATES } from '../tickets/tickets.repository.js';
 
@@ -35,13 +36,16 @@ import type { Responder } from '../platform-kernel/outbox/event-types.js';
  *
  * Pages go backwards (scroll up): the newest page first, `before` for older ones. Items inside a
  * page are oldest first. Merged tickets show their messages but no marker of their own.
+ *
+ * `pendingRating` offers a satisfaction rating after a resolution (US16, SatisfactionService): an
+ * opaque id, never the ticket's.
  */
 
 export interface ConversationPage {
   items: ThreadItem[];
   olderCursor: string | null;
   status: FriendlyStatus;
-  pendingRating: null;
+  pendingRating: { ratingId: string } | null;
   streamSeq: number;
   /** Who answers the next message: the assistant, an agent by name, or the team (FR-031). */
   responder: Responder;
@@ -75,6 +79,7 @@ export class CustomerConversationService {
     private readonly unitOfWork: UnitOfWork,
     private readonly outbox: OutboxService,
     private readonly clock: Clock,
+    private readonly satisfaction: SatisfactionService,
     @Optional() private readonly presence?: PresenceService,
   ) {}
 
@@ -111,7 +116,7 @@ export class CustomerConversationService {
         items: page.reverse().map((entry) => entry.item),
         olderCursor: entries.length > options.limit && last !== undefined ? encodeCursor(positionOf(last)) : null,
         status: await this.status(ctx, tx, customerId),
-        pendingRating: null,
+        pendingRating: await this.satisfaction.pendingRating(ctx, tx, customerId),
         streamSeq,
         responder: await responderForCustomer(tx, ctx, customerId),
       };

@@ -29,6 +29,7 @@ import { OutboxRelayModule } from './platform-kernel/outbox/relay.js';
 import { RealtimeModule } from './platform-kernel/realtime/gateway.js';
 import { RedisModule } from './platform-kernel/redis/redis.module.js';
 import { RoutingHttpModule } from './routing/routing.module.js';
+import { SatisfactionHttpModule, SatisfactionModule } from './satisfaction/satisfaction.module.js';
 import { SearchHttpModule } from './search/search.module.js';
 import { SlaHttpModule, SlaJobsModule } from './sla/sla.module.js';
 import { TagsHttpModule, TagsModule } from './tags/tags.module.js';
@@ -71,6 +72,7 @@ export class AppModule {
       TagsModule,
       TicketsModule,
       ViewsOwnershipModule,
+      SatisfactionModule,
       MessagingModule,
       FileStorageModule,
       AiModule,
@@ -95,6 +97,7 @@ export class AppModule {
       SearchHttpModule,
       SlaHttpModule,
       MacrosHttpModule,
+      SatisfactionHttpModule,
       NotificationsHttpModule,
       AiHttpModule,
     ];
