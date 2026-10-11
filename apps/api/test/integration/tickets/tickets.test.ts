@@ -392,6 +392,18 @@ describe('PATCH /tickets/{id}', () => {
     expect(updated.tags.map((t) => t.name)).toEqual(['VIP']);
   });
 
+  it('GET /tickets/{id} returns its tags (the ticket screen edits them from here)', async () => {
+    const admin = await createUser(a, { roles: ['admin'] });
+    const customer = await createUser(a, { roles: ['customer'] });
+    const ticket = await createTicket(a, { customer, state: 'open' });
+    const tag = await asUser(admin).post('/tags', { name: 'Detail tag' });
+    expect((await asUser(admin).patch(`/tickets/${ticket.id}`, { tagIds: [(tag.body as { id: string }).id] })).status).toBe(200);
+
+    const detail = await asUser(admin).get(`/tickets/${ticket.id}`);
+    expect(detail.status).toBe(200);
+    expect(body<TicketBody & { tags: { name: string }[] }>(detail).tags.map((t) => t.name)).toEqual(['Detail tag']);
+  });
+
   it('needs ticket.view to see the ticket (403 without any access at all)', async () => {
     const customer = await createUser(a, { roles: ['customer'] });
     const ticket = await createTicket(a, { customer, state: 'open' });

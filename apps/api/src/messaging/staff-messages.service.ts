@@ -11,6 +11,7 @@ import { notFound, permissionDenied, validationFailed } from '../platform-kernel
 import { decodeCursor, toPage, type Page } from '../platform-kernel/http/pagination.js';
 import { uuidv7 } from '../platform-kernel/ids.js';
 import { OutboxService } from '../platform-kernel/outbox/outbox.service.js';
+import { TagsService } from '../tags/tags.service.js';
 import { allowedActions, TicketRefsRepository, toTicketDto, type TicketDto } from '../tickets/ticket-dto.js';
 import { ticketStream } from '../tickets/ticket-events.js';
 import { TicketsRepository, type TicketRow } from '../tickets/tickets.repository.js';
@@ -73,6 +74,7 @@ export class StaffMessagesService {
     private readonly outbox: OutboxService,
     private readonly clock: Clock,
     private readonly replies: PublicReplyService,
+    private readonly tags: TagsService,
   ) {}
 
   async ticket(ctx: TenantContext, ticketId: string): Promise<TicketDto> {
@@ -80,12 +82,13 @@ export class StaffMessagesService {
     return this.unitOfWork.withTenantReadOnly(ctx, async (tx) => {
       const row = await this.visible(ctx, tx, access, ticketId);
       const refs = new TicketRefsRepository(ctx);
-      const [names, links] = await Promise.all([
+      const [names, links, tagsByTicket] = await Promise.all([
         refs.load(tx, [row]),
         refs.links(tx, row.id, (groupId) => canView(access, groupId)),
+        this.tags.tagsByTicketIds(tx, [row.id]),
       ]);
       const actions = access === SUPPORT ? [] : allowedActions(access, row.group_id);
-      return { ...toTicketDto(row, names, links, actions), ...(await ticketAiView(tx, ctx, row, actions.includes('edit'))) };
+      return { ...toTicketDto(row, names, links, actions, tagsByTicket.get(row.id) ?? []), ...(await ticketAiView(tx, ctx, row, actions.includes('edit'))) };
     });
   }
 
