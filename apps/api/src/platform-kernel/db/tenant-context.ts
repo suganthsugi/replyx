@@ -25,6 +25,19 @@ export interface TenantContextInit {
    * the actor, not to each call site.
    */
   readOnly?: boolean;
+  /**
+   * Why this work runs, stamped on every outbox event it writes (outbox.service.ts): an automation
+   * rule's run carries its rule id and chain depth, so the rule never runs on its own events and
+   * chains stop at the maximum depth (FR-089).
+   */
+  cause?: ContextCause;
+}
+
+/** Same shape as the outbox's `EventCause` (kept here so the kernel types don't import upwards). */
+export interface ContextCause {
+  ruleId?: string;
+  depth?: number;
+  eventId?: string;
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -37,6 +50,7 @@ export class TenantContext {
   readonly requestId: string;
   readonly ip: string | null;
   readonly readOnly: boolean;
+  readonly cause: Readonly<ContextCause> | null;
 
   // A private field makes the class nominal: an object literal is not a TenantContext.
   readonly #brand = true;
@@ -47,12 +61,13 @@ export class TenantContext {
     this.requestId = init.requestId;
     this.ip = init.ip ?? null;
     this.readOnly = init.readOnly === true;
+    this.cause = init.cause === undefined ? null : Object.freeze({ ...init.cause });
     Object.freeze(this);
   }
 
   /** Throws (a programming error, not a client error) when any part is missing or malformed. */
   static create(init: TenantContextInit): TenantContext {
-    const { tenantId, actor, requestId, ip, readOnly } = init as Partial<TenantContextInit>;
+    const { tenantId, actor, requestId, ip, readOnly, cause } = init as Partial<TenantContextInit>;
     if (typeof tenantId !== 'string' || !UUID_PATTERN.test(tenantId)) {
       throw new TypeError('TenantContext requires a tenantId (uuid)');
     }
@@ -63,7 +78,7 @@ export class TenantContext {
       throw new TypeError('TenantContext ip must be a short string');
     }
     assertActor(actor);
-    return new TenantContext({ tenantId, actor, requestId, ip, readOnly: readOnly === true });
+    return new TenantContext({ tenantId, actor, requestId, ip, readOnly: readOnly === true, ...(cause === undefined ? {} : { cause }) });
   }
 
   static isTenantContext(value: unknown): value is TenantContext {

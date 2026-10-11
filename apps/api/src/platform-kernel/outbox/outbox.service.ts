@@ -23,6 +23,7 @@ export interface AppendInput<T extends DomainEventType> {
   /** Required when any stream is `conversation:*`; never includes internal fields (research D9). */
   customerPayload?: CustomerProjection;
   streams: readonly StreamKey[];
+  /** Defaults to the transaction's context cause (an automation rule's run), else none. */
   cause?: EventCause;
 }
 
@@ -60,6 +61,8 @@ export class OutboxService {
     }
 
     const id = uuidv7();
+    // An explicit cause wins; otherwise the context's (an automation rule's run).
+    const cause = input.cause ?? ctx.cause;
     await tx
       .insertInto('outbox_events')
       .values({
@@ -70,7 +73,7 @@ export class OutboxService {
         payload: JSON.stringify(input.payload),
         customer_payload: input.customerPayload === undefined ? null : JSON.stringify(input.customerPayload),
         streams: [...new Set(input.streams)],
-        cause: input.cause === undefined ? null : JSON.stringify(input.cause),
+        cause: cause === null ? null : JSON.stringify(cause),
       })
       .execute();
     return id;
