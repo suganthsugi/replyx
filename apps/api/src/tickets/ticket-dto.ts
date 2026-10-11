@@ -1,5 +1,6 @@
 import { decide, type EffectiveAccess } from '../authorization/policy.service.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
+import { CsatRepository, type CsatDto } from '../satisfaction/csat.repository.js';
 import { NO_SLA, SlaSummaryRepository, type SlaSummaryDto } from '../sla/sla-summary.js';
 
 import type { TicketRow } from './tickets.repository.js';
@@ -57,7 +58,8 @@ export interface TicketDto extends TicketSummaryDto {
   origin: TicketOrigin;
   mergedInto: string | null;
   links: TicketLinkDto[];
-  csat: null;
+  /** The customer's satisfaction rating (US16), `null` until they rate. */
+  csat: CsatDto | null;
   allowedActions: AllowedAction[];
   /** Only on `GET /tickets/{id}` (spec 002 R18): who answers the customer's next message. */
   responder?: Responder;
@@ -70,6 +72,8 @@ export interface TicketRefs {
   people: ReadonlyMap<string, RefDto>;
   /** Tickets without a `ticket_sla` row are absent (read as `none`). */
   sla: ReadonlyMap<string, SlaSummaryDto>;
+  /** Rated tickets only (US16); optional so summary-only callers can leave it out. */
+  csat?: ReadonlyMap<string, CsatDto>;
 }
 
 const iso = (value: Date | null) => value?.toISOString() ?? null;
@@ -132,7 +136,7 @@ export function toTicketDto(
     origin: row.origin,
     mergedInto: row.merged_into_id,
     links,
-    csat: null,
+    csat: refs.csat?.get(row.id) ?? null,
     allowedActions: actions,
   };
 }
@@ -142,7 +146,7 @@ export class TicketRefsRepository extends TenantRepository {
   async load(tx: TenantTransaction, rows: readonly TicketRow[]): Promise<TicketRefs> {
     const groupIds = [...new Set(rows.flatMap((row) => (row.group_id === null ? [] : [row.group_id])))];
     const personIds = [...new Set(rows.flatMap((row) => [row.customer_id, ...(row.owner_id === null ? [] : [row.owner_id])]))];
-    const [groups, people, sla] = await Promise.all([
+    const [groups, people, sla, csat] = await Promise.all([
       groupIds.length === 0
         ? Promise.resolve([])
         : this.selectFrom(tx, 'groups').select(['groups.id', 'groups.name']).where('groups.id', 'in', groupIds).execute(),
@@ -153,8 +157,12 @@ export class TicketRefsRepository extends TenantRepository {
         tx,
         rows.map((row) => row.id),
       ),
+      new CsatRepository(this.ctx).byTicketIds(
+        tx,
+        rows.map((row) => row.id),
+      ),
     ]);
-    return { groups: new Map(groups.map((row) => [row.id, row])), people: new Map(people.map((row) => [row.id, row])), sla };
+    return { groups: new Map(groups.map((row) => [row.id, row])), people: new Map(people.map((row) => [row.id, row])), sla, csat };
   }
 
   /**
