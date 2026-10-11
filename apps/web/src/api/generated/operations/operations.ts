@@ -29,6 +29,7 @@ import type {
   CreateSupportAccessGrantBody,
   Dashboard,
   ErrorResponse,
+  GetPushPublicKey200,
   ListAuditLogs200,
   ListAuditLogsParams,
   ListBusinessHours200,
@@ -39,9 +40,12 @@ import type {
   MarkNotificationsRead200,
   MarkNotificationsReadBody,
   NotFoundResponse,
+  NotificationDefaults,
+  NotificationDefaultsInput,
   NotificationPreferences,
   NotificationPreferencesInput,
   PermissionDeniedResponse,
+  PushSubscriptionInput,
   ReorderRoutingRulesBody,
   RoutingDryRun,
   RoutingRule,
@@ -1166,7 +1170,7 @@ export function useGetNotificationPreferences<
 }
 
 /**
- * Events or channels left out fall back to the tenant defaults. Push and email toggles are stored now and delivered from US15.
+ * Events or channels left out fall back to the tenant defaults. With enabled false no push or email is sent; in-app entries are still recorded (spec US15).
  * @summary Replace own preferences (FR-080)
  */
 export const getUpdateNotificationPreferencesUrl = () => {
@@ -1252,6 +1256,427 @@ export const useUpdateNotificationPreferences = <
   TContext
 > => {
   const mutationOptions = getUpdateNotificationPreferencesMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * The PushSubscription from the browser's Push API. Registering the same endpoint again replaces its keys; a user keeps at most 10 browsers (the oldest is dropped). The endpoint must be an https URL on a host name (no IP addresses or localhost). Expired subscriptions are removed when the push service refuses them.
+ * @summary Register this browser for push notifications (after the user grants permission, spec US15)
+ */
+export const getRegisterPushSubscriptionUrl = () => {
+  return `/notification-preferences/push-subscriptions`;
+};
+
+export const registerPushSubscription = async (
+  pushSubscriptionInput: PushSubscriptionInput,
+  options?: RequestInit,
+): Promise<void> => {
+  return http<void>(getRegisterPushSubscriptionUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(pushSubscriptionInput),
+  });
+};
+
+export const getRegisterPushSubscriptionMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerPushSubscription>>,
+    TError,
+    { data: PushSubscriptionInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registerPushSubscription>>,
+  TError,
+  { data: PushSubscriptionInput },
+  TContext
+> => {
+  const mutationKey = ['registerPushSubscription'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registerPushSubscription>>,
+    { data: PushSubscriptionInput }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return registerPushSubscription(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegisterPushSubscriptionMutationResult = NonNullable<
+  Awaited<ReturnType<typeof registerPushSubscription>>
+>;
+export type RegisterPushSubscriptionMutationBody = PushSubscriptionInput;
+export type RegisterPushSubscriptionMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse;
+
+/**
+ * @summary Register this browser for push notifications (after the user grants permission, spec US15)
+ */
+export const useRegisterPushSubscription = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof registerPushSubscription>>,
+      TError,
+      { data: PushSubscriptionInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof registerPushSubscription>>,
+  TError,
+  { data: PushSubscriptionInput },
+  TContext
+> => {
+  const mutationOptions = getRegisterPushSubscriptionMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary The VAPID public key a browser needs to subscribe to push (null when push is not set up)
+ */
+export const getGetPushPublicKeyUrl = () => {
+  return `/notification-preferences/push-key`;
+};
+
+export const getPushPublicKey = async (options?: RequestInit): Promise<GetPushPublicKey200> => {
+  return http<GetPushPublicKey200>(getGetPushPublicKeyUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetPushPublicKeyQueryKey = () => {
+  return [`/notification-preferences/push-key`] as const;
+};
+
+export const getGetPushPublicKeyQueryOptions = <
+  TData = Awaited<ReturnType<typeof getPushPublicKey>>,
+  TError = UnauthenticatedResponse,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPushPublicKey>>, TError, TData>>;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetPushPublicKeyQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getPushPublicKey>>> = ({ signal }) =>
+    getPushPublicKey({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getPushPublicKey>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetPushPublicKeyQueryResult = NonNullable<Awaited<ReturnType<typeof getPushPublicKey>>>;
+export type GetPushPublicKeyQueryError = UnauthenticatedResponse;
+
+export function useGetPushPublicKey<
+  TData = Awaited<ReturnType<typeof getPushPublicKey>>,
+  TError = UnauthenticatedResponse,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPushPublicKey>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPushPublicKey>>,
+          TError,
+          Awaited<ReturnType<typeof getPushPublicKey>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetPushPublicKey<
+  TData = Awaited<ReturnType<typeof getPushPublicKey>>,
+  TError = UnauthenticatedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPushPublicKey>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getPushPublicKey>>,
+          TError,
+          Awaited<ReturnType<typeof getPushPublicKey>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetPushPublicKey<
+  TData = Awaited<ReturnType<typeof getPushPublicKey>>,
+  TError = UnauthenticatedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPushPublicKey>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary The VAPID public key a browser needs to subscribe to push (null when push is not set up)
+ */
+
+export function useGetPushPublicKey<
+  TData = Awaited<ReturnType<typeof getPushPublicKey>>,
+  TError = UnauthenticatedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getPushPublicKey>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetPushPublicKeyQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary The tenant's default notification channels per event (tenant_settings.view, FR-080)
+ */
+export const getGetNotificationDefaultsUrl = () => {
+  return `/notification-defaults`;
+};
+
+export const getNotificationDefaults = async (
+  options?: RequestInit,
+): Promise<NotificationDefaults> => {
+  return http<NotificationDefaults>(getGetNotificationDefaultsUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getGetNotificationDefaultsQueryKey = () => {
+  return [`/notification-defaults`] as const;
+};
+
+export const getGetNotificationDefaultsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getNotificationDefaults>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(options?: {
+  query?: Partial<
+    UseQueryOptions<Awaited<ReturnType<typeof getNotificationDefaults>>, TError, TData>
+  >;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetNotificationDefaultsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getNotificationDefaults>>> = ({
+    signal,
+  }) => getNotificationDefaults({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getNotificationDefaults>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetNotificationDefaultsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getNotificationDefaults>>
+>;
+export type GetNotificationDefaultsQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useGetNotificationDefaults<
+  TData = Awaited<ReturnType<typeof getNotificationDefaults>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getNotificationDefaults>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getNotificationDefaults>>,
+          TError,
+          Awaited<ReturnType<typeof getNotificationDefaults>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetNotificationDefaults<
+  TData = Awaited<ReturnType<typeof getNotificationDefaults>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getNotificationDefaults>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getNotificationDefaults>>,
+          TError,
+          Awaited<ReturnType<typeof getNotificationDefaults>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useGetNotificationDefaults<
+  TData = Awaited<ReturnType<typeof getNotificationDefaults>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getNotificationDefaults>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary The tenant's default notification channels per event (tenant_settings.view, FR-080)
+ */
+
+export function useGetNotificationDefaults<
+  TData = Awaited<ReturnType<typeof getNotificationDefaults>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof getNotificationDefaults>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getGetNotificationDefaultsQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * Events or channels left out keep their current default. Users who changed an event themselves keep their own choice. Audited as notification_defaults.changed.
+ * @summary Change the tenant's default notification channels (tenant_settings.edit, FR-080)
+ */
+export const getUpdateNotificationDefaultsUrl = () => {
+  return `/notification-defaults`;
+};
+
+export const updateNotificationDefaults = async (
+  notificationDefaultsInput: NotificationDefaultsInput,
+  options?: RequestInit,
+): Promise<NotificationDefaults> => {
+  return http<NotificationDefaults>(getUpdateNotificationDefaultsUrl(), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(notificationDefaultsInput),
+  });
+};
+
+export const getUpdateNotificationDefaultsMutationOptions = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateNotificationDefaults>>,
+    TError,
+    { data: NotificationDefaultsInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateNotificationDefaults>>,
+  TError,
+  { data: NotificationDefaultsInput },
+  TContext
+> => {
+  const mutationKey = ['updateNotificationDefaults'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateNotificationDefaults>>,
+    { data: NotificationDefaultsInput }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return updateNotificationDefaults(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateNotificationDefaultsMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateNotificationDefaults>>
+>;
+export type UpdateNotificationDefaultsMutationBody = NotificationDefaultsInput;
+export type UpdateNotificationDefaultsMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse;
+
+/**
+ * @summary Change the tenant's default notification channels (tenant_settings.edit, FR-080)
+ */
+export const useUpdateNotificationDefaults = <
+  TError = ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateNotificationDefaults>>,
+      TError,
+      { data: NotificationDefaultsInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateNotificationDefaults>>,
+  TError,
+  { data: NotificationDefaultsInput },
+  TContext
+> => {
+  const mutationOptions = getUpdateNotificationDefaultsMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
