@@ -20,3 +20,7 @@ test-results
 specs
 docs
 .next
+# Docs site build output and local scratch files (the image builds its own).
+apps/docs/out
+apps/docs/.shots
+**/.next

@@ -1,0 +1,49 @@
+# apps/docs/Caddyfile -- serves the static docs site (apps/docs/out) in production.
+#
+# TLS is NOT terminated here: the host nginx owns 443 for replyx.example.com and proxies plain HTTP
+# to this container on 127.0.0.1:${DOCS_PORT}. Headers follow
+# specs/003-product-docs-site/contracts/routes.md. The CSP differs from the app's
+# (infra/caddy/Caddyfile) in one way: Next's static export inlines its bootstrap and theme scripts,
+# so script-src needs 'unsafe-inline'. The site has no forms, no API calls and no user data.
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	encode zstd gzip
+	root * /srv
+
+	header {
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		-Server
+	}
+
+	# Hashed build assets never change; pages are revalidated on every visit.
+	@static path /_next/static/*
+	header @static Cache-Control "public, max-age=31536000, immutable"
+	@pages not path /_next/static/*
+	header @pages Cache-Control "no-cache"
+
+	# The static search index has no file extension, so name its type.
+	@search path /api/search
+	header @search Content-Type "application/json; charset=utf-8"
+
+	# Fumadocs links pages without a trailing slash (search results) and Next with one, so answer
+	# both: /guides/triage and /guides/triage/ serve guides/triage/index.html.
+	try_files {path} {path}/index.html
+	file_server
+
+	handle_errors {
+		@notFound expression {err.status_code} == 404
+		handle @notFound {
+			rewrite * /404.html
+			file_server
+		}
+	}
+}
