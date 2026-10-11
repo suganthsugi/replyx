@@ -2,13 +2,13 @@
 
 ## Resume point
 
-- **Ticked**: T001–T020 (Phases 1–2, US3, US2, US1). **Waiting on**: the owner's visual sign-off on the home flow (SC-007; RX-81 is In Review). **Next**: US4 at T021, then US5 and Phase 8.
+- **Ticked**: T001–T020 (Phases 1–2, US3, US2, US1). **Next**: US4 at T021, then US5 and Phase 8.
 - **Jira** (cloudId `f83a4d0c-9614-4404-8ea3-98d37ad873b8`):
   - RX-65 is the Story for Phases 1–2 (Done, screenshot attached).
   - Its tasks are RX-66 (T001), RX-67 (T002), RX-68 (T003), RX-69 (T004) and RX-70 (T005), all Done.
   - RX-71 is the US3 Story (Done, screenshot attached), with tasks RX-72 (T006) to RX-76 (T010), all Done.
   - RX-77 is the US2 Story (Done, light and dark screenshots attached), with tasks RX-78 (T011), RX-79 (T012) and RX-80 (T013), all Done.
-  - RX-81 is the US1 Story (In Review, 3 screenshots attached), with tasks RX-82 (T014) to RX-88 (T020), all Done.
+  - RX-81 is the US1 Story (Done after the owner's motion-reel feedback, 6 screenshots attached), with tasks RX-82 (T014) to RX-88 (T020), all Done.
   - Team-managed project: a Task can't have a Story as its parent, so each task description says "Part of story RX-xx" instead.
   - Screenshots use `uploadAttachmentToJiraIssue` through `executeWrite`. Phase 1 returns a curl command; run it, then embed the returned id inline in a comment.
 
@@ -47,10 +47,12 @@
 - e2e flake: clicks can land before React hydrates the static HTML. Interactive steps retry with `expect(...).toPass()`.
 - Gotcha: a shell chain like `test | grep … && git commit` commits even when tests fail. Check the test exit code explicitly.
 - US1:
-  - The captions are SVG `<a>` links inside the artwork, and the figure is not `role="img"` (research R5, revised).
-  - The horizontal layout starts at a 1000 px container width.
+  - After owner feedback, the diagram became a kinetic motion reel (`FlowReel.tsx`, `motion.tsx`, `reel.module.css`): big type per beat, HUD labels, a tile wipe between tickets.
+  - The stage captions are HTML `<a>` links in the reel's chapter bar, and the figure is not `role="img"` (research R5, revised).
+  - The reel is sized in container-query units and switches to a portrait frame below 700 px.
+  - Beat timing lives in one storyboard (`AT`, `holdFor`, `COUNT_WINDOW` in `FlowReel.tsx`). `?speed=N` speeds everything up for tests.
   - FlowPlayer awaits one Web Animations API animation per step, so pausing every animation in the figure also pauses the sequence.
-  - The flow JS is 7.5 KB gzipped.
-  - Applying the neon filter to a straight line hides it (zero-height bounding box), so the dial needle has no filter.
+  - Pause gotchas: resume only the animations the player paused (play() rewinds a finished one); text timers are handed to the player (`adopt`); a `data-paused` attribute freezes CSS entrances that start while hidden; state changes wait until the reel is visible.
+  - The flow JS size must be re-measured in T030 (it was 7.5 KB gzipped before the reel).
 - Docs e2e runs 4 workers locally and 2 in CI. With 8 workers, the shared 8 GB Docker VM ran out of memory (ENOMEM in `serve`).
 - The link checker reports 6 missing links until T022 adds the concept pages.
