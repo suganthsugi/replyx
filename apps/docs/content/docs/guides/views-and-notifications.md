@@ -74,7 +74,5 @@ shows you what you missed while you were away.
 
 ## Notification preferences
 
-You have a master switch for notifications, plus a toggle for each event type above. Your defaults
-come from your organization, and you can adjust them from there. In-app delivery is available now;
-browser push and email toggles can be set today but aren't delivered yet — that arrives in a later
-release.
+You choose which of these events also reach you as a desktop notification or an email, and you can
+pause those alerts with a master switch. See [Notification preferences](/guides/notification-preferences/).
