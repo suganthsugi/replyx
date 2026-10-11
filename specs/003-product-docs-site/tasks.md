@@ -259,7 +259,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   - Developers → `/developers/authorization/`
 
   The whole card is the link, with a visible focus ring and a subtle hover lift. Neon is used only on the AI assist card's icon. The grid is responsive: 3, 2, then 1 columns.
-- [ ] T025 [US5] Extend `apps/docs/e2e/home-flow.spec.ts`: there are 6 cards, each link returns 200, there is one column with no horizontal scroll at 360 px, and axe is clean in both themes.
+- [X] T025 [US5] Extend `apps/docs/e2e/home-flow.spec.ts`: there are 6 cards, each link returns 200, there is one column with no horizontal scroll at 360 px, and axe is clean in both themes.
 
 ---
 
