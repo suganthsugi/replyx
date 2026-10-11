@@ -16,14 +16,14 @@ export interface Stage {
 }
 
 export const STAGES: readonly Stage[] = [
-  { id: 'intake', caption: 'New conversation', href: '/guides/customer-chat/', ai: false },
-  { id: 'rules', caption: 'Routing rules first', href: '/admin/routing-rules/', ai: false },
-  { id: 'decision', caption: 'Decision model picks a group', href: '/concepts/how-ai-routing-works/', ai: true },
-  { id: 'groups', caption: 'Right team, with confidence', href: '/admin/roles-and-groups/', ai: false },
-  { id: 'triage', caption: 'Not sure? Needs Triage', href: '/guides/triage/', ai: false },
+  { id: 'intake', caption: 'New ticket', href: '/guides/customer-chat/', ai: false },
+  { id: 'rules', caption: 'Rules first', href: '/admin/routing-rules/', ai: false },
+  { id: 'decision', caption: 'Decision model', href: '/concepts/how-ai-routing-works/', ai: true },
+  { id: 'groups', caption: 'Right team', href: '/admin/roles-and-groups/', ai: false },
+  { id: 'triage', caption: 'Needs Triage', href: '/guides/triage/', ai: false },
   { id: 'factors', caption: 'Complexity factors', href: '/concepts/how-complexity-picks-a-model/', ai: true },
   { id: 'score', caption: 'Weighted score', href: '/concepts/how-complexity-picks-a-model/#the-score', ai: true },
-  { id: 'levels', caption: 'Fast · Standard · Advanced', href: '/guides/ai-assist/#complexity-which-model-answers', ai: true },
+  { id: 'levels', caption: 'Model level', href: '/guides/ai-assist/#complexity-which-model-answers', ai: true },
 ];
 
 export const GROUPS = ['Orders & Shipping', 'Accounts', 'Technical Support', 'Billing'] as const;

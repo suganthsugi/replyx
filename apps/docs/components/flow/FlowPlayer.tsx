@@ -1,41 +1,37 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import { FlowArtwork, pathInto, stepsFor, type Step } from './flow-svg';
-import { SCENARIOS, STATIC_SCENARIO, type Scenario, type StageId } from './scenarios';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { COUNT_WINDOW, FlowReel, holdFor, stepsFor, type Step } from './FlowReel';
+import { SCENARIOS, STATIC_SCENARIO, type Scenario } from './scenarios';
 
 /**
- * Plays the home flow (US1, FR-006): loops through SCENARIOS, moving the ticket along each path and
- * lighting each stage in turn. The first render matches the server's static diagram; nothing moves
- * when the visitor prefers reduced motion (FR-009).
+ * Plays the home flow reel (US1, FR-006): loops through SCENARIOS, one beat per stage, with a tile
+ * wipe between tickets. The first render matches the server's static recap; nothing moves when the
+ * visitor prefers reduced motion (FR-009). Timing comes from the storyboard in FlowReel.tsx.
  *
- * Every step is a Web Animations API animation (the ticket travelling, or a hold), and the sequence
- * awaits each one. Pausing every animation in the figure therefore also pauses the sequence, which is
- * how it stops while the tab is hidden or the figure is off screen (FR-010).
+ * Every step is a Web Animations API animation (a hold, or the wipe), and the sequence awaits each
+ * one. Pausing every animation in the figure therefore also pauses the sequence, which is how it
+ * stops while the tab is hidden or the figure is off screen (FR-010).
  */
 
-/** How long each stage holds before the ticket moves on (ms, at speed 1). */
-const HOLD: Record<StageId, number> = {
-  intake: 700,
-  rules: 500,
-  decision: 1000,
-  groups: 600,
-  triage: 1400,
-  factors: 1100,
-  score: 900,
-  levels: 1500,
-};
-const TRAVEL = 420;
 const EASING = 'cubic-bezier(0.2, 0, 0, 1)';
+/** The empty frame shows this long after the wipe, before the next ticket comes in. */
+const BREATH = 350;
 
 class Stopped extends Error {}
+
+const nextFrame = () => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
 
 export function FlowPlayer() {
   const rootRef = useRef<HTMLDivElement>(null);
   const [scenario, setScenario] = useState<Scenario>(STATIC_SCENARIO);
   const [step, setStep] = useState<Step>('complete');
-  const [scoreText, setScoreText] = useState<string | undefined>(undefined);
+  const [count, setCount] = useState(1);
   const [playing, setPlaying] = useState(false);
+  const [blank, setBlank] = useState(false);
+  const [speed, setSpeed] = useState(1);
+  const adoptRef = useRef<(animation: Animation) => void>(() => {});
+  const adopt = useCallback((animation: Animation) => adoptRef.current(animation), []);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -44,60 +40,60 @@ export function FlowPlayer() {
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const speedParam = Number(new URLSearchParams(window.location.search).get('speed'));
     const speed = Number.isFinite(speedParam) && speedParam > 0 ? speedParam : 1;
+    setSpeed(speed);
 
     let run = 0; // bumped to stop the current loop
     let onScreen = true;
     const live = new Set<Animation>();
+    // Only the animations we paused get resumed: calling play() on a finished one would replay it.
+    const pausedByUs = new Set<Animation>();
 
     const hidden = () => document.hidden || !onScreen;
-    const allAnimations = () => root.getAnimations({ subtree: true });
+
+    /** Pauses an animation that starts while the reel is hidden. */
+    function adoptAnimation(animation: Animation) {
+      if (hidden()) {
+        animation.pause();
+        pausedByUs.add(animation);
+      }
+    }
+    adoptRef.current = adoptAnimation;
 
     function track(animation: Animation) {
       live.add(animation);
       animation.finished.finally(() => live.delete(animation)).catch(() => {});
-      if (hidden()) animation.pause();
+      adoptAnimation(animation);
       return animation;
     }
 
-    /** The layout on screen (the other one is display: none). */
-    function visibleSvg(): SVGSVGElement | null {
-      return [...root!.querySelectorAll('svg')].find((svg) => getComputedStyle(svg).display !== 'none') ?? null;
-    }
+    // Resolved when the reel is visible again.
+    let waiting: (() => void)[] = [];
+    const whenVisible = () => (hidden() ? new Promise<void>((resolve) => waiting.push(resolve)) : Promise.resolve());
 
+    /**
+     * Waits for an animation, then (if the reel was hidden meanwhile) for the reel to be visible, so
+     * the next state change, and the CSS transitions it starts, never happen while hidden.
+     */
     async function finish(animation: Animation, token: number) {
       try {
         await animation.finished;
       } catch {
         throw new Stopped();
       }
+      await whenVisible();
       if (token !== run) throw new Stopped();
     }
 
-    /** Moves the ticket along a path of the visible layout. */
-    async function travel(pathId: string, token: number) {
-      const svg = visibleSvg();
-      const path = svg?.querySelector<SVGPathElement>(`[data-path="${pathId}"]`);
-      const particle = svg?.querySelector<SVGGElement>('[data-part="particle"]');
-      if (!path || !particle) return;
-      const length = path.getTotalLength();
-      const samples = 18;
-      const frames: Keyframe[] = [];
-      for (let i = 0; i <= samples; i++) {
-        const t = i / samples;
-        const p = path.getPointAtLength(length * t);
-        frames.push({ offset: t, transform: `translate(${p.x}px, ${p.y}px)`, opacity: t < 0.12 ? t / 0.12 : t > 0.88 ? (1 - t) / 0.12 : 1 });
-      }
-      await finish(track(particle.animate(frames, { duration: TRAVEL / speed, easing: EASING })), token);
-    }
-
-    /** Holds the current step; `onFrame` gets the progress (0–1) while it runs, paused or not. */
-    async function hold(ms: number, token: number, onFrame?: (progress: number) => void) {
-      const animation = track(root!.animate([{ opacity: 1 }, { opacity: 1 }], { duration: ms / speed }));
+    /** Holds the current step; with a count window, reports the count-up's progress (0–1). */
+    async function hold(ms: number, token: number, window?: [number, number]) {
+      const duration = ms / speed;
+      const animation = track(root!.animate([{ opacity: 1 }, { opacity: 1 }], { duration }));
       let frame = 0;
-      if (onFrame) {
+      if (window) {
+        const [from, to] = window;
         const tick = () => {
-          const t = Number(animation.currentTime ?? 0) / (ms / speed);
-          onFrame(Math.min(1, Math.max(0, t)));
+          const t = Number(animation.currentTime ?? 0) * speed;
+          setCount(Math.min(1, Math.max(0, (t - from) / (to - from))));
           if (animation.playState !== 'finished' && animation.playState !== 'idle') frame = requestAnimationFrame(tick);
         };
         frame = requestAnimationFrame(tick);
@@ -109,24 +105,52 @@ export function FlowPlayer() {
       }
     }
 
+    /** Covers the frame with tiles, swaps underneath, then uncovers an empty frame. */
+    async function wipe(token: number, swap: () => void) {
+      const tiles = [...root!.querySelectorAll<HTMLElement>('[data-tile]')];
+      const play = (from: string, to: string) =>
+        tiles.map((tile) =>
+          track(
+            tile.animate([{ transform: from }, { transform: to }], {
+              duration: 320 / speed,
+              delay: (Number(tile.dataset.tile) * 24) / speed,
+              easing: EASING,
+              fill: 'both',
+            }),
+          ),
+        );
+      const cover = play('scale(0)', 'scale(1)');
+      await Promise.all(cover.map((a) => finish(a, token)));
+      swap();
+      await nextFrame();
+      const reveal = play('scale(1)', 'scale(0)');
+      for (const a of cover) a.cancel();
+      await Promise.all(reveal.map((a) => finish(a, token)));
+      for (const a of reveal) a.cancel();
+    }
+
     async function loop(token: number) {
       setPlaying(true);
       for (let i = 0; ; i = (i + 1) % SCENARIOS.length) {
-        const s = SCENARIOS[i]!;
-        setScoreText(undefined);
-        setScenario(s);
-        for (const stage of stepsFor(s)) {
-          const pathId = pathInto(s, stage);
-          if (pathId) await travel(pathId, token);
+        const sc = SCENARIOS[i]!;
+        const steps = stepsFor(sc);
+        await wipe(token, () => {
+          setBlank(true);
+          setScenario(sc);
+          setStep(steps[0]!);
+          setCount(1);
+        });
+        await hold(BREATH, token);
+        setBlank(false);
+        for (const stage of steps) {
+          const window = COUNT_WINDOW[stage];
+          setCount(window ? 0 : 1);
           setStep(stage);
-          if (stage === 'score') {
-            const target = s.expected.score ?? 0;
-            await hold(HOLD.score, token, (t) => setScoreText((target * (1 - (1 - t) ** 3)).toFixed(2)));
-            setScoreText(undefined);
-          } else {
-            await hold(HOLD[stage], token);
-          }
+          await hold(holdFor(stage, sc), token, window);
         }
+        setCount(1);
+        setStep('complete');
+        await hold(holdFor('complete', sc), token);
       }
     }
 
@@ -142,15 +166,28 @@ export function FlowPlayer() {
       for (const animation of live) animation.cancel();
       live.clear();
       setPlaying(false);
+      setBlank(false);
       setScenario(STATIC_SCENARIO);
       setStep('complete');
-      setScoreText(undefined);
+      setCount(1);
     }
 
     function syncPause() {
-      for (const animation of allAnimations()) {
-        if (hidden()) animation.pause();
-        else if (animation.playState === 'paused') animation.play();
+      // CSS entrances that start while hidden (a scene mounting) stay frozen until it is visible.
+      root!.toggleAttribute('data-paused', hidden());
+      if (hidden()) {
+        for (const animation of root!.getAnimations({ subtree: true })) {
+          if (animation.playState === 'running') {
+            animation.pause();
+            pausedByUs.add(animation);
+          }
+        }
+      } else {
+        for (const animation of pausedByUs) if (animation.playState === 'paused') animation.play();
+        pausedByUs.clear();
+        const resume = waiting;
+        waiting = [];
+        for (const resolve of resume) resolve();
       }
     }
 
@@ -179,8 +216,7 @@ export function FlowPlayer() {
 
   return (
     <div ref={rootRef} data-flow-player data-scenario={scenario.id} data-step={step}>
-      <FlowArtwork layout="horizontal" scenario={scenario} step={step} scoreText={scoreText} playing={playing} />
-      <FlowArtwork layout="vertical" scenario={scenario} step={step} scoreText={scoreText} playing={playing} />
+      <FlowReel scenario={scenario} step={step} count={count} playing={playing} speed={speed} blank={blank} adopt={adopt} />
     </div>
   );
 }

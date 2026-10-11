@@ -2,9 +2,9 @@ import Link from 'next/link';
 import { FlowPlayer } from './FlowPlayer';
 
 /**
- * Home page hero (US1): the headline, then the routing and complexity flow. The artwork sits in a
- * `figure` with a text alternative for the whole flow (FR-011); its stage captions are links inside
- * the SVG (FR-007), which is why the figure is not role="img" (that would hide the links).
+ * Home page hero (US1): the headline, then the routing and complexity reel. The reel sits in a
+ * `figure` with a text alternative for the whole flow (FR-011); its chapter bar holds the stage links
+ * (FR-007), which is why the figure is not role="img" (that would hide the links).
  */
 export function FlowHero() {
   return (
@@ -39,7 +39,7 @@ export function FlowHero() {
 
       <figure
         aria-labelledby="flow-desc"
-        className="mt-12 rounded-3xl border border-fd-border bg-[var(--rx-bg)] p-3 shadow-[0_24px_80px_-32px_var(--rx-ai-glow)] md:p-6"
+        className="mt-12 rounded-3xl shadow-[0_40px_120px_-48px_var(--rx-ai-glow)]"
         style={{ containerType: 'inline-size', containerName: 'flow' }}
       >
         <p id="flow-desc" className="sr-only">
@@ -51,8 +51,8 @@ export function FlowHero() {
           complexity factors are scored: customer frustration counts double, then several issues in one
           message, a technical problem, and a VIP customer. Their weighted average is the complexity score.
           Below 0.45 the Fast model level answers, from 0.45 the Standard level, and from 0.80 the Advanced
-          level, so the cheaper levels handle most conversations. The animation loops through five example
-          conversations.
+          level, so the cheaper levels handle most conversations. The animation plays five example conversations
+          in turn, one short reel each.
         </p>
         <FlowPlayer />
       </figure>

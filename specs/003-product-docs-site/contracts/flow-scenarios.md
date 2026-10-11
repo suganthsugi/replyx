@@ -2,16 +2,18 @@
 
 ## Stages (in order)
 
+The captions are the chapter names in the reel's chapter bar.
+
 | id | Caption | Links to | AI (neon) |
 |---|---|---|---|
-| intake | New conversation | `/guides/customer-chat/` | no |
-| rules | Routing rules first | `/admin/routing-rules/` | no |
-| decision | Decision model picks a group | `/concepts/how-ai-routing-works/` | yes |
-| groups | Right team, with confidence | `/admin/roles-and-groups/` | no |
-| triage | Not sure? Needs Triage | `/guides/triage/` | no |
+| intake | New ticket | `/guides/customer-chat/` | no |
+| rules | Rules first | `/admin/routing-rules/` | no |
+| decision | Decision model | `/concepts/how-ai-routing-works/` | yes |
+| groups | Right team | `/admin/roles-and-groups/` | no |
+| triage | Needs Triage | `/guides/triage/` | no |
 | factors | Complexity factors | `/concepts/how-complexity-picks-a-model/` | yes |
 | score | Weighted score | `/concepts/how-complexity-picks-a-model/#the-score` | yes |
-| levels | Fast · Standard · Advanced | `/guides/ai-assist/#complexity-which-model-answers` | yes |
+| levels | Model level | `/guides/ai-assist/#complexity-which-model-answers` | yes |
 
 ## Scenarios (loop order)
 
