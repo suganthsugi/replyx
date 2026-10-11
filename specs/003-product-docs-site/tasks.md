@@ -250,7 +250,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
 
 **Independent Test**: Every card links to an existing first page, the cards render in both themes, and there is one column at 360 px.
 
-- [ ] T024 [US5] Add `apps/docs/components/SectionCards.tsx` and render it below `FlowHero` in `app/(home)/page.tsx`. Make 6 cards, each with a small original SVG icon (tokens only), a title, a one-line summary and a link:
+- [X] T024 [US5] Add `apps/docs/components/SectionCards.tsx` and render it below `FlowHero` in `app/(home)/page.tsx`. Make 6 cards, each with a small original SVG icon (tokens only), a title, a one-line summary and a link:
   - Agent desk → `/guides/working-tickets/`
   - Customer chat → `/guides/customer-chat/`
   - AI assist → `/guides/ai-assist/`
