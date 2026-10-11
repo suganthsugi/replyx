@@ -162,6 +162,7 @@ export function makeCustomerProfile(overrides: Partial<CustomerProfile> = {}): C
     lastMessageAt: null,
     openTickets: [],
     closedTickets: [],
+    satisfaction: { average: null, responses: 0 },
     ...overrides,
   };
 }
