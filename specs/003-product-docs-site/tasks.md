@@ -237,7 +237,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   - The complexity page has a `## The score` heading, which is the `#the-score` anchor used by the flow.
   - Each page has a worked example that uses scenario 3 or 4 from `contracts/flow-scenarios.md`, with the arithmetic shown.
   - Each page links to `/admin/routing-rules/` or `/guides/ai-assist/` as relevant, and the pages link to each other.
-- [ ] T023 [US4] Extend `apps/docs/e2e/legacy-routes.spec.ts` (or add `concepts.spec.ts`):
+- [X] T023 [US4] Extend `apps/docs/e2e/legacy-routes.spec.ts` (or add `concepts.spec.ts`):
   - Both concept URLs return 200, and each has a `figure`/`svg[role=img]` and a table or list holding the worked example.
   - axe is clean in both themes.
   - Then run `check:links` again.
