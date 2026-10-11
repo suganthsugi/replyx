@@ -397,6 +397,16 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
         }}
       >
         <StatePill state={ticket.state} />
+        {ticket.csat != null && (
+          <Typography
+            variant="caption"
+            component="p"
+            title={ticket.csat.comment ?? undefined}
+            sx={{ px: 1.5, py: 0.5, borderRadius: 1, bgcolor: 'action.hover', fontWeight: 600, maxWidth: 280, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
+            Customer rating: {ticket.csat.score}/5{ticket.csat.comment != null && ticket.csat.comment !== '' ? ` · “${ticket.csat.comment}”` : ''}
+          </Typography>
+        )}
         <Box sx={{ minWidth: 160 }}>
           <StateSelector
             value={ticket.state}
