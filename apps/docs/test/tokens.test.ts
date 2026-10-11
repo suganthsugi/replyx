@@ -14,7 +14,7 @@ const css = readFileSync(join(ROOT, 'app/global.css'), 'utf8');
 function tokens(selector: string): Record<string, string> {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const body = new RegExp(`(?:^|\\n)${escaped}\\s*\\{([^}]*)\\}`).exec(css)?.[1] ?? '';
-  return Object.fromEntries([...body.matchAll(/(--rx-[\w-]+)\s*:\s*([^;]+);/g)].map((m) => [m[1], m[2]!.trim()]));
+  return Object.fromEntries([...body.matchAll(/(--rx-[\w-]+)\s*:\s*([^;]+);/g)].map((m): [string, string] => [m[1]!, m[2]!.trim()]));
 }
 
 const THEMES = { light: tokens(':root'), dark: tokens('.dark') };

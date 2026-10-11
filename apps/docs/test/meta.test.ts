@@ -37,7 +37,7 @@ function frontmatter(file: string): Record<string, string> {
       .split(/\r?\n/)
       .map((line) => /^(\w+):\s*(.*)$/.exec(line))
       .filter((m): m is RegExpExecArray => m !== null)
-      .map((m) => [m[1], m[2]!.trim()]),
+      .map((m): [string, string] => [m[1]!, m[2]!.trim()]),
   );
 }
 

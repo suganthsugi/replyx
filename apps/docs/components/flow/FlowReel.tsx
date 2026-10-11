@@ -95,7 +95,7 @@ export function sceneOf(step: Step): Scene {
       return 'complexity';
     case 'levels':
       return 'model';
-    default:
+    case 'complete':
       return 'end';
   }
 }
