@@ -2,13 +2,14 @@
 
 ## Resume point
 
-- **Ticked**: T001–T020 (Phases 1–2, US3, US2, US1). **Next**: US4 at T021, then US5 and Phase 8.
+- **Ticked**: T001–T023 (Phases 1–2, US3, US2, US1, US4). **Next**: US5 at T024, then Phase 8.
 - **Jira** (cloudId `f83a4d0c-9614-4404-8ea3-98d37ad873b8`):
   - RX-65 is the Story for Phases 1–2 (Done, screenshot attached).
   - Its tasks are RX-66 (T001), RX-67 (T002), RX-68 (T003), RX-69 (T004) and RX-70 (T005), all Done.
   - RX-71 is the US3 Story (Done, screenshot attached), with tasks RX-72 (T006) to RX-76 (T010), all Done.
   - RX-77 is the US2 Story (Done, light and dark screenshots attached), with tasks RX-78 (T011), RX-79 (T012) and RX-80 (T013), all Done.
   - RX-81 is the US1 Story (Done after the owner's motion-reel feedback, 6 screenshots attached), with tasks RX-82 (T014) to RX-88 (T020), all Done.
+  - RX-89 is the US4 Story (Done), with tasks RX-90 (T021), RX-91 (T022) and RX-92 (T023), all Done with screenshots.
   - Team-managed project: a Task can't have a Story as its parent, so each task description says "Part of story RX-xx" instead.
   - Screenshots use `uploadAttachmentToJiraIssue` through `executeWrite`. Phase 1 returns a curl command; run it, then embed the returned id inline in a comment.
 
@@ -55,4 +56,9 @@
   - Pause gotchas: resume only the animations the player paused (play() rewinds a finished one); text timers are handed to the player (`adopt`); a `data-paused` attribute freezes CSS entrances that start while hidden; state changes wait until the reel is visible.
   - The flow JS size must be re-measured in T030 (it was 7.5 KB gzipped before the reel).
 - Docs e2e runs 4 workers locally and 2 in CI. With 8 workers, the shared 8 GB Docker VM ran out of memory (ENOMEM in `serve`).
-- The link checker reports 6 missing links until T022 adds the concept pages.
+- US4:
+  - The concept illustrations reuse the reel's `CoreOrb` and `ComplexityRing`, placed inside one `role="img"` SVG through their `place` prop. Their numbers come from scenario 3 and `complexity.ts`.
+  - The diagrams are 560 units wide, so their labels stay readable at 360 px (about 0.6 scale).
+  - Fumadocs wraps MDX tables in a scrolling div that keyboard users can't focus (axe scrollable-region-focusable on phones). `components/mdx.tsx` replaces it with a focusable, named region.
+  - Sora renders word spaces narrow in SVG text, so diagram names use `word-spacing: 0.12em`.
+- The link checker passes (900 links in 26 pages).
