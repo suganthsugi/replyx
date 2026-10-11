@@ -3487,6 +3487,102 @@ paths:
           $ref: "#/components/responses/Unauthenticated"
         "403":
           $ref: "#/components/responses/PermissionDenied"
+  /automation-rules:
+    get:
+      operationId: listAutomationRules
+      tags:
+        - operations
+      summary: Automation rules in run order (automation_rule.view, US17)
+      responses:
+        "200":
+          description: Rules, by position
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/AutomationRule"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    post:
+      operationId: createAutomationRule
+      tags:
+        - operations
+      summary: Create an automation rule (automation_rule.create, FR-088)
+      description: The rule goes last. Ids in actions must exist (the group active for an enabled rule, the owner and notified
+        users active staff, the tags existing), else 400 with details[].issue invalid_value. Conditions use the view
+        condition tree, without owner "me". A workspace has at most 100 rules (409 AUTOMATION_RULE_LIMIT). Audited.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationRuleInput"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRule"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /automation-rules/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    put:
+      operationId: updateAutomationRule
+      tags:
+        - operations
+      summary: Replace an automation rule (automation_rule.edit); its position stays
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AutomationRuleInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AutomationRule"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteAutomationRule
+      tags:
+        - operations
+      summary: Delete an automation rule (automation_rule.delete); history keeps crediting it as a deleted rule
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /routing-rules/test:
     post:
       operationId: testRoutingRules
@@ -6305,7 +6401,8 @@ components:
         - sla.breached
         - ticket.reminder_reached
         - ai.paused
-      description: What a notification is about (FR-079)
+        - automation.rule
+      description: What a notification is about (FR-079); automation.rule is an automation rule's notify action (US17)
     NotificationChannels:
       type: object
       additionalProperties: false
@@ -6404,6 +6501,8 @@ components:
               $ref: "#/components/schemas/NotificationChannels"
             ai.paused:
               $ref: "#/components/schemas/NotificationChannels"
+            automation.rule:
+              $ref: "#/components/schemas/NotificationChannels"
     NotificationPreferencesInput:
       type: object
       additionalProperties: false
@@ -6441,6 +6540,8 @@ components:
               $ref: "#/components/schemas/NotificationChannelsInput"
             ai.paused:
               $ref: "#/components/schemas/NotificationChannelsInput"
+            automation.rule:
+              $ref: "#/components/schemas/NotificationChannelsInput"
     NotificationDefaults:
       type: object
       required:
@@ -6472,6 +6573,8 @@ components:
             ticket.reminder_reached:
               $ref: "#/components/schemas/NotificationChannels"
             ai.paused:
+              $ref: "#/components/schemas/NotificationChannels"
+            automation.rule:
               $ref: "#/components/schemas/NotificationChannels"
     NotificationDefaultsInput:
       type: object
@@ -6505,6 +6608,8 @@ components:
             ticket.reminder_reached:
               $ref: "#/components/schemas/NotificationChannelsInput"
             ai.paused:
+              $ref: "#/components/schemas/NotificationChannelsInput"
+            automation.rule:
               $ref: "#/components/schemas/NotificationChannelsInput"
     PushSubscriptionInput:
       type: object
@@ -6598,6 +6703,138 @@ components:
           $ref: "#/components/schemas/RoutingConditions"
         actions:
           $ref: "#/components/schemas/RoutingActions"
+    AutomationTrigger:
+      type: object
+      additionalProperties: false
+      required:
+        - event
+      description: When the rule runs. time.elapsed needs after (an ISO duration, 5 minutes to 90 days) and since (the ticket
+        timestamp it counts from); it runs once per waiting period, and new activity starts a new period.
+      properties:
+        event:
+          type: string
+          enum:
+            - ticket.created
+            - ticket.updated
+            - message.created
+            - time.elapsed
+          description: message.created means a message from the customer
+        after:
+          type: string
+          examples:
+            - P2D
+        since:
+          type: string
+          enum:
+            - created_at
+            - updated_at
+            - last_customer_message_at
+            - last_agent_reply_at
+    AutomationActions:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      description: What the rule does, through the same rules as a manual change (an ineligible owner or an inactive group
+        makes the run fail and nothing changes). A pending state needs pendingInHours. autoReply is a public message to the
+        customer from "Support"; notifyUserIds get an in-app automation.rule notification if they can view the ticket.
+      properties:
+        groupId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        ownerId:
+          type:
+            - string
+            - "null"
+          format: uuid
+        priority:
+          $ref: "#/components/schemas/Priority"
+        state:
+          $ref: "#/components/schemas/TicketState"
+        pendingInHours:
+          type: integer
+          minimum: 1
+          maximum: 720
+        addTagIds:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: string
+            format: uuid
+        autoReply:
+          type: string
+          minLength: 1
+          maxLength: 10000
+        notifyUserIds:
+          type: array
+          minItems: 1
+          maxItems: 20
+          items:
+            type: string
+            format: uuid
+    AutomationRuleInput:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - enabled
+        - trigger
+        - conditions
+        - actions
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 80
+        enabled:
+          type: boolean
+        trigger:
+          $ref: "#/components/schemas/AutomationTrigger"
+        conditions:
+          description: A view condition tree, or null for every ticket
+          oneOf:
+            - $ref: "#/components/schemas/ConditionExpression"
+            - type: "null"
+        actions:
+          $ref: "#/components/schemas/AutomationActions"
+    AutomationRule:
+      type: object
+      required:
+        - id
+        - name
+        - enabled
+        - position
+        - trigger
+        - conditions
+        - actions
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        name:
+          type: string
+        enabled:
+          type: boolean
+        position:
+          type: integer
+          minimum: 0
+        trigger:
+          $ref: "#/components/schemas/AutomationTrigger"
+        conditions:
+          oneOf:
+            - $ref: "#/components/schemas/ConditionExpression"
+            - type: "null"
+        actions:
+          $ref: "#/components/schemas/AutomationActions"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
     RoutingRule:
       type: object
       required:
