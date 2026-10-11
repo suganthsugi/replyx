@@ -54,14 +54,22 @@ export interface TicketUpdateInput {
 }
 
 export const SUPPORT = 'support' as const;
+/**
+ * An automation rule's run (US17): trusted like the system, so permission checks pass, while the
+ * group-active, owner-eligibility and state-machine rules in `applyLocked` still apply (FR-088).
+ */
+export const AUTOMATION = 'automation' as const;
 export type Viewer = EffectiveAccess | typeof SUPPORT;
+/** Who `applyLocked` may act for: a caller's access, or an automation rule's run. */
+export type ChangeActor = Viewer | typeof AUTOMATION;
 
 export function canView(access: Viewer, groupId: string | null): boolean {
   return access === SUPPORT || decide(access, 'ticket.view', { type: 'ticket', groupId }) === 'allow';
 }
 
 /** Throws 404 when the ticket is invisible and 403 when the caller may not perform `key`. */
-function require(access: Viewer, key: 'ticket.edit' | 'ticket.delete' | 'ticket.create', groupId: string | null): void {
+function require(access: ChangeActor, key: 'ticket.edit' | 'ticket.delete' | 'ticket.create', groupId: string | null): void {
+  if (access === AUTOMATION) return;
   if (access === SUPPORT) throw permissionDenied();
   const decision = decide(access, key, { type: 'ticket', groupId });
   if (decision === 'not_found') throw notFound(key === 'ticket.create' ? 'group' : 'ticket');
@@ -118,7 +126,7 @@ export class TicketsService {
   async applyLocked(
     ctx: TenantContext,
     tx: TenantTransaction,
-    access: Viewer,
+    access: ChangeActor,
     before: TicketRow,
     input: TicketUpdateInput,
     /** Who the history credits when the context's actor is not it (AI routing: `ai`). */
@@ -268,7 +276,7 @@ export class TicketsService {
   private async checkGroupMove(
     ctx: TenantContext,
     tx: TenantTransaction,
-    access: Viewer,
+    access: ChangeActor,
     currentGroupId: string | null,
     targetGroupId: string | null,
   ): Promise<void> {
