@@ -43,7 +43,7 @@ test('the sidebar has every group', async ({ page, isMobile }) => {
   await page.goto('/guides/triage/');
   if (isMobile) await page.getByRole('button', { name: /sidebar|menu/i }).first().click();
   const nav = page.locator('#nd-sidebar, [data-sidebar], aside').filter({ hasText: 'Guides' }).first();
-  for (const group of ['Guides', 'Admin', 'Operators', 'Developers']) {
+  for (const group of ['Concepts', 'Guides', 'Admin', 'Operators', 'Developers']) {
     await expect(nav.getByText(group, { exact: true }).first()).toBeVisible();
   }
 });
