@@ -37,4 +37,4 @@ Weights: frustration 2, several issues 1, technical 1, VIP 1 (Σ 5). Thresholds:
 
 ## Timing (non-normative)
 
-Each cycle takes about 7 s: intake 0.6 s, rules 0.6 s, decision 1.2 s, groups 0.8 s, factors 1.6 s, score 0.8 s, level 0.8 s, hold 0.6 s. A triage cycle ends after about 4 s. Easing comes from the design-system motion tokens (`cubic-bezier(0.2, 0, 0, 1)`).
+The reel's storyboard lives in `apps/docs/components/flow/FlowReel.tsx` (`AT`, `holdFor`, `COUNT_WINDOW`), so every beat leaves time to read. Each beat holds about 3–4.6 s, and a full ticket takes about 30 s, including the tile wipe and a short empty frame between tickets. The triage ticket (scenario 5) ends after the Needs Triage beat. `?speed=N` divides every duration by N, which the e2e tests use. Easing comes from the design-system motion tokens (`cubic-bezier(0.2, 0, 0, 1)`).
