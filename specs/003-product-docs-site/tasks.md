@@ -225,7 +225,7 @@ Phase 3 goes first among the stories because US1's captions link to these pages.
   - The routing diagram shows: rules first → no match → decision model with group AI descriptions → confidence vs 0.70 → group, or Needs Triage. Manual triage wins.
   - The complexity diagram shows: the 4 default factors with weights → the weighted average → the 0.45 and 0.80 thresholds → the three levels, with Fast as the fallback when complexity is not set up.
   - Both are `role="img"` with a `<title>` and a `<desc>`. Register them as MDX components in `apps/docs/mdx-components.tsx`.
-- [ ] T022 [US4] Write `apps/docs/content/docs/concepts/how-ai-routing-works.mdx` and `how-complexity-picks-a-model.mdx` (documentator, docs-style concept rules), plus `concepts/meta.json`.
+- [X] T022 [US4] Write `apps/docs/content/docs/concepts/how-ai-routing-works.mdx` and `how-complexity-picks-a-model.mdx` (documentator, docs-style concept rules), plus `concepts/meta.json`.
   - The content must match FR-004 and spec 002:
     - AI routing runs only when no rule matched.
     - It only considers active groups that have an AI description.
