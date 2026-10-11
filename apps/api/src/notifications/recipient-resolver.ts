@@ -61,7 +61,8 @@ async function candidatesFor(target: NotificationTarget, sources: RecipientSourc
     case 'sla.breached':
       return ticket.ownerId === null ? sources.groupViewers(ticket.groupId) : [ticket.ownerId];
     case 'ai.paused':
-      // Not about a ticket: AiStatus picks the recipients and writes it with DirectNotifier.
+    case 'automation.rule':
+      // AiStatus and automation rules pick their own recipients and write with DirectNotifier.
       return [];
   }
 }

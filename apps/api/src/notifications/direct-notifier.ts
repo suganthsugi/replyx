@@ -16,11 +16,14 @@ export interface DirectNotification {
   summary?: string | null;
   /** The domain event this notification is for; one delivery per (recipient, event). */
   eventId: string;
+  /** The ticket it is about, if any (an automation rule's notify action, US17). */
+  ticketId?: string | null;
 }
 
 /**
- * In-app notifications that are not about a ticket (spec 002 `ai.paused`), written in the caller's
- * transaction instead of by the ticket-centric notifications consumer. Recipients are chosen by the
+ * In-app notifications whose recipients the caller chooses (spec 002 `ai.paused`, an automation
+ * rule's notify action), written in the caller's transaction instead of by the ticket-centric
+ * notifications consumer. Recipients are chosen by the
  * caller; in-app preferences, the per-event delivery claim and the `notification.created`
  * announcement work as in notifications.consumer.ts.
  */
@@ -65,7 +68,7 @@ class DirectNotificationsRepository extends TenantRepository {
     return this.insertInto(tx, 'notifications', {
       recipient_id: recipientId,
       event_type: notification.eventType,
-      ticket_id: null,
+      ticket_id: notification.ticketId ?? null,
       group_key: null,
       title: notification.title,
       summary: notification.summary ?? null,

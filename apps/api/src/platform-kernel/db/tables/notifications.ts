@@ -16,6 +16,8 @@ export const NOTIFICATION_EVENT_TYPES = [
   'ticket.reminder_reached',
   /** AI paused on a bad key or no credit (spec 002, migration 0018); no ticket. */
   'ai.paused',
+  /** An automation rule's "notify users" action (US17, migration 0021). */
+  'automation.rule',
 ] as const;
 
 export type NotificationEventType = (typeof NOTIFICATION_EVENT_TYPES)[number];
