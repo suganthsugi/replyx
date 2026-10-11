@@ -13,10 +13,23 @@ function MdxInput(props: ComponentProps<'input'>) {
   return <input {...props} />;
 }
 
+/**
+ * Fumadocs scrolls a wide table sideways inside a wrapper. Keyboard users can only scroll it if the
+ * wrapper can take focus (axe scrollable-region-focusable), so make it a focusable, named region.
+ */
+function MdxTable(props: ComponentProps<'table'>) {
+  return (
+    <div className="relative overflow-auto prose-no-margin my-6" tabIndex={0} role="region" aria-label="Table">
+      <table {...props} />
+    </div>
+  );
+}
+
 export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
     input: MdxInput,
+    table: MdxTable,
     RoutingDiagram,
     ComplexityDiagram,
     ...components,
