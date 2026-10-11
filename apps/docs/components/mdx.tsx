@@ -1,6 +1,8 @@
 import defaultMdxComponents from 'fumadocs-ui/mdx';
 import type { ComponentProps } from 'react';
 import type { MDXComponents } from 'mdx/types';
+import { ComplexityDiagram } from './illustrations/ComplexityDiagram';
+import { RoutingDiagram } from './illustrations/RoutingDiagram';
 
 /**
  * Markdown task lists (`- [ ] step`) render disabled checkboxes with no label. They are decorative
@@ -15,6 +17,8 @@ export function getMDXComponents(components?: MDXComponents) {
   return {
     ...defaultMdxComponents,
     input: MdxInput,
+    RoutingDiagram,
+    ComplexityDiagram,
     ...components,
   } satisfies MDXComponents;
 }

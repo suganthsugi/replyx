@@ -1,5 +1,5 @@
 import type { CSSProperties, ReactNode } from 'react';
-import { ROUTING_CONFIDENCE, THRESHOLDS, WEIGHTS, type Factor, type Level } from './complexity';
+import { FACTOR_LABELS, ROUTING_CONFIDENCE, THRESHOLDS, WEIGHTS, type Factor, type Level } from './complexity';
 import { Decode, ReelMotion, Scramble, TicketOutline } from './motion';
 import { ComplexityRing, CoreOrb } from './primitives';
 import { GROUPS, SCENARIOS, STAGES, type Group, type Scenario, type StageId } from './scenarios';
@@ -107,13 +107,6 @@ export function stepsFor(sc: Scenario): StageId[] {
   else steps.push('groups', 'factors', 'score', 'levels');
   return steps;
 }
-
-const FACTOR_LABELS: Record<Factor, string> = {
-  frustration: 'Frustration',
-  severalIssues: 'Several issues',
-  technical: 'Technical',
-  vip: 'VIP customer',
-};
 
 const GROUP_LINES: Record<Group, string[]> = {
   'Orders & Shipping': ['Orders &', 'shipping.'],

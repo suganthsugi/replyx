@@ -72,6 +72,18 @@ const ICONS: Record<IconName, ReactNode> = {
   check: <path d="M4.5 10.5l3.5 3.5 7.5-8" />,
 };
 
+/**
+ * Where to draw an object inside another SVG (an illustration), in that SVG's units. Without it the
+ * object is its own SVG, sized by its container (the reel).
+ */
+export interface Place {
+  x: number;
+  y: number;
+  size: number;
+}
+
+const placed = (place?: Place) => (place ? { x: place.x, y: place.y, width: place.size, height: place.size } : {});
+
 /** A 20×20 stroke icon drawn at (x, y), in currentColor. */
 export function Icon({ name, x, y, size = 18 }: { name: IconName; x: number; y: number; size?: number }) {
   return (
@@ -108,9 +120,9 @@ const SYNAPSES: [number, number][] = [
  * The decision model: a glossy neon sphere with a neural mesh inside and two orbits a light travels
  * around. `dim` greys it out when a routing rule matched and the model was skipped.
  */
-export function CoreOrb({ id, dim }: { id: string; dim?: boolean }) {
+export function CoreOrb({ id, dim, place }: { id: string; dim?: boolean; place?: Place }) {
   return (
-    <svg className={styles.core} viewBox="-40 -40 480 480" data-dim={dim ? 'true' : undefined} aria-hidden="true">
+    <svg className={styles.core} viewBox="-40 -40 480 480" {...placed(place)} data-dim={dim ? 'true' : undefined} aria-hidden="true">
       <NeonDefs id={id} />
       <defs>
         <radialGradient id={`${id}-sphere`} cx="36%" cy="30%" r="78%">
@@ -167,11 +179,13 @@ export function ComplexityRing({
   values,
   score,
   scoreText,
+  place,
 }: {
   id: string;
   values: Record<Factor, number>;
   score: number;
   scoreText: string;
+  place?: Place;
 }) {
   const factors = Object.keys(WEIGHTS) as Factor[];
   const total = factors.reduce((t, f) => t + WEIGHTS[f], 0);
@@ -186,7 +200,7 @@ export function ComplexityRing({
   });
 
   return (
-    <svg className={styles.ring} viewBox="-40 -40 480 480" aria-hidden="true">
+    <svg className={styles.ring} viewBox="-40 -40 480 480" {...placed(place)} aria-hidden="true">
       <NeonDefs id={id} />
       <circle className={styles.halo} cx={C} cy={C} r={200} fill={`url(#${id}-wash)`} />
 

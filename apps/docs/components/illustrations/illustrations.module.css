@@ -1,0 +1,66 @@
+/*
+ * Concept page illustrations: stills in the home reel's visual language (mono HUD labels, big
+ * display type, neon only on the AI parts). Colours come only from the --rx-* tokens.
+ */
+.figure {
+  --mono: ui-monospace, 'SFMono-Regular', 'Cascadia Mono', Menlo, Consolas, monospace;
+  --display: var(--font-sora), var(--font-inter), sans-serif;
+  margin: 2rem 0;
+  padding: 1.25rem;
+  border: 1px solid var(--rx-border);
+  border-radius: 1rem;
+  background:
+    radial-gradient(60% 50% at 70% 40%, var(--rx-ai-glow-2), transparent 70%),
+    var(--rx-bg);
+}
+
+.svg {
+  display: block;
+  width: 100%;
+  max-width: 640px;
+  height: auto;
+  margin: 0 auto;
+  overflow: visible;
+}
+
+/* On a phone the drawing gets every pixel of the column, so its labels stay as large as they can. */
+@media (max-width: 640px) {
+  .figure { padding: 0.5rem; border-radius: 0.75rem; }
+}
+
+/* Boxes */
+.box { fill: var(--rx-surface); stroke: var(--rx-border); stroke-width: 1.5; }
+.boxAi { fill: var(--rx-surface); stroke: var(--rx-ai); stroke-width: 1.5; }
+.boxWarn { fill: var(--rx-surface); stroke: var(--rx-warning); stroke-width: 1.5; stroke-dasharray: 6 5; }
+.boxNote { fill: none; stroke: var(--rx-text-2); stroke-width: 1.2; stroke-dasharray: 3 5; }
+
+/* Text */
+.name { fill: var(--rx-text); font: 600 18px var(--display); word-spacing: 0.12em; }
+.label { fill: var(--rx-text-2); font: 600 12.5px var(--mono); letter-spacing: 0.12em; }
+.value { fill: var(--rx-text); font: 600 14px var(--mono); font-variant-numeric: tabular-nums; }
+.formula { fill: var(--rx-text); font: 600 15px var(--mono); font-variant-numeric: tabular-nums; }
+.accent { fill: var(--rx-primary-text); }
+.warn { fill: var(--rx-warning); }
+.icon { color: var(--rx-text-2); }
+.iconAi { color: var(--rx-ai); }
+.iconWarn { color: var(--rx-warning); }
+
+/* Lines */
+.flow { fill: none; stroke: var(--rx-text-2); stroke-width: 1.5; }
+.flowAi { fill: none; stroke: var(--rx-ai); stroke-width: 2; }
+.reads { fill: none; stroke: var(--rx-ai); stroke-width: 1.2; stroke-dasharray: 2 5; opacity: 0.8; }
+.head { fill: var(--rx-text-2); }
+.headAi { fill: var(--rx-ai); }
+
+/* Bars and scales */
+.track { fill: var(--rx-surface-2); }
+.fill { fill: var(--rx-ai); }
+.tick { stroke: var(--rx-text); stroke-width: 2; }
+.marker { fill: var(--rx-text); }
+.fast { fill: var(--rx-level-fast); }
+.standard { fill: var(--rx-level-standard); }
+.advanced { fill: var(--rx-level-advanced); }
+.fastText { fill: var(--rx-level-fast); }
+.standardText { fill: var(--rx-level-standard); }
+.advancedText { fill: var(--rx-level-advanced); }
+.chip { fill: var(--rx-text); font: 600 14px var(--font-inter), sans-serif; }

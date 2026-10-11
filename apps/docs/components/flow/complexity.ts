@@ -12,6 +12,13 @@ export const THRESHOLDS = { standard: 0.45, advanced: 0.8 } as const;
 export const ROUTING_CONFIDENCE = 0.7;
 
 export type Factor = keyof typeof WEIGHTS;
+
+export const FACTOR_LABELS: Record<Factor, string> = {
+  frustration: 'Frustration',
+  severalIssues: 'Several issues',
+  technical: 'Technical',
+  vip: 'VIP customer',
+};
 /** Each factor's value, from 0 to 1 (a yes/no answer is P(yes), a tag is 0 or 1). */
 export type Factors = Record<Factor, number>;
 export type Level = 'Fast' | 'Standard' | 'Advanced';
