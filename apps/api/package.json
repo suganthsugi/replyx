@@ -50,6 +50,7 @@
     "rxjs": "^7.8.2",
     "socket.io": "^4.8.1",
     "unpdf": "^1.8.1",
+    "web-push": "^3.6.7",
     "zod": "^4.1.0"
   },
   "devDependencies": {
@@ -63,6 +64,7 @@
     "@types/node": "^24.0.0",
     "@types/pg": "^8.15.0",
     "@types/supertest": "^6.0.3",
+    "@types/web-push": "^3.6.4",
     "@vitest/coverage-v8": "^5.0.1",
     "eslint": "^9.39.5",
     "socket.io-client": "^4.8.1",
