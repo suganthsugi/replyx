@@ -590,9 +590,9 @@ a desktop notification and no email (spec US15).
 
 - [X] T243 [US15] Implement channels in `apps/api/src/notifications/channels/`: `push.channel.ts` (web-push with `VAPID_*`; removes expired subscriptions) and `email.channel.ts` (2-minute digest per `group_key`; never internal-note text to customers); `POST /notification-preferences/push-subscriptions`; the master switch suppresses push and email while in-app entries are still recorded without alerts
 - [X] T244 [P] [US15] Integration tests `apps/api/test/integration/notifications/channels.test.ts`: per-channel toggles, master switch, digest grouping, no duplicates per (recipient, event, channel)
-- [ ] T245 [P] [US15] Create `apps/web/public/sw.js` (push handler opening the ticket) and `apps/web/src/pages/desk/me/NotificationPreferencesPage.tsx` (event × channel grid, master switch, browser permission prompt) and `apps/web/src/pages/admin/notifications/NotificationDefaultsPage.tsx`
-- [ ] T246 [US15] Extend `apps/web/src/data/notifications.ts` with preferences and push subscription registration
-- [ ] T247 [P] [US15] Guide `apps/docs/src/content/docs/guides/notification-preferences.md`
+- [X] T245 [P] [US15] Create `apps/web/public/sw.js` (push handler opening the ticket) and `apps/web/src/pages/desk/me/NotificationPreferencesPage.tsx` (event × channel grid, master switch, browser permission prompt) and `apps/web/src/pages/admin/notifications/NotificationDefaultsPage.tsx`
+- [X] T246 [US15] Extend `apps/web/src/data/notifications.ts` with preferences and push subscription registration
+- [X] T247 [P] [US15] Guide `apps/docs/src/content/docs/guides/notification-preferences.md`
 
 ---
 
