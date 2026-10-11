@@ -4,6 +4,7 @@ import { DateTime } from 'luxon';
 import { PolicyService } from '../authorization/policy.service.js';
 import { Clock } from '../platform-kernel/clock.js';
 import { UnitOfWork } from '../platform-kernel/db/unit-of-work.js';
+import { CsatRepository } from '../satisfaction/csat.repository.js';
 
 import { DashboardRepository } from './dashboard.repository.js';
 
@@ -35,8 +36,9 @@ import type { TenantContext } from '../platform-kernel/db/tenant-context.js';
  *   created_at` over tickets created in the window that have a reply; resolution = mean of
  *   `resolved_at - created_at` over tickets resolved in the window. Minutes, rounded to 2
  *   decimals; null when no ticket qualifies.
- * - satisfaction: a placeholder `{ average: null, responses: 0 }`; filled in US16 when ratings
- *   exist. Never a fake value.
+ * - satisfaction (US16): the mean customer rating (1–5, 2 decimals) and the number of ratings given
+ *   in the same window, over accessible tickets; `average` is null with no ratings. Skips don't
+ *   count.
  *
  * The access filter is computed before the unit of work opens (it takes its own short read-only
  * transaction), so this never holds two pool connections at once.
@@ -87,7 +89,8 @@ export class DashboardService {
 
     const figures = await this.unitOfWork.withTenantReadOnly(ctx, async (tx) => {
       const startOfToday = startOfLocalDay(now, await repo.timezone(tx));
-      return repo.figures(tx, access, { startOfToday, since });
+      const [counts, satisfaction] = await Promise.all([repo.figures(tx, access, { startOfToday, since }), new CsatRepository(ctx).figure(tx, access, { since })]);
+      return { ...counts, satisfaction };
     });
 
     return {
@@ -106,7 +109,7 @@ export class DashboardService {
         resolutionMinutes: toMinutes(figures.avgResolutionSeconds),
         window: `P${AVERAGE_WINDOW_DAYS}D`,
       },
-      satisfaction: { average: null, responses: 0 },
+      satisfaction: figures.satisfaction,
     };
   }
 }
