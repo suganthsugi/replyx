@@ -8,6 +8,7 @@ import { tenantScopeOf, UnitOfWork, type TenantTransaction } from '../platform-k
 import { IdempotentHandler, type DomainEvent } from '../platform-kernel/jobs/idempotent-handler.js';
 import { OutboxService } from '../platform-kernel/outbox/outbox.service.js';
 
+import { ChannelScheduler, type AlertChannel } from './channels/channel-scheduler.js';
 import { toNotificationDto, type NotificationRow } from './notification-dto.js';
 import { RecipientResolver, type NotificationTarget } from './recipient-resolver.js';
 
@@ -42,9 +43,11 @@ import type { DomainEventPayload, DomainEventType } from '../platform-kernel/out
  * entry (`count`, `notification.updated`) instead of adding entries (FR-082). An advisory lock on
  * (recipient, group key) keeps two concurrent messages from both opening an entry.
  *
- * Recipients come from `RecipientResolver`. Each (recipient, domain event, channel) is claimed
- * in `notification_deliveries` first, so a redelivered event never notifies twice. Entries are
- * announced on the recipient's `user` stream in the same transaction.
+ * Recipients come from `RecipientResolver`, once per channel. Each (recipient, domain event,
+ * channel) is claimed in `notification_deliveries` first, so a redelivered event never notifies
+ * twice. In-app entries are announced on the recipient's `user` stream in the same transaction;
+ * push and email go to `ChannelScheduler`, which groups the same bursts into 2-minute digests
+ * (US15).
  */
 
 type Handled = Extract<
@@ -53,6 +56,7 @@ type Handled = Extract<
 >;
 
 export const GROUPING_WINDOW_MS = 2 * 60_000;
+const ALERT_CHANNELS: readonly AlertChannel[] = ['push', 'email'];
 const EXCERPT_LENGTH = 140;
 
 interface TicketFacts {
@@ -225,6 +229,7 @@ export class NotificationsConsumer extends IdempotentHandler<Handled> {
     private readonly outbox: OutboxService,
     private readonly clock: Clock,
     private readonly assistant: AiTicketStatus,
+    private readonly channels: ChannelScheduler,
   ) {
     super(unitOfWork);
   }
@@ -244,6 +249,17 @@ export class NotificationsConsumer extends IdempotentHandler<Handled> {
       const recipients = await this.resolver.resolve(ctx, tx, planned.target, 'in_app');
       for (const recipientId of recipients) {
         await this.deliver(tx, repo, event.id, recipientId, ticket.id, planned);
+      }
+      for (const channel of ALERT_CHANNELS) {
+        for (const recipientId of await this.resolver.resolve(ctx, tx, planned.target, channel)) {
+          await this.channels.schedule(tx, recipientId, event.id, channel, {
+            eventType: planned.target.eventType,
+            ticketId: ticket.id,
+            title: planned.title,
+            summary: planned.summary,
+            groupKey: planned.groupKey,
+          });
+        }
       }
     }
   }

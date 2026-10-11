@@ -15,6 +15,7 @@ import { AiRunsRecorder } from '../../src/ai/runs/ai-runs.recorder.js';
 import { AiStatus } from '../../src/ai/settings/ai-status.js';
 import { PolicyService } from '../../src/authorization/policy.service.js';
 import { AssistantMessageWriter } from '../../src/messaging/assistant-message.writer.js';
+import { ChannelScheduler } from '../../src/notifications/channels/channel-scheduler.js';
 import { NotificationsConsumer } from '../../src/notifications/notifications.consumer.js';
 import { RecipientResolver } from '../../src/notifications/recipient-resolver.js';
 import { Clock } from '../../src/platform-kernel/clock.js';
@@ -24,6 +25,7 @@ import { UnitOfWork, type TenantTransaction } from '../../src/platform-kernel/db
 import { uuidv7 } from '../../src/platform-kernel/ids.js';
 import { QueueRegistry } from '../../src/platform-kernel/jobs/queues.js';
 import { OutboxService } from '../../src/platform-kernel/outbox/outbox.service.js';
+import { REDIS } from '../../src/platform-kernel/redis/redis.module.js';
 import { TicketHistoryService } from '../../src/tickets/ticket-history.service.js';
 import { TicketsService } from '../../src/tickets/tickets.service.js';
 
@@ -34,6 +36,7 @@ import { asUser } from './http.js';
 import type { FakeCommerceConnector } from '../../src/ai/commerce/fake/fake-commerce.connector.js';
 import type { FakeAiProvider } from '../../src/ai/providers/fake/fake.provider.js';
 import type { Job } from 'bullmq';
+import type { Redis } from 'ioredis';
 
 /**
  * Helpers for the assistant tests (specs/002-ai-assist T026). The trigger and staff-reply
@@ -207,6 +210,7 @@ export async function deliverToNotifications(tenant: { id: string }, messageId: 
     await service(OutboxService),
     await service(Clock),
     await service(AiTicketStatus),
+    new ChannelScheduler(await service(QueueRegistry), (await getTestApp()).app.get<Redis>(REDIS)),
   );
   return consumer.process({ tenantId: tenant.id, eventId: await messageEventId(tenant, messageId) }, `notifications-test-${messageId}`);
 }

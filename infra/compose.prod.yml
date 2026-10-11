@@ -159,6 +159,7 @@ services:
       OPERATOR_BOOTSTRAP_PASSWORD: ${OPERATOR_BOOTSTRAP_PASSWORD:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     volumes:
       - replyx-files:/data/files
     depends_on: &app-depends
@@ -221,6 +222,7 @@ services:
       SMTP_FROM: ${SMTP_FROM:-}
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-}
     volumes:
       - replyx-files:/data/files
     depends_on:
