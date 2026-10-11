@@ -7,6 +7,7 @@ import ListItemButton from '@mui/material/ListItemButton';
 import Stack from '@mui/material/Stack';
 import Typography from '@mui/material/Typography';
 import { useEffect, useRef, useState } from 'react';
+import { Link as RouterLink } from 'react-router';
 
 import { EmptyState } from '../../../components/foundations/EmptyState';
 import { Skeleton } from '../../../components/foundations/Skeleton';
@@ -20,6 +21,7 @@ import { useMe } from '../../../data/auth';
 import { useCustomer, useUpdateCustomer } from '../../../data/customers';
 import { useCreateTag, useTags } from '../../../data/tags';
 import { type TicketSummary } from '../../../data/tickets';
+import { WORKSPACE_BASE } from '../../../routes/area';
 
 import type { CustomerProfile } from '../../../data/customers';
 import type { TagRef } from '../../../data/tags';
@@ -27,7 +29,8 @@ import type { RefObject } from 'react';
 
 /**
  * The customer profile sheet (FR-069): contact details and tags (editable with `user.edit`), and
- * the customer's open and closed tickets. Opens from an inbox row or a ticket's customer summary.
+ * the customer's open and closed tickets. Opens from an inbox row or a ticket's customer summary;
+ * "Open full profile" leads to the whole history and satisfaction (US16).
  */
 
 export interface CustomerDrawerProps {
@@ -100,6 +103,9 @@ function CustomerDrawerBody({ customer, onOpenTicket }: { customer: CustomerProf
           onEdit={() => setEditing(true)}
         />
       )}
+      <Button variant="outlined" size="small" component={RouterLink} to={`${WORKSPACE_BASE}/customers/${customer.id}`} sx={{ alignSelf: 'flex-start' }}>
+        Open full profile
+      </Button>
       <Divider />
       <TicketSection title="Open tickets" tickets={customer.openTickets} onOpenTicket={onOpenTicket} emptyMessage="No open tickets." />
       <TicketSection title="Closed tickets" tickets={customer.closedTickets} onOpenTicket={onOpenTicket} emptyMessage="No closed tickets." />
