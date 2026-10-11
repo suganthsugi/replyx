@@ -2,21 +2,21 @@ import type { Page } from '@playwright/test';
 import { STAGES } from '../components/flow/scenarios';
 import { expect, test } from './fixtures';
 
-// The home page flow (US1): it plays on its own, shows every outcome, pauses when hidden, stays still
+// The home page flow reel (US1): it plays on its own, shows every outcome, pauses when hidden, stays still
 // for reduced motion and without JavaScript, fits a phone, links every stage, and passes axe.
 
 const player = (page: Page) => page.locator('[data-flow-player]');
-const visibleSvg = (page: Page) => page.locator('figure svg:visible');
+const reel = (page: Page) => page.locator('[data-reel]');
 const animationCount = (page: Page) =>
   page.evaluate(() => document.querySelector('figure')?.getAnimations({ subtree: true }).length ?? 0);
 
-/** The complete static diagram (scenario 3): Technical Support at 0.88, score 0.50, Standard. */
+/** The static recap (scenario 3): Technical Support at 0.88, score 0.50, Standard. */
 async function expectStaticDiagram(page: Page) {
-  const svg = visibleSvg(page);
-  await expect(svg.locator('[data-group][data-chosen="true"]')).toHaveAttribute('data-group', 'Technical Support');
-  await expect(svg.locator('[data-level][data-chosen="true"]')).toHaveAttribute('data-level', 'Standard');
-  await expect(svg.locator('[data-part="score"]')).toHaveText('0.50');
-  await expect(svg.locator('a[data-caption]')).toHaveCount(STAGES.length);
+  const frame = reel(page);
+  await expect(frame.locator('[data-group][data-chosen="true"]')).toHaveAttribute('data-group', 'Technical Support');
+  await expect(frame.locator('[data-level][data-chosen="true"]')).toHaveAttribute('data-level', 'Standard');
+  await expect(frame.locator('[data-part="score"]')).toHaveText('0.50');
+  await expect(frame.locator('a[data-caption]')).toHaveCount(STAGES.length);
 }
 
 test('the flow starts playing on its own within a second', async ({ page }) => {
@@ -34,10 +34,10 @@ test('a loop shows every model level and a Needs Triage fallback', async ({ page
     .poll(
       async () => {
         const state = await page.evaluate(() => {
-          const svg = [...document.querySelectorAll('figure svg')].find((s) => getComputedStyle(s).display !== 'none');
+          const frame = document.querySelector('[data-reel]');
           return {
-            level: svg?.querySelector('[data-level][data-chosen="true"]')?.getAttribute('data-level') ?? null,
-            triage: svg?.querySelector('[data-stage="triage"][data-chosen="true"]') !== null,
+            level: frame?.querySelector('[data-level][data-chosen="true"]')?.getAttribute('data-level') ?? null,
+            triage: frame?.querySelector('[data-stage="triage"][data-chosen="true"]') !== null,
           };
         });
         if (state.level) seen.levels.add(state.level);
@@ -50,7 +50,8 @@ test('a loop shows every model level and a Needs Triage fallback', async ({ page
 });
 
 test('the flow pauses while the tab is hidden and resumes after', async ({ page }) => {
-  await page.goto('/');
+  // Run faster, so resuming reaches the next step well inside the timeout.
+  await page.goto('/?speed=4');
   await page.locator('figure').scrollIntoViewIfNeeded();
   await expect.poll(() => animationCount(page)).toBeGreaterThan(0);
 
@@ -64,8 +65,9 @@ test('the flow pauses while the tab is hidden and resumes after', async ({ page 
   // Between two steps nothing may be running for a moment; the next step's animation starts paused.
   const playStates = () =>
     page.evaluate(() => document.querySelector('figure')!.getAnimations({ subtree: true }).map((a) => a.playState));
-  await expect.poll(async () => (await playStates()).length).toBeGreaterThan(0);
-  expect((await playStates()).every((s) => s === 'paused')).toBe(true);
+  await expect.poll(async () => (await playStates()).filter((s) => s === 'paused').length).toBeGreaterThan(0);
+  // Nothing runs; entrances that had already finished stay finished.
+  expect((await playStates()).filter((s) => s === 'running')).toEqual([]);
   const step = await player(page).getAttribute('data-step');
   await page.waitForTimeout(1_500);
   await expect(player(page)).toHaveAttribute('data-step', step!);
@@ -107,14 +109,16 @@ test.describe('without JavaScript', () => {
 
 test('the flow fits the screen with the right layout', async ({ page, isMobile }) => {
   await page.goto('/');
-  await expect(visibleSvg(page)).toHaveAttribute('data-layout', isMobile ? 'vertical' : 'horizontal');
+  // A landscape frame on wide screens, a portrait one on phones.
+  const box = (await reel(page).boundingBox())!;
+  expect(box.height > box.width).toBe(Boolean(isMobile));
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
   expect(overflow).toBeLessThanOrEqual(0);
 });
 
 test('every stage caption links to the page that explains it', async ({ page }) => {
   await page.goto('/');
-  const captions = visibleSvg(page).locator('a[data-caption]');
+  const captions = reel(page).locator('a[data-caption]');
   for (const stage of STAGES) {
     await expect(captions.and(page.locator(`[data-caption="${stage.id}"]`))).toHaveAttribute('href', stage.href);
   }
