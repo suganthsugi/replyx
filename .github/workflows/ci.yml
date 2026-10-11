@@ -59,6 +59,50 @@ jobs:
       - name: Lint OpenAPI spec
         run: npx @redocly/cli lint apps/api/openapi.yaml
 
+  # The docs site (apps/docs): a static export, checked the way production serves it.
+  docs:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile --filter docs...
+
+      - name: Typecheck
+        run: pnpm --filter docs typecheck
+
+      - name: Unit tests
+        run: pnpm --filter docs test
+
+      - name: Build the static export
+        run: pnpm --filter docs build
+
+      - name: Check internal links
+        run: pnpm --filter docs check:links
+
+      - name: Install Chromium for Playwright
+        run: pnpm --filter docs exec playwright install --with-deps chromium
+
+      # Serves apps/docs/out (playwright.config.ts webServer) and runs desktop and 360 px projects.
+      - name: End-to-end tests
+        run: pnpm --filter docs test:e2e
+
+      - name: Upload the Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docs-playwright-report
+          path: apps/docs/playwright-report
+          retention-days: 7
+
   docker-build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -74,6 +118,9 @@ jobs:
             target: build
           - image: caddy
             file: infra/caddy/Dockerfile
+            target: ""
+          - image: docs
+            file: apps/docs/Dockerfile
             target: ""
     steps:
       - uses: actions/checkout@v4
