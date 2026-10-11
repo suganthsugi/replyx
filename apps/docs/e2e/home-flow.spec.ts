@@ -125,3 +125,33 @@ test('every stage caption links to the page that explains it', async ({ page }) 
   await captions.and(page.locator('[data-caption="rules"]')).click();
   await expect(page).toHaveURL(/\/admin\/routing-rules\/$/);
 });
+
+// Section cards below the hero (US5). The axe checks above run on the whole home page, cards included.
+test.describe('section cards', () => {
+  const cards = (page: Page) => page.locator('[data-section-cards] > li > a');
+
+  test('six cards each link to a page that exists', async ({ page, request }) => {
+    await page.goto('/');
+    await expect(cards(page)).toHaveCount(6);
+    for (const href of await cards(page).evaluateAll((links) => links.map((a) => a.getAttribute('href')!))) {
+      expect((await request.get(href)).status(), href).toBe(200);
+    }
+  });
+
+  test('the cards stack in one column on a phone, with no sideways scroll', async ({ page }) => {
+    await page.setViewportSize({ width: 360, height: 740 });
+    await page.goto('/');
+    const lefts = await cards(page).evaluateAll((links) => links.map((a) => Math.round(a.getBoundingClientRect().left)));
+    expect(new Set(lefts).size).toBe(1);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test('a card shows a focus ring when tabbed to', async ({ page }) => {
+    await page.goto('/');
+    const first = cards(page).first();
+    await first.focus();
+    await expect(first).toBeFocused();
+    expect(await first.evaluate((a) => getComputedStyle(a).outlineStyle)).not.toBe('none');
+  });
+});
