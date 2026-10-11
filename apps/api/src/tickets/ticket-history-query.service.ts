@@ -63,8 +63,21 @@ function actorKindOf(row: HistoryActorKind): HistoryActorDto['kind'] {
   return row === 'operator' ? 'system' : row;
 }
 
-function toHistoryEntryDto(row: HistoryRow, names: ReadonlyMap<string, string>): HistoryEntryDto {
+/** A rule deleted since it ran is still credited, without its name. */
+const DELETED_RULE = 'Deleted rule';
+
+function toHistoryEntryDto(row: HistoryRow, names: ReadonlyMap<string, string>, ruleNames: ReadonlyMap<string, string>): HistoryEntryDto {
   const kind = actorKindOf(row.actor_kind);
+  if (kind === 'automation') {
+    return {
+      id: row.id,
+      field: row.field,
+      oldValue: row.old_value,
+      newValue: row.new_value,
+      occurredAt: row.created_at.toISOString(),
+      actor: { kind, ruleName: row.actor_id === null ? DELETED_RULE : (ruleNames.get(row.actor_id) ?? DELETED_RULE) },
+    };
+  }
   return {
     id: row.id,
     field: row.field,
@@ -98,7 +111,9 @@ export class TicketHistoryQueryService {
       );
       const userIds = rows.flatMap((row) => (row.actor_kind === 'user' && row.actor_id !== null ? [row.actor_id] : []));
       const names = await repo.actorNames(tx, userIds);
-      return toPage(rows, query.limit, (row) => ({ createdAt: row.created_at.toISOString(), id: row.id }), (row) => toHistoryEntryDto(row, names));
+      const ruleIds = rows.flatMap((row) => (row.actor_kind === 'automation' && row.actor_id !== null ? [row.actor_id] : []));
+      const ruleNames = await repo.ruleNames(tx, ruleIds);
+      return toPage(rows, query.limit, (row) => ({ createdAt: row.created_at.toISOString(), id: row.id }), (row) => toHistoryEntryDto(row, names, ruleNames));
     });
   }
 
@@ -117,6 +132,14 @@ class TicketHistoryReadRepository extends TenantRepository {
       query = query.where(sql<boolean>`(ticket_history.created_at, ticket_history.id) < (${after.createdAt}, ${after.id}::uuid)`);
     }
     return query.orderBy('ticket_history.created_at', 'desc').orderBy('ticket_history.id', 'desc').limit(limit).execute();
+  }
+
+  /** Automation rules credited in history (US17), by id. */
+  async ruleNames(tx: TenantTransaction, ruleIds: readonly string[]): Promise<Map<string, string>> {
+    const unique = [...new Set(ruleIds)];
+    if (unique.length === 0) return new Map();
+    const rows = await this.selectFrom(tx, 'automation_rules').select(['automation_rules.id', 'automation_rules.name']).where('automation_rules.id', 'in', unique).execute();
+    return new Map(rows.map((row) => [row.id, row.name]));
   }
 
   async actorNames(tx: TenantTransaction, userIds: readonly string[]): Promise<Map<string, string>> {
