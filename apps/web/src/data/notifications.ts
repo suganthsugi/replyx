@@ -1,10 +1,14 @@
-import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef } from 'react';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useEffect, useRef, useState } from 'react';
 
 import {
+  getPushPublicKey,
   listNotifications,
+  registerPushSubscription,
+  useGetNotificationDefaults as useGetNotificationDefaultsQuery,
   useGetNotificationPreferences as useGetNotificationPreferencesQuery,
   useMarkNotificationsRead as useMarkNotificationsReadMutation,
+  useUpdateNotificationDefaults as useUpdateNotificationDefaultsMutation,
   useUpdateNotificationPreferences as useUpdateNotificationPreferencesMutation,
 } from '../api/generated/operations/operations';
 
@@ -16,6 +20,8 @@ import type {
   ListNotificationsParams,
   MarkNotificationsReadBody,
   Notification,
+  NotificationDefaults,
+  NotificationDefaultsInput,
   NotificationPreferences,
   NotificationPreferencesInput,
 } from '../api/generated/model';
@@ -34,6 +40,11 @@ import type { InfiniteData, QueryClient } from '@tanstack/react-query';
  * entry isn't cached) and `notification.read` (another session marked read). The separate
  * `useNotificationArrivals` lets the notification center announce new arrivals through `LiveRegion`
  * without the cache-patching logic living in a component.
+ *
+ * Desktop notifications (US15, T246): `useEnableDesktopNotifications` asks the browser for
+ * permission, registers `/sw.js`, subscribes with the server's VAPID key and sends the
+ * subscription to the API. `useDesktopPermission` reports the browser's current answer. The
+ * tenant's defaults are `useNotificationDefaults` / `useUpdateNotificationDefaults` (admins).
  */
 
 export type NotificationFilters = { unread?: boolean };
@@ -43,6 +54,7 @@ export const notificationKeys = {
   list: (filters: NotificationFilters) => [...notificationKeys.all, 'list', filters] as const,
   unreadCount: () => [...notificationKeys.all, 'unread-count'] as const,
   preferences: () => [...notificationKeys.all, 'preferences'] as const,
+  defaults: () => [...notificationKeys.all, 'defaults'] as const,
 };
 
 const PAGE_SIZE = 50;
@@ -131,6 +143,93 @@ export function useUpdateNotificationPreferences() {
     },
   });
   return { ...mutation, mutateAsync: (data: NotificationPreferencesInput) => mutation.mutateAsync({ data }) };
+}
+
+/** The tenant's default channels per event (admins with `tenant_settings.view`). */
+export function useNotificationDefaults() {
+  const query = useGetNotificationDefaultsQuery<NotificationDefaults>({ query: { queryKey: notificationKeys.defaults() } });
+  return { ...query, error: query.error ? mapError(query.error) : undefined };
+}
+
+export function useUpdateNotificationDefaults() {
+  const queryClient = useQueryClient();
+  const mutation = useUpdateNotificationDefaultsMutation({
+    mutation: {
+      onSuccess: (defaults) => {
+        queryClient.setQueryData(notificationKeys.defaults(), defaults);
+        // The caller's own resolved preferences follow the defaults they haven't overridden.
+        void queryClient.invalidateQueries({ queryKey: notificationKeys.preferences() });
+      },
+    },
+  });
+  return { ...mutation, mutateAsync: (data: NotificationDefaultsInput) => mutation.mutateAsync({ data }) };
+}
+
+// Desktop (browser push) notifications.
+
+export type DesktopPermission = NotificationPermission | 'unsupported';
+
+/** Why desktop notifications could not be turned on. */
+export class DesktopNotificationsError extends Error {
+  constructor(
+    readonly reason: 'unsupported' | 'denied' | 'not-configured',
+    message: string,
+  ) {
+    super(message);
+    this.name = 'DesktopNotificationsError';
+  }
+}
+
+export function desktopNotificationsSupported(): boolean {
+  return typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+}
+
+function currentPermission(): DesktopPermission {
+  return desktopNotificationsSupported() ? Notification.permission : 'unsupported';
+}
+
+/** The browser's answer to the notification permission prompt, refreshed after `refresh()`. */
+export function useDesktopPermission() {
+  const [permission, setPermission] = useState<DesktopPermission>(currentPermission);
+  return { permission, refresh: () => setPermission(currentPermission()) };
+}
+
+/** A URL-safe base64 VAPID key as the bytes `pushManager.subscribe` expects. */
+export function applicationServerKey(base64Url: string): Uint8Array<ArrayBuffer> {
+  const padded = `${base64Url}${'='.repeat((4 - (base64Url.length % 4)) % 4)}`.replace(/-/g, '+').replace(/_/g, '/');
+  const raw = atob(padded);
+  const bytes = new Uint8Array(new ArrayBuffer(raw.length));
+  for (let index = 0; index < raw.length; index += 1) bytes[index] = raw.charCodeAt(index);
+  return bytes;
+}
+
+async function enableDesktopNotifications(): Promise<void> {
+  if (!desktopNotificationsSupported()) {
+    throw new DesktopNotificationsError('unsupported', "This browser doesn't support desktop notifications.");
+  }
+  const { publicKey } = await getPushPublicKey();
+  if (publicKey === null) {
+    throw new DesktopNotificationsError('not-configured', "Desktop notifications aren't set up on this server yet.");
+  }
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    throw new DesktopNotificationsError('denied', 'Notifications are blocked for this site. Allow them in your browser settings, then try again.');
+  }
+  const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+  await navigator.serviceWorker.ready;
+  const subscription =
+    (await registration.pushManager.getSubscription()) ??
+    (await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: applicationServerKey(publicKey) }));
+  const json = subscription.toJSON();
+  if (json.endpoint === undefined || json.keys?.p256dh === undefined || json.keys.auth === undefined) {
+    throw new DesktopNotificationsError('unsupported', "This browser didn't return a usable push subscription.");
+  }
+  await registerPushSubscription({ endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } });
+}
+
+/** Turns desktop notifications on for this browser; rejects with a `DesktopNotificationsError` or an API error. */
+export function useEnableDesktopNotifications() {
+  return useMutation({ mutationFn: enableDesktopNotifications });
 }
 
 // Real time: the notification center's cached lists and unread count.
@@ -236,4 +335,4 @@ export function useNotificationArrivals(client: RealtimeClient | undefined, onAr
   }, [client]);
 }
 
-export type { MarkNotificationsReadBody, Notification, NotificationPreferences, NotificationPreferencesInput };
+export type { MarkNotificationsReadBody, Notification, NotificationDefaults, NotificationDefaultsInput, NotificationPreferences, NotificationPreferencesInput };
