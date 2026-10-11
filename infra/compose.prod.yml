@@ -8,7 +8,8 @@
 #
 # Shape of the deployment:
 #   host nginx (80/443, wildcard TLS) -> 127.0.0.1:8081 -> caddy -> api:3000 | static SPA
-# Only caddy is published, and only on 127.0.0.1. Postgres, Valkey and ClamAV are reachable
+#   host nginx, apex replyx.example.com only -> 127.0.0.1:8082 -> docs (static docs site)
+# Only caddy and docs are published, and only on 127.0.0.1. Postgres, Valkey and ClamAV are reachable
 # from inside the `replyx` compose network only. The project name `replyx` prefixes the network
 # and the volumes (replyx_pgdata, ...), so nothing collides with the other stacks on the VM.
 #
@@ -250,6 +251,27 @@ services:
       interval: 15s
       timeout: 5s
       retries: 5
+      start_period: 5s
+
+  # The docs site (apps/docs): static files served by its own Caddy, on the apex host only.
+  docs:
+    build:
+      context: ..
+      dockerfile: apps/docs/Dockerfile
+    image: replyx-docs:${IMAGE_TAG:-local}
+    restart: unless-stopped
+    logging: *logging
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 64m
+    ports:
+      # Loopback only, like caddy: the host nginx proxies replyx.example.com here.
+      - "127.0.0.1:${DOCS_PORT:-8082}:80"
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
       start_period: 5s
 
   # Nightly pg_dump (custom format) into the replyx-backups volume, newest BACKUP_KEEP kept.

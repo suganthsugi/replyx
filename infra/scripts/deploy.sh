@@ -85,6 +85,8 @@ if [ -n "$(env_value CLAMAV_HOST)" ]; then
 fi
 PORT="$(env_value CADDY_PORT)"
 PORT="${PORT:-8081}"
+DOCS_PORT="$(env_value DOCS_PORT)"
+DOCS_PORT="${DOCS_PORT:-8082}"
 
 log "Validating the compose file"
 "${COMPOSE[@]}" config --quiet
@@ -127,6 +129,23 @@ done
 if [ "$ready" -ne 1 ]; then
   echo "deploy: the api did not become ready within 3 minutes; last api log lines:" >&2
   "${COMPOSE[@]}" logs --tail 40 api >&2 || true
+  die "deploy of $IMAGE_TAG failed; roll back with: bash infra/scripts/deploy.sh $PREVIOUS"
+fi
+
+# --- The docs site answers on its loopback port ---------------------------------------------------
+DOCS_URL="http://127.0.0.1:${DOCS_PORT}/"
+log "Waiting for $DOCS_URL"
+docs_ready=0
+for _ in $(seq 1 20); do
+  if curl -fsS -o /dev/null --max-time 3 "$DOCS_URL" 2>/dev/null; then
+    docs_ready=1
+    break
+  fi
+  sleep 3
+done
+if [ "$docs_ready" -ne 1 ]; then
+  echo "deploy: the docs site did not answer within 1 minute; last docs log lines:" >&2
+  "${COMPOSE[@]}" logs --tail 40 docs >&2 || true
   die "deploy of $IMAGE_TAG failed; roll back with: bash infra/scripts/deploy.sh $PREVIOUS"
 fi
 
