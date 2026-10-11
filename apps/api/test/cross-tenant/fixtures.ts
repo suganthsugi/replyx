@@ -194,6 +194,31 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       }),
     },
   },
+  // US17 (T256): tenant B never sees, edits or deletes tenant A's automation rule.
+  automation_rule: {
+    async create(tenant) {
+      const admin = await createUser(tenant, { roles: ['admin'] });
+      const created = await asUser(admin).post('/automation-rules', {
+        name: 'Tenant A rule',
+        enabled: true,
+        trigger: { event: 'ticket.created' },
+        conditions: null,
+        actions: { priority: 'high' },
+      });
+      if (created.status !== 201) throw new Error(`Automation rule fixture failed: ${created.status}`);
+      const id = (created.body as { id: string }).id;
+      return { params: { id }, ids: [id] };
+    },
+    bodies: {
+      'AutomationRulesController.update': () => ({
+        name: 'Renamed by another tenant',
+        enabled: false,
+        trigger: { event: 'ticket.created' },
+        conditions: null,
+        actions: { priority: 'low' },
+      }),
+    },
+  },
   // US16: a rating id resolves only among the caller's own resolved tickets; tenant B's customer gets 404.
   'customer:ratings': {
     async create(tenant) {
