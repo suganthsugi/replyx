@@ -39,6 +39,7 @@ const AiUsagePage = lazy(() => import('../pages/admin/ai/AiUsagePage'));
 // The inbox (US6) is most of the workspace's code; its own chunk keeps admin-only visits light.
 const InboxPage = lazy(() => import('../pages/desk/inbox/InboxPage'));
 const NotificationsPage = lazy(() => import('../pages/desk/notifications/NotificationsPage'));
+const NotificationPreferencesPage = lazy(() => import('../pages/desk/me/NotificationPreferencesPage'));
 const DashboardPage = lazy(() => import('../pages/desk/dashboard/DashboardPage'));
 const SearchResultsPage = lazy(() => import('../pages/desk/search/SearchResultsPage'));
 
@@ -58,6 +59,14 @@ export default function WorkspaceArea() {
           <Route element={<DeskLayout />}>
             <Route index element={<Navigate to="inbox" replace />} />
             <Route path="me" element={<ProfilePage />} />
+            <Route
+              path="me/notifications"
+              element={
+                <Suspense fallback={<Skeleton variant="block" label="notification preferences" />}>
+                  <NotificationPreferencesPage />
+                </Suspense>
+              }
+            />
             <Route
               path="notifications"
               element={

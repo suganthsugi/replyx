@@ -4,7 +4,7 @@ import Button from '@mui/material/Button';
 import MenuItem from '@mui/material/MenuItem';
 import Typography from '@mui/material/Typography';
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link as RouterLink, useNavigate } from 'react-router';
 
 import { EmptyState } from '../../../components/foundations/EmptyState';
 import { Skeleton } from '../../../components/foundations/Skeleton';
@@ -163,6 +163,13 @@ export default function ProfilePage() {
         <FormError />
         <SubmitButton>Change password</SubmitButton>
       </Form>
+
+      <Typography component="h2" variant="h6" sx={{ mt: 8, mb: 3 }}>
+        Notifications
+      </Typography>
+      <Button variant="outlined" component={RouterLink} to="/desk/me/notifications">
+        Notification preferences
+      </Button>
 
       <Typography component="h2" variant="h6" sx={{ mt: 8, mb: 3 }}>
         Sessions

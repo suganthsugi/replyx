@@ -3,7 +3,7 @@ import Button from '@mui/material/Button';
 import List from '@mui/material/List';
 import Typography from '@mui/material/Typography';
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Link as RouterLink, useNavigate } from 'react-router';
 
 import { EmptyState } from '../../../components/foundations/EmptyState';
 import { useAnnounce } from '../../../components/foundations/LiveRegion';
@@ -72,6 +72,9 @@ export default function NotificationsPage() {
           </Button>
           <Button size="small" onClick={() => void markAllRead()}>
             Mark all read
+          </Button>
+          <Button size="small" component={RouterLink} to={`${WORKSPACE_BASE}/me/notifications`}>
+            Preferences
           </Button>
         </Box>
       </Box>
