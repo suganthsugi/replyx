@@ -37,7 +37,7 @@ export function NeonDefs({ id }: { id: string }) {
   );
 }
 
-export type IconName = 'chat' | 'rules' | 'spark' | 'team' | 'alert' | 'sliders' | 'gauge' | 'check';
+export type IconName = 'chat' | 'rules' | 'spark' | 'team' | 'alert' | 'sliders' | 'gauge' | 'check' | 'inbox' | 'code';
 
 const ICONS: Record<IconName, ReactNode> = {
   chat: <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3h7A2.5 2.5 0 0 1 16 5.5v5a2.5 2.5 0 0 1-2.5 2.5H9l-3.5 3v-3h0A2.5 2.5 0 0 1 4 10.5z" />,
@@ -70,6 +70,13 @@ const ICONS: Record<IconName, ReactNode> = {
     </>
   ),
   check: <path d="M4.5 10.5l3.5 3.5 7.5-8" />,
+  inbox: (
+    <>
+      <path d="M3.5 11.5l2-7h9l2 7v4h-13z" />
+      <path d="M3.5 11.5h4l1 2h3l1-2h4" />
+    </>
+  ),
+  code: <path d="M7 6l-4 4 4 4M13 6l4 4-4 4M11 4.5l-2 11" />,
 };
 
 /**
