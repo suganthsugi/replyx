@@ -79,6 +79,16 @@ export class MessagesRepository extends TenantRepository {
       .executeTakeFirst();
   }
 
+  /** An automation rule's auto-reply already written for this idempotency key (US17). */
+  findAutomationByClientMessageId(tx: TenantTransaction, ticketId: string, clientMessageId: string): Promise<MessageRow | undefined> {
+    return this.selectFrom(tx, 'ticket_messages')
+      .select(MESSAGE_COLUMNS)
+      .where('ticket_messages.ticket_id', '=', ticketId)
+      .where('ticket_messages.author_kind', '=', 'automation')
+      .where('ticket_messages.client_message_id', '=', clientMessageId)
+      .executeTakeFirst();
+  }
+
   find(tx: TenantTransaction, id: string): Promise<MessageRow | undefined> {
     return this.selectFrom(tx, 'ticket_messages').select(MESSAGE_COLUMNS).where('ticket_messages.id', '=', id).executeTakeFirst();
   }

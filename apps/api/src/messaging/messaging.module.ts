@@ -5,6 +5,7 @@ import { RoutingModule } from '../routing/routing.module.js';
 import { RuleBasedRouter } from '../routing/rule-based-router.js';
 
 import { AssistantMessageWriter } from './assistant-message.writer.js';
+import { AutomationMessageWriter } from './automation-message.writer.js';
 import { ConversationTyping, CustomerTypingGateway, StaffTypingGateway } from './conversation-events.js';
 import { CustomerConversationService } from './customer-conversation.service.js';
 import { CustomerMessageRouter } from './customer-message-router.js';
@@ -20,8 +21,8 @@ import { TICKET_ROUTER } from './ticket-router.js';
  */
 @Module({
   imports: [RoutingModule],
-  providers: [CustomerMessageRouter, { provide: TICKET_ROUTER, useExisting: RuleBasedRouter }, PublicReplyService, AssistantMessageWriter],
-  exports: [CustomerMessageRouter, TICKET_ROUTER, PublicReplyService, AssistantMessageWriter],
+  providers: [CustomerMessageRouter, { provide: TICKET_ROUTER, useExisting: RuleBasedRouter }, PublicReplyService, AssistantMessageWriter, AutomationMessageWriter],
+  exports: [CustomerMessageRouter, TICKET_ROUTER, PublicReplyService, AssistantMessageWriter, AutomationMessageWriter],
 })
 export class MessagingModule {}
 

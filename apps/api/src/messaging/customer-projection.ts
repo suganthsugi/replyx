@@ -94,6 +94,9 @@ export function toConversationMessage(
     from = { kind: 'support', name: refs.authors.get(row.author_id)?.name ?? 'Support', avatarUrl: null };
   } else if (row.author_kind === 'assistant') {
     from = { kind: 'support', name: ASSISTANT_NAME, avatarUrl: null };
+  } else if (row.author_kind === 'automation') {
+    // An automation rule's auto-reply speaks for the team, never for a rule (no rule names here).
+    from = { kind: 'support', name: 'Support', avatarUrl: null };
   } else from = { kind: 'system' };
   return {
     id: row.id,
