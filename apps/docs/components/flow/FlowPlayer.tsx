@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+
 import { COUNT_WINDOW, FlowReel, holdFor, stepsFor, type Step } from './FlowReel';
 import { SCENARIOS, STATIC_SCENARIO, type Scenario } from './scenarios';
 

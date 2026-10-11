@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
 import { describe, expect, it } from 'vitest';
 
 // The theme tokens of contracts/theme-tokens.md: present in both themes, readable (WCAG 2.2 AA) and

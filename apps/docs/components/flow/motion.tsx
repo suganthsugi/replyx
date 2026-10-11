@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+
 import s from './reel.module.css';
 
 /**

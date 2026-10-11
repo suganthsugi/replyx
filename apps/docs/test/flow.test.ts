@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { level, ROUTING_CONFIDENCE, route, score, THRESHOLDS } from '@/components/flow/complexity';
 import { SCENARIOS, STAGES, STATIC_SCENARIO } from '@/components/flow/scenarios';
 

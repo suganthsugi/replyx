@@ -1,6 +1,8 @@
-import type { Page } from '@playwright/test';
 import { STAGES } from '../components/flow/scenarios';
+
 import { expect, test } from './fixtures';
+
+import type { Page } from '@playwright/test';
 
 // The home page flow reel (US1): it plays on its own, shows every outcome, pauses when hidden, stays still
 // for reduced motion and without JavaScript, fits a phone, links every stage, and passes axe.

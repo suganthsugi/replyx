@@ -1,5 +1,6 @@
 import { HomeLayout } from 'fumadocs-ui/layouts/home';
 import Link from 'next/link';
+
 import { baseOptions } from '@/lib/layout.shared';
 
 export default function NotFound() {

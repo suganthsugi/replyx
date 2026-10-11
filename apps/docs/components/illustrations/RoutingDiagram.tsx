@@ -1,8 +1,9 @@
 import { ROUTING_CONFIDENCE } from '../flow/complexity';
 import { CoreOrb, Icon } from '../flow/primitives';
 import { STATIC_SCENARIO } from '../flow/scenarios';
-import { Arrow, Box, Diagram } from './parts';
+
 import s from './illustrations.module.css';
+import { Arrow, Box, Diagram } from './parts';
 
 /**
  * How AI routing works, as a still: rules first, then the decision model reading the active groups'

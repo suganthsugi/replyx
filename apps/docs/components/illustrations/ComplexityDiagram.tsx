@@ -1,8 +1,9 @@
 import { FACTOR_LABELS, level, score, THRESHOLDS, WEIGHTS, type Factor, type Level } from '../flow/complexity';
 import { ComplexityRing } from '../flow/primitives';
 import { STATIC_SCENARIO } from '../flow/scenarios';
-import { Box, Diagram } from './parts';
+
 import s from './illustrations.module.css';
+import { Box, Diagram } from './parts';
 
 /**
  * How complexity picks a model, as a still: the four default factors and their weights, the weighted

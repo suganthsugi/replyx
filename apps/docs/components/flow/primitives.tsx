@@ -1,6 +1,7 @@
-import type { ReactNode } from 'react';
 import { THRESHOLDS, WEIGHTS, type Factor } from './complexity';
 import styles from './reel.module.css';
+
+import type { ReactNode } from 'react';
 
 /**
  * Drawing primitives shared by the home reel and the concept page illustrations: one visual language

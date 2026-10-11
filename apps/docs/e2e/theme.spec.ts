@@ -1,5 +1,6 @@
-import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures';
+
+import type { Page } from '@playwright/test';
 
 // Light, dark and system themes (US2): System by default, no flash of the wrong theme, a manual
 // choice that persists, and AA contrast in both themes.

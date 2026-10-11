@@ -1,6 +1,8 @@
-import type { ReactNode } from 'react';
 import { Icon, NeonDefs, type IconName } from '../flow/primitives';
+
 import s from './illustrations.module.css';
+
+import type { ReactNode } from 'react';
 
 /**
  * Pieces shared by the concept page illustrations. Each illustration is one still SVG with

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import type { ReactNode } from 'react';
+
 import { Provider } from '@/components/provider';
 import { inter, sora } from '@/lib/fonts';
 import './global.css';

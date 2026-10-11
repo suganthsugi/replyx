@@ -1,9 +1,10 @@
-import type { CSSProperties, ReactNode } from 'react';
 import { FACTOR_LABELS, ROUTING_CONFIDENCE, THRESHOLDS, WEIGHTS, type Factor, type Level } from './complexity';
 import { Decode, ReelMotion, Scramble, TicketOutline } from './motion';
 import { ComplexityRing, CoreOrb } from './primitives';
-import { GROUPS, SCENARIOS, STAGES, type Group, type Scenario, type StageId } from './scenarios';
 import s from './reel.module.css';
+import { GROUPS, SCENARIOS, STAGES, type Group, type Scenario, type StageId } from './scenarios';
+
+import type { CSSProperties, ReactNode } from 'react';
 
 /**
  * The home page flow (US1, FR-005, FR-008) as a motion-graphics reel: each ticket plays in beats
@@ -125,7 +126,7 @@ const LEVEL_RANGE: Record<Level, string> = {
 const pad = (n: number, width = 2) => String(n).padStart(width, '0');
 const ease = (t: number) => 1 - (1 - t) ** 3;
 /** Starts a CSS entrance at `ms` (scaled by the reel's --s speed in reel.module.css). */
-const at = (ms: number, extra?: CSSProperties) => ({ ['--at' as string]: `${ms}ms`, ...extra }) as CSSProperties;
+const at = (ms: number, extra?: CSSProperties) => ({ ['--at' as string]: `${ms}ms`, ...extra });
 /** The start time of the i-th panel of a beat. */
 const panelAt = (i: number, from: number = AT.panel) => from + i * PANEL_STEP;
 
@@ -463,7 +464,7 @@ export function FlowReel({ scenario, step, count = 1, playing = false, speed = 1
         data-reel
         data-scene={blank ? 'blank' : scene}
         data-playing={playing ? 'true' : undefined}
-        style={{ ['--s' as string]: speed } as CSSProperties}
+        style={{ ['--s' as string]: speed }}
       >
         <div className={s.bgGrid} aria-hidden="true" />
         <div className={s.bgGlow} aria-hidden="true" />
