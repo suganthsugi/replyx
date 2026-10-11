@@ -1,3 +1,4 @@
+import { MESSAGE_COLUMNS, type MessageRow } from '../messaging/messages.repository.js';
 import { TenantRepository } from '../platform-kernel/db/tenant-repository.js';
 
 import type { UserStatus } from '../platform-kernel/db/tables/identity.js';
@@ -94,5 +95,26 @@ export class CustomersRepository extends TenantRepository {
       .orderBy('tickets.id', 'desc')
       .execute();
     return rows.map((row) => ({ ...row, number: Number(row.number) }));
+  }
+
+  /**
+   * The customer's messages on tickets visible to the caller, newest first (ids are UUIDv7, so
+   * creation order), with each message's ticket number. Internal notes are included: the caller
+   * can read them on those tickets anyway.
+   */
+  async historyOf(
+    tx: TenantTransaction,
+    userId: string,
+    access: Expression<SqlBool>,
+    options: { limit: number; before?: string },
+  ): Promise<(MessageRow & { ticket_number: number })[]> {
+    let query = this.selectFrom(tx, 'ticket_messages')
+      .innerJoin('tickets', (join) => join.onRef('tickets.tenant_id', '=', 'ticket_messages.tenant_id').onRef('tickets.id', '=', 'ticket_messages.ticket_id'))
+      .select([...MESSAGE_COLUMNS, 'tickets.number as ticket_number'])
+      .where('tickets.customer_id', '=', userId)
+      .where(access);
+    if (options.before !== undefined) query = query.where('ticket_messages.id', '<', options.before);
+    const rows = await query.orderBy('ticket_messages.id', 'desc').limit(options.limit).execute();
+    return rows.map((row) => ({ ...row, ticket_number: Number(row.ticket_number) }));
   }
 }
