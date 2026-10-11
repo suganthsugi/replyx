@@ -1,0 +1,78 @@
+---
+title: How complexity picks a model
+description: Learn how the complexity score weighs a conversation's factors and how the Standard and Advanced thresholds decide whether the Fast, Standard or Advanced model answers.
+---
+
+Most conversations are simple, and a fast, cheap model answers them well. A few need a more capable
+model. The complexity score decides which, so you only pay for the stronger models when a
+conversation needs them.
+
+<ComplexityDiagram />
+
+## Factors
+
+A factor is a question about the conversation, such as "Is the customer frustrated?". Each factor
+gives the conversation a value from 0 to 1:
+
+| Factor type | Worth 1 when… | In between |
+|-------------|---------------|------------|
+| Yes or no question | the AI answers yes | how sure the AI is that the answer is yes |
+| Scale | the highest level fits | lower levels are worth less |
+| Multiple choice | the option you valued at 1 fits | each option's value, from 0 to 1 |
+| Customer has a tag | the customer has the tag | — (0 or 1) |
+| Times reopened | the ticket was reopened **3** times or more | one reopen is worth a third |
+| SLA breached | the ticket has missed an SLA target | — (0 or 1) |
+
+When you first turn AI on, ReplyX adds four default factors:
+
+| Factor | Type | Weight |
+|--------|------|-------:|
+| Customer frustration | Scale | 2 |
+| Several issues in one message | Yes or no question | 1 |
+| Technical problem | Yes or no question | 1 |
+| VIP customer (only if you have a tag named "VIP") | Customer has a tag | 1 |
+
+You can change them, and add up to **12** factors, under **Admin → AI → Complexity**.
+
+## The score
+
+The complexity score is the weighted average of the factor values: multiply each value by its
+**Weight**, add them up, and divide by the total weight. A factor with weight 2 counts twice as much
+as one with weight 1, so with the defaults, frustration matters most.
+
+## Levels
+
+Two thresholds split the score into three levels, each with its own model:
+
+| Score | Level |
+|-------|-------|
+| below **0.45** | **Fast** |
+| **0.45** up to 0.80 | **Standard** |
+| **0.80** or more | **Advanced** |
+
+You set where Standard and Advanced start with the sliders under **Levels**. The defaults keep most
+conversations on the cheaper Fast model. If complexity is not set up, or scoring fails, the **Fast**
+model answers.
+
+## Worked example
+
+A made-up message: "Export to CSV crashes every time since the update, I've tried twice." With the
+default factors:
+
+| Factor | Value | Weight | Value × weight |
+|--------|------:|-------:|---------------:|
+| Customer frustration | 0.75 | 2 | 1.50 |
+| Several issues in one message | 0 | 1 | 0 |
+| Technical problem | 1 | 1 | 1.00 |
+| VIP customer | 0 | 1 | 0 |
+| **Total** | | **5** | **2.50** |
+
+The score is 2.50 ÷ 5 = **0.50**. That is at least 0.45 and below 0.80, so the **Standard** model
+answers.
+
+A calmer "Where is my order 1042? It said 3 days." scores 0.04 (frustration 0.10 × 2 ÷ 5), so the
+Fast model answers it.
+
+To choose the model for each level, see [AI Assist](/guides/ai-assist/#complexity-which-model-answers).
+Before a conversation is scored, its ticket is routed to a group: see
+[How AI routing works](/concepts/how-ai-routing-works/).

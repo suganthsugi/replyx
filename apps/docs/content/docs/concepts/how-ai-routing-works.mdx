@@ -1,0 +1,59 @@
+---
+title: How AI routing works
+description: Learn how a new customer ticket finds its group, from your routing rules to the AI decision model and its confidence threshold, and when a ticket waits in Needs Triage instead.
+---
+
+When a customer starts a new conversation, ReplyX creates a ticket and has to decide which group
+handles it. Three things can decide, in this order of strength: a person sorting the ticket by hand,
+your routing rules, and the AI decision model.
+
+<RoutingDiagram />
+
+## Rules first
+
+Your [routing rules](/admin/routing-rules/) always run first. If a rule matches, the ticket goes to
+that rule's group and the decision model is never asked. Rules are the right tool for anything you
+can describe exactly, such as "messages that mention a password reset go to Accounts".
+
+## The decision model
+
+When no rule matches, and **Route new tickets with AI** is on in **Admin → AI → AI settings**, the
+decision model reads the customer's message and compares it with your groups. It only considers
+groups that are **active** and have an **AI description**, such as "Invoices, charges, payments and
+refunds". A group without a description is never chosen, so you decide which groups AI can route to.
+
+The model gives each group a confidence from 0 to 1 and picks the most likely one.
+
+## The confidence threshold
+
+The ticket goes to the picked group only when the model is confident enough. **Confidence needed**
+is **70%** (0.70) by default. You can change it under **AI settings → Routing**.
+
+- **0.70 or more**: the ticket goes to that group.
+- **Below 0.70**, or no group fits: the ticket stays ungrouped in **Needs Triage**, where a person
+  [triages it](/guides/triage/).
+
+A higher threshold sends fewer tickets to the wrong group, and more tickets to Needs Triage.
+
+## A manual choice always wins
+
+If someone triages the ticket by hand before the model answers, their choice stands and the model's
+answer is ignored. The ticket's history records each AI routing decision and how confident it was,
+so you can check how well your group descriptions work.
+
+## Worked example
+
+Two made-up messages with no matching rule, and the active groups Orders & Shipping, Accounts,
+Technical Support and Billing, each with an AI description:
+
+| Message | Most likely group | Confidence | Against 0.70 | Result |
+|---------|-------------------|-----------:|--------------|--------|
+| "Export to CSV crashes every time since the update, I've tried twice." | Technical Support | 0.88 | 0.88 ≥ 0.70 | **Technical Support** |
+| "hi, quick question" | Billing | 0.41 | 0.41 < 0.70 | **Needs Triage** |
+
+The first message clearly describes a technical problem, so the model is confident. The second could
+be about anything, so it waits for a person.
+
+Once a ticket has a group, its complexity decides which model answers it. See
+[How complexity picks a model](/concepts/how-complexity-picks-a-model/). To set up AI routing, see
+[AI Assist](/guides/ai-assist/#routing-new-tickets-with-ai).
