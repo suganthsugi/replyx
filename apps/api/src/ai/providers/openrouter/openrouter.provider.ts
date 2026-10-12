@@ -1,5 +1,6 @@
 import { z } from 'zod';
 
+import { acceptsTemperature } from '../catalog.js';
 import {
   ProviderError,
   type AiProvider,
@@ -159,7 +160,8 @@ export class OpenRouterProvider implements AiProvider {
         ? {}
         : { response_format: { type: 'json_schema', json_schema: { ...request.responseSchema, strict: true } } }),
       ...(request.maxOutputTokens === undefined ? {} : { max_tokens: request.maxOutputTokens }),
-      ...(request.temperature === undefined ? {} : { temperature: request.temperature }),
+      // Some models reject the parameter outright (HTTP 400) instead of ignoring it.
+      ...(request.temperature === undefined || !acceptsTemperature(request.model) ? {} : { temperature: request.temperature }),
       provider: PRIVACY,
       usage: { include: true },
     };

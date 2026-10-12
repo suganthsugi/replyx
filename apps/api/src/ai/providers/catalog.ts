@@ -16,22 +16,24 @@ export interface ModelOption {
   label: string;
   inputPerMillionUsd: number;
   outputPerMillionUsd: number;
+  /** False when no OpenRouter endpoint of the model accepts `temperature`: sending it is a 400. */
+  acceptsTemperature?: boolean;
 }
 
 export const MODEL_LEVELS: readonly AiModelLevel[] = ['fast', 'standard', 'advanced'];
 
 export const LEVEL_MODELS: Readonly<Record<AiModelLevel, readonly ModelOption[]>> = {
   fast: [
-    { id: 'anthropic/claude-haiku-5.5', label: 'Claude Haiku 5.5', inputPerMillionUsd: 0.1, outputPerMillionUsd: 0.5 },
+    { id: 'anthropic/claude-haiku-5.5', label: 'Claude Haiku 5.5', inputPerMillionUsd: 0.1, outputPerMillionUsd: 0.5, acceptsTemperature: false },
     { id: 'google/gemini-2.5-flash-lite', label: 'Gemini 2.5 Flash-Lite', inputPerMillionUsd: 0.1, outputPerMillionUsd: 0.4 },
     { id: 'qwen/qwen3.7-flash', label: 'Qwen 3.7 Flash', inputPerMillionUsd: 0.03, outputPerMillionUsd: 0.13 },
   ],
   standard: [
     { id: 'google/gemini-3.1-flash-lite', label: 'Gemini 3.1 Flash-Lite', inputPerMillionUsd: 0.25, outputPerMillionUsd: 1.5 },
-    { id: 'openai/gpt-5-mini', label: 'GPT-5 mini', inputPerMillionUsd: 0.25, outputPerMillionUsd: 2 },
+    { id: 'openai/gpt-5-mini', label: 'GPT-5 mini', inputPerMillionUsd: 0.25, outputPerMillionUsd: 2, acceptsTemperature: false },
   ],
   advanced: [
-    { id: 'anthropic/claude-sonnet-5.5', label: 'Claude Sonnet 5.5', inputPerMillionUsd: 2, outputPerMillionUsd: 10 },
+    { id: 'anthropic/claude-sonnet-5.5', label: 'Claude Sonnet 5.5', inputPerMillionUsd: 2, outputPerMillionUsd: 10, acceptsTemperature: false },
     { id: '~google/gemini-pro-latest', label: 'Gemini Pro (latest)', inputPerMillionUsd: 2, outputPerMillionUsd: 12 },
   ],
 };
@@ -70,6 +72,11 @@ export function modelForLevel(models: AiLevelModels, level: AiModelLevel): strin
 }
 
 const ALL_PRICED: readonly ModelOption[] = [...MODEL_LEVELS.flatMap((l) => LEVEL_MODELS[l]), DECISION_MODEL, EMBEDDING_MODEL];
+
+/** Whether a chat request to the model may carry `temperature` (OpenRouter's `supported_parameters`). */
+export function acceptsTemperature(modelId: string): boolean {
+  return ALL_PRICED.find((m) => m.id === modelId)?.acceptsTemperature !== false;
+}
 
 /** Cost to record for a call: the provider's figure when given, else an estimate from list prices. */
 export function costOf(modelId: string, usage: Usage): { costUsd: number | null; estimated: boolean } {

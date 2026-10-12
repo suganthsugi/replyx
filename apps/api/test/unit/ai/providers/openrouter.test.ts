@@ -61,6 +61,19 @@ describe('OpenRouterProvider.complete', () => {
     expect(result.usage).toEqual({ inputTokens: 120, outputTokens: 8, costUsd: 0.000016 });
   });
 
+  it('sends temperature only to models that accept it', async () => {
+    const reply = { model: 'm', choices: [{ message: { content: '{}' } }] };
+    const accepting = stubFetch(200, reply);
+    await new OpenRouterProvider('https://openrouter.test', accepting).complete(CREDS, { model: 'google/gemini-3.1-flash-lite', messages: [], temperature: 0.2 });
+    expect(sent(accepting).body.temperature).toBe(0.2);
+
+    for (const model of ['anthropic/claude-haiku-5.5', 'anthropic/claude-sonnet-5.5', 'openai/gpt-5-mini']) {
+      const rejecting = stubFetch(200, reply);
+      await new OpenRouterProvider('https://openrouter.test', rejecting).complete(CREDS, { model, messages: [], temperature: 0.2 });
+      expect(sent(rejecting).body).not.toHaveProperty('temperature');
+    }
+  });
+
   it('maps HTTP failures to error kinds without echoing the body', async () => {
     const provider = new OpenRouterProvider('https://openrouter.test', stubFetch(402, { error: { message: 'secret prompt text' } }));
     const error = await provider.complete(CREDS, { model: 'm', messages: [] }).catch((e: unknown) => e);

@@ -77,7 +77,8 @@ export function toSettingsDto(row: AiSettingsRow): AiSettingsDto {
 
 export function modelCatalog(): AiModelsDto {
   const levels = Object.fromEntries(
-    MODEL_LEVELS.map((level) => [level, LEVEL_MODELS[level].map((option) => ({ ...option, isDefault: option.id === DEFAULT_LEVEL_MODELS[level] }))]),
+    MODEL_LEVELS.map((level) => [level, LEVEL_MODELS[level].map(({ id, label, inputPerMillionUsd, outputPerMillionUsd }) => ({ id, label, inputPerMillionUsd, outputPerMillionUsd, isDefault: id === DEFAULT_LEVEL_MODELS[level] })),
+    ]),
   ) as Record<AiModelLevel, ModelOptionDto[]>;
   return { decisionModel: DECISION_MODEL.id, levels };
 }
