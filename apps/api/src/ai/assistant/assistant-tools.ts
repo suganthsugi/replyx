@@ -13,6 +13,19 @@ import type { ToolCall } from '../providers/ports.js';
 /** What a tool call leads to: text for the model, or the end of the turn. */
 export type ToolOutcome = { kind: 'result'; content: string } | { kind: 'handoff'; reason: string };
 
+/** Policy searches one turn may run; more only repeat passages and grow every later prompt. */
+export const MAX_POLICY_SEARCHES = 3;
+
+/** What the tools remember within one turn: searches run and passages the model already has. */
+export interface ToolTurn {
+  searches: number;
+  seenPassages: Set<string>;
+}
+
+export function newToolTurn(): ToolTurn {
+  return { searches: 0, seenPassages: new Set() };
+}
+
 const SearchArguments = z.object({ query: z.string().trim().min(1).max(500) }).strict();
 /** The only shape an order number may have; nothing else reaches the store (research R8). */
 export const ORDER_NUMBER = /^[A-Za-z0-9-]{3,32}$/;
@@ -59,11 +72,11 @@ export class AssistantTools {
     @Inject(COMMERCE_CONNECTOR) private readonly commerce: CommerceConnector,
   ) {}
 
-  async execute(input: TurnInput, call: ToolCall): Promise<ToolOutcome> {
+  async execute(input: TurnInput, call: ToolCall, turn: ToolTurn): Promise<ToolOutcome> {
     const args = parseJson(call.arguments);
     switch (call.name) {
       case 'search_policies':
-        return this.searchPolicies(input, args);
+        return this.searchPolicies(input, args, turn);
       case 'lookup_order':
         return this.lookupOrder(input, args);
       case 'handoff': {
@@ -75,13 +88,25 @@ export class AssistantTools {
     }
   }
 
-  private async searchPolicies(input: TurnInput, args: unknown): Promise<ToolOutcome> {
+  /** Up to `MAX_POLICY_SEARCHES` per turn; a passage already returned in the turn is not sent again. */
+  private async searchPolicies(input: TurnInput, args: unknown, turn: ToolTurn): Promise<ToolOutcome> {
     const parsed = SearchArguments.safeParse(args);
     if (!parsed.success) return { kind: 'result', content: plainToolResult({ error: 'invalid_arguments' }) };
+    if (turn.searches >= MAX_POLICY_SEARCHES) return { kind: 'result', content: plainToolResult({ error: 'search_limit_reached' }) };
+    turn.searches += 1;
     const passages = await this.policies.search(input.ctx, parsed.data.query, { ticketId: input.ticketId });
+    const fresh = passages.filter((p) => {
+      const key = JSON.stringify([p.documentTitle, p.heading, p.content]);
+      if (turn.seenPassages.has(key)) return false;
+      turn.seenPassages.add(key);
+      return true;
+    });
     return {
       kind: 'result',
-      content: wrapToolResult('policies', { passages: passages.map((p) => ({ document: p.documentTitle, heading: p.heading, content: p.content })) }),
+      content: wrapToolResult('policies', {
+        passages: fresh.map((p) => ({ document: p.documentTitle, heading: p.heading, content: p.content })),
+        ...(fresh.length < passages.length ? { alreadyReturned: passages.length - fresh.length } : {}),
+      }),
     };
   }
 

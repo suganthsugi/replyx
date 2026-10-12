@@ -7,7 +7,7 @@ import { AI_PROVIDER, ProviderError, type AiProvider, type ChatMessage } from '.
 import { AiRunsRecorder } from '../runs/ai-runs.recorder.js';
 
 import { ANSWER_SCHEMA, renderConversation, SYSTEM_PROMPT, TOOLS } from './assistant-prompt.js';
-import { AssistantTools } from './assistant-tools.js';
+import { AssistantTools, newToolTurn } from './assistant-tools.js';
 import { AssistantTyping } from './assistant-typing.js';
 import { HandoffScreen } from './handoff-screen.js';
 
@@ -98,6 +98,7 @@ export class AssistantBrain implements TurnBrain {
     const model = modelForLevel(input.settings.models, level);
     const messages: ChatMessage[] = [{ role: 'system', content: SYSTEM_PROMPT }, renderConversation({ summary: input.summary, messages: input.messages, awaiting: input.state.awaiting })];
     const purpose = input.mode === 'auto' ? 'reply' : 'draft';
+    const turn = newToolTurn();
 
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
       // After the last round the tools are withdrawn, so the model has to answer.
@@ -121,7 +122,7 @@ export class AssistantBrain implements TurnBrain {
 
       messages.push({ role: 'assistant', content: result.content, toolCalls: result.toolCalls });
       for (const call of result.toolCalls) {
-        const outcome = await this.tools.execute(input, call);
+        const outcome = await this.tools.execute(input, call, turn);
         if (outcome.kind === 'handoff') return outcome;
         messages.push({ role: 'tool', toolCallId: call.id, content: outcome.content });
       }
