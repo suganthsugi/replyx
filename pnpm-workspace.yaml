@@ -13,3 +13,9 @@ allowBuilds:
   protobufjs: false
   ssh2: false
   unrs-resolver: false
+
+# Security fixes for transitive dependencies (T267, `pnpm audit --prod --audit-level high`): both
+# arrive through the docs site's build toolchain (next, postcss).
+overrides:
+  source-map-js: '>=1.2.2'
+  sharp: '>=0.35.5'
