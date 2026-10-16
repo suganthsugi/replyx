@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { getUploadCustomerAttachmentUrl } from '../api/generated/customer/customer';
-import { getUploadAttachmentUrl } from '../api/generated/tickets/tickets';
 
 import { mapError } from './errors';
 import { CSRF_COOKIE, CSRF_HEADER, HttpError, readCookie, resolveUrl, type ApiErrorBody } from './http';
@@ -18,7 +17,7 @@ import type { ComposerAttachment } from '../components/chat/types';
  * `ATTACHMENT_TYPE_NOT_ALLOWED` like any other API error).
  */
 
-function uploadWithProgress(url: string, file: File, onProgress: (percent: number) => void, signal?: AbortSignal): Promise<AttachmentSummary> {
+export function uploadWithProgress(url: string, file: File, onProgress: (percent: number) => void, signal?: AbortSignal): Promise<AttachmentSummary> {
   return new Promise((resolve, reject) => {
     const request = new XMLHttpRequest();
     request.open('POST', resolveUrl(url));
@@ -66,10 +65,6 @@ export function uploadCustomerAttachmentWithProgress(file: File, onProgress: (pe
   return uploadWithProgress(getUploadCustomerAttachmentUrl(), file, onProgress, signal);
 }
 
-/** Staff counterpart, for replies and notes on a ticket. */
-export function uploadAttachmentWithProgress(file: File, onProgress: (percent: number) => void, signal?: AbortSignal): Promise<AttachmentSummary> {
-  return uploadWithProgress(getUploadAttachmentUrl(), file, onProgress, signal);
-}
 
 interface Upload extends ComposerAttachment {
   summary?: AttachmentSummary;
@@ -81,17 +76,18 @@ interface Upload extends ComposerAttachment {
  * drops one, `ready` lists what can go with the next message, `clearReady` takes those out of the
  * tray after a send.
  */
+export type UploadWithProgress = (file: File, onProgress: (percent: number) => void, signal?: AbortSignal) => Promise<AttachmentSummary>;
+
 export interface AttachmentUploadsOptions {
-  /** Which endpoint uploads go to; defaults to `customer` (the existing chat composer). */
-  audience?: 'staff' | 'customer';
+  /**
+   * Where uploads go; defaults to the customer endpoint (the chat composer). Staff screens pass
+   * `uploadAttachmentWithProgress` from staff-attachments.ts, which keeps the staff API client
+   * out of the customer bundle.
+   */
+  upload?: UploadWithProgress;
 }
 
-const UPLOAD_BY_AUDIENCE = {
-  staff: uploadAttachmentWithProgress,
-  customer: uploadCustomerAttachmentWithProgress,
-} as const;
-
-export function useAttachmentUploads({ audience = 'customer' }: AttachmentUploadsOptions = {}) {
+export function useAttachmentUploads({ upload: send = uploadCustomerAttachmentWithProgress }: AttachmentUploadsOptions = {}) {
   const [uploads, setUploads] = useState<Upload[]>([]);
   const live = useRef(uploads);
   live.current = uploads;
@@ -112,7 +108,7 @@ export function useAttachmentUploads({ audience = 'customer' }: AttachmentUpload
       setUploads((current) => [...current, ...started]);
       started.forEach((upload, index) => {
         const file = files[index] as File;
-        UPLOAD_BY_AUDIENCE[audience](file, (progress) => update(upload.localId, { progress }), upload.controller.signal)
+        send(file, (progress) => update(upload.localId, { progress }), upload.controller.signal)
           .then((summary) => update(upload.localId, { status: 'ready', progress: 100, summary }))
           .catch((error: unknown) => {
             if (upload.controller.signal.aborted) return;
@@ -120,7 +116,7 @@ export function useAttachmentUploads({ audience = 'customer' }: AttachmentUpload
           });
       });
     },
-    [update, audience],
+    [update, send],
   );
 
   const remove = useCallback((localId: string) => {

@@ -11,6 +11,7 @@ import {
 } from '../../api/generated/ai/ai';
 import { useAttachmentUploads } from '../attachments';
 import { mapError, type UiError } from '../errors';
+import { uploadAttachmentWithProgress } from '../staff-attachments';
 
 import type {
   ListPolicyDocuments200,
@@ -100,7 +101,7 @@ export function mapPolicyError(raw: unknown): PolicyFormError {
 
 /** Uploads a policy file through the staff attachment uploader; `ready[0]?.id` is the `attachmentId`. */
 export function usePolicyFileUpload() {
-  return useAttachmentUploads({ audience: 'staff' });
+  return useAttachmentUploads({ upload: uploadAttachmentWithProgress });
 }
 
 export function useCreatePolicyDocument() {

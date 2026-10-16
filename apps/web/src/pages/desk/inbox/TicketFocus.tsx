@@ -41,6 +41,7 @@ import { mapMacroApplyError, useApplyMacro, useMacros } from '../../../data/macr
 import { mapTicketActionError, useMergeTicket, useSplitTicket } from '../../../data/merge-split';
 import { useMentionCandidates, useSendTicketMessage, useTicketMessages, useTicketMessageEvents } from '../../../data/messages';
 import { useRealtime } from '../../../data/realtime';
+import { uploadAttachmentWithProgress } from '../../../data/staff-attachments';
 import { useCreateTag, useTags } from '../../../data/tags';
 import {
   findTicketByNumber,
@@ -141,7 +142,7 @@ export function TicketFocus({ ticketId, onClose, onOpenCustomer }: TicketFocusPr
   useEffect(() => {
     if (canReply && draftId !== undefined) announce('An AI draft reply is ready for this ticket', 'polite');
   }, [canReply, draftId, announce]);
-  const uploads = useAttachmentUploads({ audience: 'staff' });
+  const uploads = useAttachmentUploads({ upload: uploadAttachmentWithProgress });
   const updateTicket = useUpdateTicket();
   const deleteTicket = useDeleteTicket();
   const createLink = useCreateTicketLink();
