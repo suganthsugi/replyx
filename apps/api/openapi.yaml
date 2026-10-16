@@ -3583,6 +3583,168 @@ paths:
           $ref: "#/components/responses/PermissionDenied"
         "404":
           $ref: "#/components/responses/NotFound"
+  /webhooks:
+    get:
+      operationId: listWebhooks
+      tags:
+        - operations
+      summary: Webhook endpoints (webhook.view, US18)
+      description: Signing secrets are never listed. lastDeliveryStatus is the status of the endpoint's latest attempt.
+      responses:
+        "200":
+          description: Endpoints, oldest first
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - items
+                properties:
+                  items:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Webhook"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+    post:
+      operationId: createWebhook
+      tags:
+        - operations
+      summary: Create a webhook endpoint (webhook.create, FR-090); the signing secret is returned once
+      description: The URL must be https and must not be a private, loopback, link-local or metadata address or localhost
+        (400 with details[].path url and issue not_https, private_address or invalid_url); host names are resolved and
+        checked again on every delivery. A workspace has at most 20 endpoints (409 WEBHOOK_LIMIT). Audited with the
+        host only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookInput"
+      responses:
+        "201":
+          description: Created, with the signing secret (shown only in this response)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebhookWithSecret"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /webhooks/{id}:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    put:
+      operationId: updateWebhook
+      tags:
+        - operations
+      summary: Replace the URL, events or switch (webhook.edit); the secret and history stay
+      description: Switching an endpoint off also gives up its pending retries. Audited with the host only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WebhookInput"
+      responses:
+        "200":
+          description: Updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Webhook"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+    delete:
+      operationId: deleteWebhook
+      tags:
+        - operations
+      summary: Delete a webhook endpoint and its delivery history (webhook.delete)
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /webhooks/{id}/rotate-secret:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    post:
+      operationId: rotateWebhookSecret
+      tags:
+        - operations
+      summary: Replace the signing secret (webhook.edit); the new one is returned once
+      description: The next attempt, retries included, is signed with the new secret. Audited.
+      responses:
+        "200":
+          description: The new secret (shown only in this response)
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - secret
+                properties:
+                  secret:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
+  /webhooks/{id}/deliveries:
+    parameters:
+      - $ref: "#/components/parameters/IdPath"
+    get:
+      operationId: listWebhookDeliveries
+      tags:
+        - operations
+      summary: Delivery history of the last 30 days, newest first (webhook.view, FR-091)
+      description: One entry per attempt. Request and response bodies are not returned.
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+        - $ref: "#/components/parameters/Cursor"
+      responses:
+        "200":
+          description: Attempts, newest first
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/PageMeta"
+                  - type: object
+                    required:
+                      - items
+                    properties:
+                      items:
+                        type: array
+                        items:
+                          $ref: "#/components/schemas/WebhookDelivery"
+        "400":
+          $ref: "#/components/responses/ValidationFailed"
+        "401":
+          $ref: "#/components/responses/Unauthenticated"
+        "403":
+          $ref: "#/components/responses/PermissionDenied"
+        "404":
+          $ref: "#/components/responses/NotFound"
   /routing-rules/test:
     post:
       operationId: testRoutingRules
@@ -6833,6 +6995,134 @@ components:
           type: string
           format: date-time
         updatedAt:
+          type: string
+          format: date-time
+    WebhookEvent:
+      type: string
+      enum:
+        - ticket.created
+        - ticket.updated
+        - message.created
+        - ticket.assigned
+        - ticket.closed
+    WebhookInput:
+      type: object
+      additionalProperties: false
+      required:
+        - url
+        - events
+        - enabled
+      properties:
+        url:
+          type: string
+          format: uri
+          maxLength: 2000
+          pattern: ^https://
+        events:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/WebhookEvent"
+        enabled:
+          type: boolean
+    Webhook:
+      type: object
+      required:
+        - id
+        - url
+        - events
+        - enabled
+        - createdAt
+        - lastDeliveryStatus
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        url:
+          type: string
+        events:
+          type: array
+          items:
+            $ref: "#/components/schemas/WebhookEvent"
+        enabled:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        lastDeliveryStatus:
+          oneOf:
+            - $ref: "#/components/schemas/WebhookDeliveryStatus"
+            - type: "null"
+    WebhookWithSecret:
+      allOf:
+        - $ref: "#/components/schemas/Webhook"
+        - type: object
+          required:
+            - secret
+          properties:
+            secret:
+              type: string
+              description: Shown only in this response
+    WebhookDeliveryStatus:
+      type: string
+      enum:
+        - pending
+        - succeeded
+        - failed
+        - gave_up
+    WebhookDelivery:
+      type: object
+      required:
+        - id
+        - eventId
+        - eventType
+        - attempt
+        - status
+        - responseCode
+        - durationMs
+        - error
+        - nextAttemptAt
+        - attemptedAt
+        - createdAt
+      properties:
+        id:
+          $ref: "#/components/schemas/Id"
+        eventId:
+          type: string
+          format: uuid
+          description: The ReplyX-Event-Id header; the same for every attempt of an event
+        eventType:
+          $ref: "#/components/schemas/WebhookEvent"
+        attempt:
+          type: integer
+          minimum: 1
+          maximum: 8
+        status:
+          $ref: "#/components/schemas/WebhookDeliveryStatus"
+        responseCode:
+          type:
+            - integer
+            - "null"
+        durationMs:
+          type:
+            - integer
+            - "null"
+        error:
+          type:
+            - string
+            - "null"
+          description: Why the attempt failed, e.g. HTTP 500 or no response within 10 s
+        nextAttemptAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: On a pending attempt, when it is due; on a failed one, when the next attempt is
+        attemptedAt:
+          type:
+            - string
+            - "null"
+          format: date-time
+        createdAt:
           type: string
           format: date-time
     RoutingRule:
