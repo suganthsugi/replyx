@@ -619,3 +619,13 @@ Start commit: b4afe6b
 - T258 (c759ec9): `admin/automation-rules` guide. Docs 84/84 tests, build OK, 1085 links resolve.
 - Not done: a browser check and screenshot. Docker Desktop wasn't running, and the dev DB still needs migrations 0020/0021 (ask the user first).
 - NEXT: US18 webhooks T259–T264 (the migration will be 0022). This needs Docker for the Testcontainers API tests. After that: polish T265–T268, T269 locally, and the open reviewer passes (US12/US14–US17).
+
+### Session 2026-10-17 (single session, no subagents) — resume here
+- US18 complete (T259–T264). Jira RX-122..127 Done; story RX-121 in Review (reviewer pass still to run).
+- T259 (e0eb6ee): migration 0022_webhooks (`webhooks`, `webhook_deliveries` = one row per attempt, body kept as text so retries send the same bytes; 8c62eef).
+- T260 (fb19f9d, d65dca5, 0d8fb1b, 8d5a142): `apps/api/src/integrations/webhooks/` consumer, delivery job (kernel outbound guard, 10 s, 8 attempts 1m→12h ±10%, paused while suspended, 60 s claim lease), sweep (requeue overdue, purge after 30 days). `ticket.closed` gained `by` for `closedBy`. Deviation: secrets sealed with the kernel `SecretBox` / `REPLYX_SECRETS_KEY`; the unused `WEBHOOK_ENCRYPTION_KEY` was removed from env examples, prod compose and turbo.json (an existing `infra/.env.prod` may still carry it; harmless).
+- T261 (928362c, a428968): `/webhooks*` API + OpenAPI. T262 (8cc7760): 12 integration tests + `webhook` cross-tenant fixture; cross-tenant/unit/SLA run 770/770. Test URLs use `.invalid`.
+- T263 (9d16cf0..8af38ee): `/desk/admin/webhooks` page, `data/webhooks.ts`, URL issue messages in `Form.tsx`; 7 tests. The wider web suite run was stopped by the user; only targeted web tests ran.
+- T264 (c187ea5): `developers/webhooks.md`. Docs 85/85, build OK, 1129 links resolve.
+- Not done: browser check/screenshots (dev DB needs migrations 0020–0022; ask first), full API + web + e2e run.
+- NEXT: polish T265–T268, T269 locally; open reviewer passes (US12/US14–US18).
