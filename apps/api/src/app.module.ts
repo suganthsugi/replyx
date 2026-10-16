@@ -12,7 +12,7 @@ import { CustomersHttpModule } from './customers/customers.module.js';
 import { DashboardHttpModule } from './dashboard/dashboard.module.js';
 import { GroupsHttpModule } from './groups/groups.controller.js';
 import { IdentityJobsModule } from './identity/erasure.job.js';
-import { WebhooksJobsModule } from './integrations/webhooks/webhooks.module.js';
+import { WebhooksHttpModule, WebhooksJobsModule } from './integrations/webhooks/webhooks.module.js';
 import { MacrosHttpModule } from './macros/macros.module.js';
 import { MessagingHttpModule, MessagingModule } from './messaging/messaging.module.js';
 import { MessagingJobsModule } from './messaging/offline-reply-email.consumer.js';
@@ -97,6 +97,7 @@ export class AppModule {
       DashboardHttpModule,
       RoutingHttpModule,
       AutomationHttpModule,
+      WebhooksHttpModule,
       SearchHttpModule,
       SlaHttpModule,
       MacrosHttpModule,
