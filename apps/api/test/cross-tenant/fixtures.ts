@@ -219,6 +219,19 @@ export const FIXTURES: Record<string, CrossTenantFixture> = {
       }),
     },
   },
+  // US18: endpoint ids (update, delete, rotate-secret, deliveries) resolve only in their tenant.
+  webhook: {
+    async create(tenant) {
+      const admin = await createUser(tenant, { roles: ['admin'] });
+      const created = await asUser(admin).post('/webhooks', { url: 'https://hooks.example.invalid/tenant-a', events: ['ticket.created'], enabled: true });
+      if (created.status !== 201) throw new Error(`Webhook fixture failed: ${created.status}`);
+      const id = (created.body as { id: string }).id;
+      return { params: { id }, ids: [id] };
+    },
+    bodies: {
+      'WebhooksController.update': () => ({ url: 'https://hooks.example.invalid/other-tenant', events: ['ticket.updated'], enabled: false }),
+    },
+  },
   // US16: a rating id resolves only among the caller's own resolved tickets; tenant B's customer gets 404.
   'customer:ratings': {
     async create(tenant) {
