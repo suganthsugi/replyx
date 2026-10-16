@@ -112,28 +112,18 @@ export class MessagesRepository extends TenantRepository {
    * Messages of tickets merged into this one are part of the timeline without being copied
    * (data-model.md "Ticket state machine", FR-042), so each message stays stored once.
    */
-  listForTicket(
+  async listForTicket(
     tx: TenantTransaction,
     ticketId: string,
     limit: number,
     after?: { createdAt: Date; id: string },
   ): Promise<MessageRow[]> {
+    // The merged tickets first, then a plain IN: an OR with a correlated subquery made PostgreSQL
+    // scan every message of the tenant (T266, perf-notes.md).
+    const merged = await this.selectFrom(tx, 'tickets').select('tickets.id').where('tickets.merged_into_id', '=', ticketId).execute();
     let query = this.selectFrom(tx, 'ticket_messages')
       .select(MESSAGE_COLUMNS)
-      .where((eb) =>
-        eb.or([
-          eb('ticket_messages.ticket_id', '=', ticketId),
-          eb(
-            'ticket_messages.ticket_id',
-            'in',
-            eb
-              .selectFrom('tickets')
-              .select('tickets.id')
-              .whereRef('tickets.tenant_id', '=', 'ticket_messages.tenant_id')
-              .where('tickets.merged_into_id', '=', ticketId),
-          ),
-        ]),
-      );
+      .where('ticket_messages.ticket_id', 'in', [ticketId, ...merged.map((row) => row.id)]);
     if (after !== undefined) {
       query = query.where(sql<boolean>`(ticket_messages.created_at, ticket_messages.id) > (${after.createdAt}, ${after.id}::uuid)`);
     }
