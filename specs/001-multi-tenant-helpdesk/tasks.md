@@ -623,7 +623,7 @@ actions exactly once after 2 days (spec US17).
 - [X] T255 [US17] Implement `apps/api/src/routing/automation/automation-rules.controller.ts` (CRUD, `automation_rule.*`) and merge into `apps/api/openapi.yaml`
 - [X] T256 [P] [US17] Tests `apps/api/test/integration/automation/automation.test.ts`: each trigger, time-elapsed once only, loop guard, depth limit, actions respect owner eligibility; `automation_rule` fixture
 - [X] T257 [P] [US17] Create `apps/web/src/pages/admin/automation/AutomationRulesPage.tsx` using `RuleBuilder.tsx`, and `apps/web/src/data/automation-rules.ts`
-- [ ] T258 [P] [US17] Admin guide `apps/docs/src/content/docs/admin/automation-rules.md`
+- [X] T258 [P] [US17] Admin guide `apps/docs/src/content/docs/admin/automation-rules.md`
 
 ---
 
