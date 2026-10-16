@@ -15,6 +15,7 @@ import {
 
 import { mapError } from './errors';
 import { messageKeys } from './messages';
+import { ticketKeys, type TicketFilters } from './ticket-keys';
 
 import type { RealtimeClient } from './socket';
 import type {
@@ -25,7 +26,6 @@ import type {
   HistoryEntryActor,
   ListTickets200,
   ListTicketHistory200,
-  ListTicketsParams,
   ListTicketsSort,
   SlaSummary,
   Ticket,
@@ -47,14 +47,8 @@ import type { InfiniteData, QueryClient } from '@tanstack/react-query';
  * `useAccessRevoked`.
  */
 
-export type TicketFilters = Omit<ListTicketsParams, 'limit' | 'cursor'>;
 
-export const ticketKeys = {
-  all: ['tickets'] as const,
-  list: (filters: TicketFilters) => [...ticketKeys.all, 'list', filters] as const,
-  detail: (id: string) => [...ticketKeys.all, 'detail', id] as const,
-  history: (id: string) => [...ticketKeys.all, 'history', id] as const,
-};
+export { ticketKeys, type TicketFilters };
 
 const PAGE_SIZE = 50;
 

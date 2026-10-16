@@ -2,7 +2,7 @@ import { useEffect } from 'react';
 
 import { conversationKeys } from '../conversation';
 import { RESPONDER_SCOPE_CHANGED } from '../socket';
-import { ticketKeys } from '../tickets';
+import { ticketKeys } from '../ticket-keys';
 
 import type { GetConversation200, Responder } from '../../api/generated/model';
 import type { RealtimeClient } from '../socket';
