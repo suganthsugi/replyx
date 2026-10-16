@@ -622,7 +622,7 @@ actions exactly once after 2 days (spec US17).
 - [X] T254 [US17] Migration `apps/api/migrations/0016_automation_rules.ts`; implement `apps/api/src/routing/automation/automation.consumer.ts` (triggers `ticket.created`, `ticket.updated`, `message.created`; time-elapsed rules evaluated by the sweeper; actions go through the same services and eligibility rules as manual changes; history actor kind `automation` with the rule name; events carry `cause.rule_id`; a rule never runs on its own events; maximum chain depth 3) (FR-088, FR-089)
 - [X] T255 [US17] Implement `apps/api/src/routing/automation/automation-rules.controller.ts` (CRUD, `automation_rule.*`) and merge into `apps/api/openapi.yaml`
 - [X] T256 [P] [US17] Tests `apps/api/test/integration/automation/automation.test.ts`: each trigger, time-elapsed once only, loop guard, depth limit, actions respect owner eligibility; `automation_rule` fixture
-- [ ] T257 [P] [US17] Create `apps/web/src/pages/admin/automation/AutomationRulesPage.tsx` using `RuleBuilder.tsx`, and `apps/web/src/data/automation-rules.ts`
+- [X] T257 [P] [US17] Create `apps/web/src/pages/admin/automation/AutomationRulesPage.tsx` using `RuleBuilder.tsx`, and `apps/web/src/data/automation-rules.ts`
 - [ ] T258 [P] [US17] Admin guide `apps/docs/src/content/docs/admin/automation-rules.md`
 
 ---
