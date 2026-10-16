@@ -1,6 +1,7 @@
 import Autocomplete from '@mui/material/Autocomplete';
 import Box from '@mui/material/Box';
 import FormControlLabel from '@mui/material/FormControlLabel';
+import InputAdornment from '@mui/material/InputAdornment';
 import MenuItem from '@mui/material/MenuItem';
 import Switch from '@mui/material/Switch';
 import TextField from '@mui/material/TextField';
@@ -11,7 +12,7 @@ import { OptionPicker } from './ConditionValueInput';
 import { fieldIssue, type RuleConfig, type RuleFieldConfig, type RuleFormValue, type RuleIssues, type RuleLookups, type RuleOption } from './rule-model';
 
 /**
- * A controlled "name + conditions + actions" form (routing rules now, automation rules later).
+ * A controlled "name + conditions + actions" form (routing rules and automation rules).
  * The fields come from `config`; the pickers' choices come from `lookups`, keyed by each field's
  * `lookup`. It fetches nothing and saves nothing: the caller owns `value`, validation (`issues`,
  * keyed like the API paths: `name`, `conditions`, `actions.groupId`, `actions.tagIds.2`) and the
@@ -29,12 +30,28 @@ export interface RuleBuilderProps {
   disabled?: boolean;
   /** For the caller to focus the name on open. */
   nameRef?: Ref<HTMLInputElement>;
+  /** A section of the caller's own between Details and the conditions (the automation trigger). */
+  beforeConditions?: ReactNode;
+  /** Replaces the condition fields with the caller's own editor (the automation condition tree). */
+  conditionsSlot?: ReactNode;
 }
 
-export function RuleBuilder({ config, value, onChange, lookups, lookupsLoading = false, issues, disabled = false, nameRef }: RuleBuilderProps) {
+export function RuleBuilder({
+  config,
+  value,
+  onChange,
+  lookups,
+  lookupsLoading = false,
+  issues,
+  disabled = false,
+  nameRef,
+  beforeConditions,
+  conditionsSlot,
+}: RuleBuilderProps) {
   const idBase = useId();
   const nameError = issues?.name;
   const conditionsError = issues?.conditions;
+  const actionsError = issues?.actions;
 
   const setField = (section: 'conditions' | 'actions', key: string, next: string[]) =>
     onChange({ ...value, [section]: { ...value[section], [key]: next } });
@@ -44,7 +61,47 @@ export function RuleBuilder({ config, value, onChange, lookups, lookupsLoading =
     const error = fieldIssue(issues, section, field.key);
     const options = field.options ?? (field.lookup === undefined ? [] : (lookups[field.lookup] ?? []));
     const id = `${idBase}-${section}-${field.key}`;
+    if (field.visibleWhen !== undefined && !field.visibleWhen(value)) return null;
     switch (field.kind) {
+      case 'text':
+        return (
+          <TextField
+            key={field.key}
+            id={id}
+            label={field.label}
+            multiline
+            minRows={3}
+            fullWidth
+            size="small"
+            disabled={disabled}
+            value={values[0] ?? ''}
+            onChange={(event) => setField(section, field.key, event.target.value === '' ? [] : [event.target.value])}
+            error={error !== undefined}
+            helperText={error ?? field.description}
+            slotProps={{ htmlInput: { maxLength: field.maxLength } }}
+          />
+        );
+      case 'number':
+        return (
+          <TextField
+            key={field.key}
+            id={id}
+            label={field.label}
+            type="number"
+            required={field.required}
+            size="small"
+            sx={{ maxWidth: 260 }}
+            disabled={disabled}
+            value={values[0] ?? ''}
+            onChange={(event) => setField(section, field.key, event.target.value === '' ? [] : [event.target.value])}
+            error={error !== undefined}
+            helperText={error ?? field.description}
+            slotProps={{
+              htmlInput: { min: field.min, max: field.max, step: 1, inputMode: 'numeric' },
+              input: field.unit === undefined ? undefined : { endAdornment: <InputAdornment position="end">{field.unit}</InputAdornment> },
+            }}
+          />
+        );
       case 'phrases':
         return (
           <PhraseInput
@@ -93,7 +150,7 @@ export function RuleBuilder({ config, value, onChange, lookups, lookupsLoading =
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      <Section title="Details">
+      <RuleBuilderSection title="Details">
         <TextField
           label="Name"
           required
@@ -109,27 +166,35 @@ export function RuleBuilder({ config, value, onChange, lookups, lookupsLoading =
         />
         <FormControlLabel
           control={<Switch checked={value.enabled} disabled={disabled} onChange={(event) => onChange({ ...value, enabled: event.target.checked })} />}
-          label={value.enabled ? 'Enabled' : 'Disabled: skipped when tickets are routed'}
+          label={value.enabled ? 'Enabled' : (config.disabledLabel ?? 'Disabled: skipped when tickets are routed')}
         />
-      </Section>
+      </RuleBuilderSection>
 
-      <Section title={config.conditions.title} description={config.conditions.description}>
+      {beforeConditions}
+
+      <RuleBuilderSection title={config.conditions.title} description={config.conditions.description}>
         {conditionsError !== undefined && (
           <Typography variant="body2" color="error">
             {conditionsError}
           </Typography>
         )}
-        {config.conditions.fields.map((field) => renderField('conditions', field))}
-      </Section>
+        {conditionsSlot ?? config.conditions.fields.map((field) => renderField('conditions', field))}
+      </RuleBuilderSection>
 
-      <Section title={config.actions.title} description={config.actions.description}>
+      <RuleBuilderSection title={config.actions.title} description={config.actions.description}>
+        {actionsError !== undefined && (
+          <Typography variant="body2" color="error">
+            {actionsError}
+          </Typography>
+        )}
         {config.actions.fields.map((field) => renderField('actions', field))}
-      </Section>
+      </RuleBuilderSection>
     </Box>
   );
 }
 
-function Section({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
+/** A titled part of the form; exported so a caller's `beforeConditions` section looks the same. */
+export function RuleBuilderSection({ title, description, children }: { title: string; description?: string; children: ReactNode }) {
   return (
     <Box component="section" sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
       <Box>
@@ -243,7 +308,7 @@ function SingleSelect({
     >
       {field.required !== true && (
         <MenuItem value="">
-          <em>None</em>
+          <em>{field.noneLabel ?? 'None'}</em>
         </MenuItem>
       )}
       {shown.map((option) => (

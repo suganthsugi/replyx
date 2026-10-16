@@ -7,7 +7,7 @@ import type { Priority, RoutingActions, RoutingConditions, RoutingRule, RoutingR
  * `string[]`: phrases, ids, or a single chosen id (`[]` when nothing is chosen).
  */
 
-export type RuleFieldKind = 'phrases' | 'multi' | 'single';
+export type RuleFieldKind = 'phrases' | 'multi' | 'single' | 'text' | 'number';
 
 export interface RuleOption {
   id: string;
@@ -36,6 +36,16 @@ export interface RuleFieldConfig {
   noOptionsText?: string;
   /** Required field left empty. */
   requiredMessage?: string;
+  /** `single`: label of the empty choice. Default "None". */
+  noneLabel?: string;
+  /** `text`: longest value. */
+  maxLength?: number;
+  /** `number`: whole-number bounds and the unit shown after the box ("hours"). */
+  min?: number;
+  max?: number;
+  unit?: string;
+  /** Shown (and validated) only while this returns true, e.g. pending hours for a pending state. */
+  visibleWhen?: (form: RuleFormValue) => boolean;
 }
 
 export interface RuleSectionConfig {
@@ -51,6 +61,8 @@ export interface RuleConfig {
   /** "routing rule", "automation rule": used in labels and messages. */
   noun: string;
   maxNameLength: number;
+  /** Switch label while the rule is disabled. */
+  disabledLabel?: string;
   conditions: RuleSectionConfig;
   actions: RuleSectionConfig;
 }
@@ -210,9 +222,20 @@ export function validateRuleForm(config: RuleConfig, form: RuleFormValue): Recor
   if (config.conditions.requireOne === true && config.conditions.fields.every((field) => (form.conditions[field.key] ?? []).length === 0)) {
     found.conditions = config.conditions.requireOneMessage ?? 'Fill in at least one condition.';
   }
+  const shown = (field: RuleFieldConfig) => field.visibleWhen === undefined || field.visibleWhen(form);
+  const filled = (field: RuleFieldConfig) => (form.actions[field.key] ?? []).some((value) => value.trim() !== '');
+  if (config.actions.requireOne === true && !config.actions.fields.some((field) => shown(field) && filled(field))) {
+    found.actions = config.actions.requireOneMessage ?? 'Choose at least one action.';
+  }
   for (const field of config.actions.fields) {
-    if (field.required === true && (form.actions[field.key] ?? []).length === 0) {
+    if (!shown(field)) continue;
+    if (field.required === true && !filled(field)) {
       found[`actions.${field.key}`] = field.requiredMessage ?? `${field.label} is required.`;
+    } else if (field.kind === 'number' && filled(field)) {
+      const number = Number(form.actions[field.key]?.[0]);
+      if (!Number.isInteger(number) || (field.min !== undefined && number < field.min) || (field.max !== undefined && number > field.max)) {
+        found[`actions.${field.key}`] = `Enter a whole number from ${field.min ?? 0} to ${field.max ?? 'any'}.`;
+      }
     }
   }
   return found;
@@ -231,6 +254,8 @@ const ISSUE_MESSAGES: Record<string, string> = {
   invalid_format: 'This value is not valid.',
   unrecognized_key: 'This field is not supported.',
   conditions_required: 'Fill in at least one condition.',
+  invalid_duration: 'Choose a wait between 5 minutes and 90 days.',
+  owner_me_not_allowed: 'A rule has no viewer, so "owner is me" cannot be used.',
 };
 
 /** API issue code (`invalid_value`) -> sentence. Unknown codes are spelled out from the code. */
