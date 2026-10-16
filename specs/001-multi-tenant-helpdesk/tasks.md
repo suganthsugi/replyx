@@ -645,7 +645,7 @@ retries appear in the log; only this tenant's events are sent (spec US18).
 
 ## Phase 22: Polish and cross-cutting concerns
 
-- [ ] T265 [P] Accessibility pass: `apps/web/e2e/a11y.spec.ts` (axe on every page in both themes; keyboard-only run of the main flow) and fix findings (SC-013a)
+- [X] T265 [P] Accessibility pass: `apps/web/e2e/a11y.spec.ts` (axe on every page in both themes; keyboard-only run of the main flow) and fix findings (SC-013a)
 - [ ] T266 [P] Performance: check the customer bundle stays under 150 KB gzipped (`apps/web/scripts/check-bundle-size.mjs` in CI), view counts p95 < 50 ms and API p95 targets with a seeded large tenant (`apps/api/test/perf/seed-large-tenant.ts`); record results in `specs/001-multi-tenant-helpdesk/perf-notes.md`
 - [ ] T267 [P] Security hardening: dependency audit in CI, CSP verified in `infra/caddy/Caddyfile`, run `/security-review` on the branch, confirm redaction by grepping logs from a full e2e run for message text and tokens
 - [ ] T268 [P] Developer docs `apps/docs/src/content/docs/developers/architecture.md` (modules, kernel, outbox, real-time, RLS) and `apps/docs/src/content/docs/developers/local-development.md` (Docker workflow from quickstart.md)
