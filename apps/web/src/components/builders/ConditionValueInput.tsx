@@ -212,7 +212,7 @@ export function ConditionValueInput({ condition, lookups, onChange, disabled = f
       return (
         <OptionPicker
           label="Value"
-          options={[{ id: ME, name: 'Me' }, { id: UNASSIGNED, name: 'Unassigned' }, ...lookups.users]}
+          options={[...(lookups.allowMe === false ? [] : [{ id: ME, name: 'Me' }]), { id: UNASSIGNED, name: 'Unassigned' }, ...lookups.users]}
           ids={ids}
           onChange={onChange}
           unknownLabel="Unknown person"

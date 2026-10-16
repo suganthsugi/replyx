@@ -32,6 +32,8 @@ export interface FilterLookups {
   users: readonly LookupOption[];
   tags: readonly LookupOption[];
   customers?: readonly LookupOption[];
+  /** Offer "Me" for the owner field. Default true; automation rules have no viewer, so they turn it off. */
+  allowMe?: boolean;
   /** Called as the user types in a customer value picker. */
   onCustomerSearch?: (query: string) => void;
   /** `loading` disables nothing but shows progress in the pickers. Default `ready`. */
