@@ -9,10 +9,10 @@ import { sql, type Kysely } from 'kysely';
  *   the subscribed `events` and the on/off switch. At most 20 per workspace (service).
  * - `webhook_deliveries`: one row per attempt. Attempt 1 is written by the webhooks consumer when
  *   the event happens; each failed attempt sets `next_attempt_at` and writes the next attempt as
- *   `pending` with that time, up to 8 (the last failure is `gave_up`). `payload` is the exact body,
- *   so every attempt of an event sends the same bytes. `response_code`, `duration_ms` and `error`
- *   describe what happened; response bodies are not kept. Rows go with their webhook and are
- *   deleted after 30 days by the webhook retention job.
+ *   `pending` with that time, up to 8 (the last failure is `gave_up`). `body` is the exact request
+ *   body, kept as text (jsonb would reorder its keys), so every attempt of an event sends the same
+ *   bytes. `response_code`, `duration_ms` and `error` describe what happened; response bodies are
+ *   not kept. Rows go with their webhook and are deleted after 30 days by the webhook sweep.
  */
 const WEBHOOK_EVENTS = ['ticket.created', 'ticket.updated', 'message.created', 'ticket.assigned', 'ticket.closed'];
 
@@ -54,7 +54,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       event_type text NOT NULL,
       attempt smallint NOT NULL,
       status text NOT NULL DEFAULT 'pending',
-      payload jsonb NOT NULL,
+      body text NOT NULL,
       response_code smallint,
       duration_ms integer,
       error text,
@@ -68,7 +68,7 @@ export async function up(db: Kysely<unknown>): Promise<void> {
       CONSTRAINT webhook_deliveries_status CHECK (status IN ('pending', 'succeeded', 'failed', 'gave_up')),
       CONSTRAINT webhook_deliveries_pending_due CHECK (status <> 'pending' OR next_attempt_at IS NOT NULL),
       CONSTRAINT webhook_deliveries_error_length CHECK (char_length(error) <= 500),
-      CONSTRAINT webhook_deliveries_payload_object CHECK (jsonb_typeof(payload) = 'object')
+      CONSTRAINT webhook_deliveries_body_length CHECK (octet_length(body) <= 1048576)
     )
   `.execute(db);
   // An endpoint's history, newest first.

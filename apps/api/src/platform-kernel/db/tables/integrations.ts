@@ -1,4 +1,4 @@
-import type { ColumnType, Generated, GeneratedTimestamp, JsonValue, Timestamp } from './column-types.js';
+import type { Generated, GeneratedTimestamp, Timestamp } from './column-types.js';
 
 /** Migration 0022_webhooks (data-model.md "webhooks", "webhook_deliveries", research D16). */
 
@@ -30,8 +30,8 @@ export interface WebhookDeliveriesTable {
   /** 1–8. */
   attempt: number;
   status: Generated<WebhookDeliveryStatus>;
-  /** The request body, the same for every attempt of the event. */
-  payload: ColumnType<JsonValue, string, string>;
+  /** The exact request body (text, never re-serialized), the same for every attempt of the event. */
+  body: string;
   response_code: number | null;
   duration_ms: number | null;
   error: string | null;
