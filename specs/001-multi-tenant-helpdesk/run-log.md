@@ -629,3 +629,12 @@ Start commit: b4afe6b
 - T264 (c187ea5): `developers/webhooks.md`. Docs 85/85, build OK, 1129 links resolve.
 - Not done: browser check/screenshots (dev DB needs migrations 0020–0022; ask first), full API + web + e2e run.
 - NEXT: polish T265–T268, T269 locally; open reviewer passes (US12/US14–US18).
+
+### Session 2026-10-17 (continued) — polish phase — resume here
+- User approved migrating the dev DB and restarting the stack: 0019–0023 applied, stack up.
+- T265 done (RX-128): `e2e/a11y.spec.ts` (project `desktop-a11y`, last): axe on 3 signed-out + 23 staff pages under light and dark color-scheme preference, keyboard-only sign-in/dialog/rail. Fixed: search scope toggles and initials avatars contrast. The app has one (light) theme.
+- T266 open (RX-129 Review): bundle check script (220 KB vs 150 KB; framework cost, not in CI), staff code split out of the customer bundle, perf seed + opt-in test (`PERF=1`), ticket timeline fix + migration 0023 (>10 s → 128 ms). Gaps in perf-notes.md: search 0.5–1.6 s, uncached counts 1.3–1.5 s, cached counts 57 ms.
+- T267 open (RX-130 In Progress): audit overrides (source-map-js, sharp) + CI audit step, CSP checked, OpenAPI lint errors fixed. Open: `/security-review` (user-run), full e2e log redaction.
+- T268 done (RX-131): developers/architecture.md, developers/local-development.md.
+- Full e2e run stopped early: sign-in.spec "invited agent" timed out; sla.spec badge showed "On track" (first-response due null) — run at 23:05 Friday Berlin, likely business-hours/time-of-day related; not investigated further.
+- NEXT: investigate the two e2e failures, finish T267 (full e2e + log grep, /security-review), decide T266 targets with the user, T269 locally, reviewer passes US12/US14–US18.
