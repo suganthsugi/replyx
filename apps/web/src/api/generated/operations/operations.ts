@@ -40,6 +40,9 @@ import type {
   ListNotificationsParams,
   ListRoutingRules200,
   ListSlaPolicies200,
+  ListWebhookDeliveries200,
+  ListWebhookDeliveriesParams,
+  ListWebhooks200,
   MarkNotificationsRead200,
   MarkNotificationsReadBody,
   NotFoundResponse,
@@ -50,6 +53,7 @@ import type {
   PermissionDeniedResponse,
   PushSubscriptionInput,
   ReorderRoutingRulesBody,
+  RotateWebhookSecret200,
   RoutingDryRun,
   RoutingRule,
   RoutingRuleInput,
@@ -61,6 +65,9 @@ import type {
   TestRoutingRulesBody,
   UnauthenticatedResponse,
   ValidationFailedResponse,
+  Webhook,
+  WebhookInput,
+  WebhookWithSecret,
 } from '.././model';
 
 import { http } from '../../../data/http';
@@ -2390,6 +2397,660 @@ export const useDeleteAutomationRule = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * Signing secrets are never listed. lastDeliveryStatus is the status of the endpoint's latest attempt.
+ * @summary Webhook endpoints (webhook.view, US18)
+ */
+export const getListWebhooksUrl = () => {
+  return `/webhooks`;
+};
+
+export const listWebhooks = async (options?: RequestInit): Promise<ListWebhooks200> => {
+  return http<ListWebhooks200>(getListWebhooksUrl(), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListWebhooksQueryKey = () => {
+  return [`/webhooks`] as const;
+};
+
+export const getListWebhooksQueryOptions = <
+  TData = Awaited<ReturnType<typeof listWebhooks>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(options?: {
+  query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listWebhooks>>, TError, TData>>;
+  request?: SecondParameter<typeof http>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListWebhooksQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listWebhooks>>> = ({ signal }) =>
+    listWebhooks({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listWebhooks>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListWebhooksQueryResult = NonNullable<Awaited<ReturnType<typeof listWebhooks>>>;
+export type ListWebhooksQueryError = UnauthenticatedResponse | PermissionDeniedResponse;
+
+export function useListWebhooks<
+  TData = Awaited<ReturnType<typeof listWebhooks>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options: {
+    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listWebhooks>>, TError, TData>> &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWebhooks>>,
+          TError,
+          Awaited<ReturnType<typeof listWebhooks>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListWebhooks<
+  TData = Awaited<ReturnType<typeof listWebhooks>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listWebhooks>>, TError, TData>> &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWebhooks>>,
+          TError,
+          Awaited<ReturnType<typeof listWebhooks>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListWebhooks<
+  TData = Awaited<ReturnType<typeof listWebhooks>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listWebhooks>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Webhook endpoints (webhook.view, US18)
+ */
+
+export function useListWebhooks<
+  TData = Awaited<ReturnType<typeof listWebhooks>>,
+  TError = UnauthenticatedResponse | PermissionDeniedResponse,
+>(
+  options?: {
+    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listWebhooks>>, TError, TData>>;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListWebhooksQueryOptions(options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * The URL must be https and must not be a private, loopback, link-local or metadata address or localhost (400 with details[].path url and issue not_https, private_address or invalid_url); host names are resolved and checked again on every delivery. A workspace has at most 20 endpoints (409 WEBHOOK_LIMIT). Audited with the host only.
+ * @summary Create a webhook endpoint (webhook.create, FR-090); the signing secret is returned once
+ */
+export const getCreateWebhookUrl = () => {
+  return `/webhooks`;
+};
+
+export const createWebhook = async (
+  webhookInput: WebhookInput,
+  options?: RequestInit,
+): Promise<WebhookWithSecret> => {
+  return http<WebhookWithSecret>(getCreateWebhookUrl(), {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(webhookInput),
+  });
+};
+
+export const getCreateWebhookMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | ConflictResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createWebhook>>,
+    TError,
+    { data: WebhookInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createWebhook>>,
+  TError,
+  { data: WebhookInput },
+  TContext
+> => {
+  const mutationKey = ['createWebhook'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createWebhook>>,
+    { data: WebhookInput }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createWebhook(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof createWebhook>>>;
+export type CreateWebhookMutationBody = WebhookInput;
+export type CreateWebhookMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | ConflictResponse;
+
+/**
+ * @summary Create a webhook endpoint (webhook.create, FR-090); the signing secret is returned once
+ */
+export const useCreateWebhook = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | ConflictResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof createWebhook>>,
+      TError,
+      { data: WebhookInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof createWebhook>>,
+  TError,
+  { data: WebhookInput },
+  TContext
+> => {
+  const mutationOptions = getCreateWebhookMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * Switching an endpoint off also gives up its pending retries. Audited with the host only.
+ * @summary Replace the URL, events or switch (webhook.edit); the secret and history stay
+ */
+export const getUpdateWebhookUrl = (id: string) => {
+  return `/webhooks/${id}`;
+};
+
+export const updateWebhook = async (
+  id: string,
+  webhookInput: WebhookInput,
+  options?: RequestInit,
+): Promise<Webhook> => {
+  return http<Webhook>(getUpdateWebhookUrl(id), {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(webhookInput),
+  });
+};
+
+export const getUpdateWebhookMutationOptions = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateWebhook>>,
+    TError,
+    { id: string; data: WebhookInput },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateWebhook>>,
+  TError,
+  { id: string; data: WebhookInput },
+  TContext
+> => {
+  const mutationKey = ['updateWebhook'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateWebhook>>,
+    { id: string; data: WebhookInput }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateWebhook(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof updateWebhook>>>;
+export type UpdateWebhookMutationBody = WebhookInput;
+export type UpdateWebhookMutationError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Replace the URL, events or switch (webhook.edit); the secret and history stay
+ */
+export const useUpdateWebhook = <
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof updateWebhook>>,
+      TError,
+      { id: string; data: WebhookInput },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof updateWebhook>>,
+  TError,
+  { id: string; data: WebhookInput },
+  TContext
+> => {
+  const mutationOptions = getUpdateWebhookMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * @summary Delete a webhook endpoint and its delivery history (webhook.delete)
+ */
+export const getDeleteWebhookUrl = (id: string) => {
+  return `/webhooks/${id}`;
+};
+
+export const deleteWebhook = async (id: string, options?: RequestInit): Promise<void> => {
+  return http<void>(getDeleteWebhookUrl(id), {
+    ...options,
+    method: 'DELETE',
+  });
+};
+
+export const getDeleteWebhookMutationOptions = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteWebhook>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteWebhook>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ['deleteWebhook'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteWebhook>>, { id: string }> = (
+    props,
+  ) => {
+    const { id } = props ?? {};
+
+    return deleteWebhook(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteWebhookMutationResult = NonNullable<Awaited<ReturnType<typeof deleteWebhook>>>;
+
+export type DeleteWebhookMutationError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Delete a webhook endpoint and its delivery history (webhook.delete)
+ */
+export const useDeleteWebhook = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof deleteWebhook>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof deleteWebhook>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationOptions = getDeleteWebhookMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * The next attempt, retries included, is signed with the new secret. Audited.
+ * @summary Replace the signing secret (webhook.edit); the new one is returned once
+ */
+export const getRotateWebhookSecretUrl = (id: string) => {
+  return `/webhooks/${id}/rotate-secret`;
+};
+
+export const rotateWebhookSecret = async (
+  id: string,
+  options?: RequestInit,
+): Promise<RotateWebhookSecret200> => {
+  return http<RotateWebhookSecret200>(getRotateWebhookSecretUrl(id), {
+    ...options,
+    method: 'POST',
+  });
+};
+
+export const getRotateWebhookSecretMutationOptions = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof rotateWebhookSecret>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+  request?: SecondParameter<typeof http>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof rotateWebhookSecret>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ['rotateWebhookSecret'];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof rotateWebhookSecret>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return rotateWebhookSecret(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RotateWebhookSecretMutationResult = NonNullable<
+  Awaited<ReturnType<typeof rotateWebhookSecret>>
+>;
+
+export type RotateWebhookSecretMutationError =
+  UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+/**
+ * @summary Replace the signing secret (webhook.edit); the new one is returned once
+ */
+export const useRotateWebhookSecret = <
+  TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof rotateWebhookSecret>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof rotateWebhookSecret>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationOptions = getRotateWebhookSecretMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+/**
+ * One entry per attempt. Request and response bodies are not returned.
+ * @summary Delivery history of the last 30 days, newest first (webhook.view, FR-091)
+ */
+export const getListWebhookDeliveriesUrl = (id: string, params?: ListWebhookDeliveriesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/webhooks/${id}/deliveries?${stringifiedParams}`
+    : `/webhooks/${id}/deliveries`;
+};
+
+export const listWebhookDeliveries = async (
+  id: string,
+  params?: ListWebhookDeliveriesParams,
+  options?: RequestInit,
+): Promise<ListWebhookDeliveries200> => {
+  return http<ListWebhookDeliveries200>(getListWebhookDeliveriesUrl(id, params), {
+    ...options,
+    method: 'GET',
+  });
+};
+
+export const getListWebhookDeliveriesQueryKey = (
+  id?: string,
+  params?: ListWebhookDeliveriesParams,
+) => {
+  return [`/webhooks/${id}/deliveries`, ...(params ? [params] : [])] as const;
+};
+
+export const getListWebhookDeliveriesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listWebhookDeliveries>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params?: ListWebhookDeliveriesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listWebhookDeliveries>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListWebhookDeliveriesQueryKey(id, params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listWebhookDeliveries>>> = ({ signal }) =>
+    listWebhookDeliveries(id, params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, enabled: !!id, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listWebhookDeliveries>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type ListWebhookDeliveriesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listWebhookDeliveries>>
+>;
+export type ListWebhookDeliveriesQueryError =
+  ValidationFailedResponse | UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
+
+export function useListWebhookDeliveries<
+  TData = Awaited<ReturnType<typeof listWebhookDeliveries>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params: undefined | ListWebhookDeliveriesParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listWebhookDeliveries>>, TError, TData>
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWebhookDeliveries>>,
+          TError,
+          Awaited<ReturnType<typeof listWebhookDeliveries>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListWebhookDeliveries<
+  TData = Awaited<ReturnType<typeof listWebhookDeliveries>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params?: ListWebhookDeliveriesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listWebhookDeliveries>>, TError, TData>
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof listWebhookDeliveries>>,
+          TError,
+          Awaited<ReturnType<typeof listWebhookDeliveries>>
+        >,
+        'initialData'
+      >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+export function useListWebhookDeliveries<
+  TData = Awaited<ReturnType<typeof listWebhookDeliveries>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params?: ListWebhookDeliveriesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listWebhookDeliveries>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Delivery history of the last 30 days, newest first (webhook.view, FR-091)
+ */
+
+export function useListWebhookDeliveries<
+  TData = Awaited<ReturnType<typeof listWebhookDeliveries>>,
+  TError =
+    | ValidationFailedResponse
+    | UnauthenticatedResponse
+    | PermissionDeniedResponse
+    | NotFoundResponse,
+>(
+  id: string,
+  params?: ListWebhookDeliveriesParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<Awaited<ReturnType<typeof listWebhookDeliveries>>, TError, TData>
+    >;
+    request?: SecondParameter<typeof http>;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
+  const queryOptions = getListWebhookDeliveriesQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
+    queryKey: DataTag<QueryKey, TData, TError>;
+  };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
 /**
  * Runs the same evaluation as live routing and changes nothing. Give customerId to use a real customer's email and tags, or customerEmail and customerTagIds for a sample; not both (400 invalid on the body). Unknown or another workspace's customerId is 404.
  * @summary Dry-run the rules against a sample first message (routing_rule.view)
