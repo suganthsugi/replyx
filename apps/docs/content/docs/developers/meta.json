@@ -1,4 +1,4 @@
 {
   "title": "Developers",
-  "pages": ["authorization", "conversation-routing", "webhooks", "deployment"]
+  "pages": ["architecture", "local-development", "authorization", "conversation-routing", "webhooks", "deployment"]
 }
