@@ -15,7 +15,6 @@
     "CONSOLE_HOST",
     "SESSION_SECRET",
     "FILE_SIGNING_KEY",
-    "WEBHOOK_ENCRYPTION_KEY",
     "FILE_STORAGE",
     "FILES_DIR",
     "S3_*",

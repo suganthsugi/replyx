@@ -141,7 +141,6 @@ services:
       REDIS_URL: redis://valkey:6379
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in infra/.env.prod}
       FILE_SIGNING_KEY: ${FILE_SIGNING_KEY:?set FILE_SIGNING_KEY in infra/.env.prod}
-      WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY:?set WEBHOOK_ENCRYPTION_KEY in infra/.env.prod}
       REPLYX_SECRETS_KEY: ${REPLYX_SECRETS_KEY:?set REPLYX_SECRETS_KEY in infra/.env.prod}
       AI_PROVIDER: ${AI_PROVIDER:-openrouter}
       COMMERCE_PROVIDER: ${COMMERCE_PROVIDER:-spree}
@@ -199,7 +198,6 @@ services:
       REDIS_URL: redis://valkey:6379
       SESSION_SECRET: ${SESSION_SECRET:?set SESSION_SECRET in infra/.env.prod}
       FILE_SIGNING_KEY: ${FILE_SIGNING_KEY:?set FILE_SIGNING_KEY in infra/.env.prod}
-      WEBHOOK_ENCRYPTION_KEY: ${WEBHOOK_ENCRYPTION_KEY:?set WEBHOOK_ENCRYPTION_KEY in infra/.env.prod}
       REPLYX_SECRETS_KEY: ${REPLYX_SECRETS_KEY:?set REPLYX_SECRETS_KEY in infra/.env.prod}
       AI_PROVIDER: ${AI_PROVIDER:-openrouter}
       COMMERCE_PROVIDER: ${COMMERCE_PROVIDER:-spree}
