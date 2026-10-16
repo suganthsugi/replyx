@@ -3350,8 +3350,9 @@ paths:
                   - publicKey
                 properties:
                   publicKey:
-                    type: string
-                    nullable: true
+                    type:
+                      - string
+                      - "null"
                     description: URL-safe base64 application server key
         "401":
           $ref: "#/components/responses/Unauthenticated"
@@ -4450,6 +4451,7 @@ paths:
       operationId: getComplexityConfig
       tags:
         - ai
+      summary: Complexity factors and thresholds (ai_settings.manage)
       responses:
         "200":
           description: Factors and thresholds
@@ -4566,6 +4568,7 @@ paths:
       operationId: renamePolicyDocument
       tags:
         - ai
+      summary: Rename a policy document (ai_knowledge.manage)
       requestBody:
         required: true
         content:
@@ -4732,6 +4735,7 @@ paths:
       operationId: discardTicketAiDraft
       tags:
         - ai
+      summary: Discard the ticket's AI draft
       responses:
         "204":
           description: Discarded
