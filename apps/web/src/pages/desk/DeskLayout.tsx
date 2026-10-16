@@ -196,7 +196,7 @@ export default function DeskLayout() {
               aria-label={`Your profile, ${meQuery.data.name}`}
               sx={{ display: 'flex', alignItems: 'center', gap: 2, border: 0, bgcolor: 'transparent', cursor: 'pointer', p: 1, borderRadius: '9999px' }}
             >
-              <Avatar src={meQuery.data.avatarUrl ?? undefined} sx={{ width: 32, height: 32, fontSize: '0.8rem' }}>
+              <Avatar src={meQuery.data.avatarUrl ?? undefined} sx={{ width: 32, height: 32, fontSize: '0.8rem', bgcolor: 'primary.main', color: 'primary.contrastText' }}>
                 {meQuery.data.name.charAt(0).toUpperCase()}
               </Avatar>
             </Box>

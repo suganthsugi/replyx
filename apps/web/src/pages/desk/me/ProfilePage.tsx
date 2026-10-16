@@ -93,7 +93,7 @@ export default function ProfilePage() {
       </Typography>
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 4, mb: 8 }}>
-        <Avatar src={me.avatarUrl ?? undefined} sx={{ width: 64, height: 64 }}>
+        <Avatar src={me.avatarUrl ?? undefined} sx={{ width: 64, height: 64, bgcolor: 'primary.main', color: 'primary.contrastText' }}>
           {initials(me.name)}
         </Avatar>
         <Typography variant="body2" color="text.secondary">

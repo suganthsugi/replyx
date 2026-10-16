@@ -81,7 +81,7 @@ export function ProfileSheet({ open, onClose, me }: { open: boolean; onClose: ()
     <Drawer open={open} onClose={onClose} title="Your profile">
       <Box sx={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Avatar src={me.avatarUrl ?? undefined} alt="" sx={{ width: 56, height: 56 }}>
+          <Avatar src={me.avatarUrl ?? undefined} alt="" sx={{ width: 56, height: 56, bgcolor: 'primary.main', color: 'primary.contrastText' }}>
             {me.name.charAt(0).toUpperCase()}
           </Avatar>
           <Box sx={{ minWidth: 0 }}>
