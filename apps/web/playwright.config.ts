@@ -25,8 +25,8 @@ export default defineConfig({
   // after the other specs in their own desktop/mobile projects and wait out whatever is left of the
   // limit.
   projects: [
-    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/, /view-builder/, /routing-rules/, /ai-assist/] },
-    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/, /view-builder/, /routing-rules/, /ai-assist/] },
+    { name: 'desktop', use: { ...devices['Desktop Chrome'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/, /view-builder/, /routing-rules/, /ai-assist/, /a11y/] },
+    { name: 'mobile', use: { ...devices['Pixel 7'] }, testIgnore: [/customer-chat/, /agent-conversation/, /realtime/, /triage/, /main-flow/, /tenant-lifecycle/, /view-builder/, /routing-rules/, /ai-assist/, /a11y/] },
     // Tenant lifecycle signs in four times a run (operator, admin twice, customer) and is slow: on its own,
     // after the sign-in specs, so together they stay inside the 10 sign-ins a minute.
     { name: 'desktop-lifecycle', use: { ...devices['Desktop Chrome'] }, testMatch: /tenant-lifecycle/, dependencies: ['desktop', 'mobile'] },
@@ -49,5 +49,7 @@ export default defineConfig({
     { name: 'desktop-routing', use: { ...devices['Desktop Chrome'] }, testMatch: /routing-rules/, dependencies: ['desktop-main-flow'] },
     // AI assist switches AI on for the shared tenant: alone, after everything else, and it turns AI off again.
     { name: 'desktop-ai', use: { ...devices['Desktop Chrome'] }, testMatch: /ai-assist/, dependencies: ['desktop-routing'] },
+    // Accessibility pass: every page in both color schemes plus a keyboard-only path; one sign-in, last.
+    { name: 'desktop-a11y', use: { ...devices['Desktop Chrome'] }, testMatch: /a11y/, dependencies: ['desktop-ai'] },
   ],
 });
