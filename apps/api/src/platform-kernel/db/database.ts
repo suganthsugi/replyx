@@ -8,6 +8,7 @@ import type { AiTables } from './tables/ai.js';
 import type { AuthorizationTables } from './tables/authorization.js';
 import type { CsatTables } from './tables/csat.js';
 import type { IdentityTables } from './tables/identity.js';
+import type { IntegrationTables } from './tables/integrations.js';
 import type { MacroTables } from './tables/macros.js';
 import type { NotificationTables } from './tables/notifications.js';
 import type { OutboxAuditTables } from './tables/outbox-audit.js';
@@ -32,7 +33,8 @@ export type Database = TenancyTables &
   SlaTables &
   MacroTables &
   CsatTables &
-  AiTables;
+  AiTables &
+  IntegrationTables;
 
 export type DB = Database;
 
