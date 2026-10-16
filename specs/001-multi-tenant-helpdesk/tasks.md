@@ -637,7 +637,7 @@ retries appear in the log; only this tenant's events are sent (spec US18).
 - [X] T259 [US18] Migration `apps/api/migrations/0017_webhooks.ts` (`webhooks` with `secret_encrypted`, `events text[]`, `enabled`; `webhook_deliveries` with attempt, status, response code, duration, error, `next_attempt_at`; 30-day retention)
 - [X] T260 [US18] Implement `apps/api/src/integrations/webhooks/delivery.job.ts` (HTTPS only; resolve DNS and refuse private, loopback, link-local and metadata IPs at delivery time; no redirects; 10 s timeout; `ReplyX-Signature: t=…,v1=HMAC-SHA256(secret, t + "." + body)`; up to 8 attempts with exponential backoff and jitter; paused while the tenant is suspended; public messages only) and `secret-box.ts` (AES-256-GCM with `WEBHOOK_ENCRYPTION_KEY`) (research D16, contracts/webhook-events.md)
 - [X] T261 [US18] Implement `apps/api/src/integrations/webhooks/webhooks.controller.ts` (CRUD, `rotate-secret` shown once, `deliveries` listing; `webhook.*`; audited) and merge into `apps/api/openapi.yaml`
-- [ ] T262 [P] [US18] Tests `apps/api/test/integration/webhooks/webhooks.test.ts`: signature verifies, retries and log, SSRF targets refused, internal notes never sent, other tenants' events never sent; `webhook` fixture
+- [X] T262 [P] [US18] Tests `apps/api/test/integration/webhooks/webhooks.test.ts`: signature verifies, retries and log, SSRF targets refused, internal notes never sent, other tenants' events never sent; `webhook` fixture
 - [ ] T263 [P] [US18] Create `apps/web/src/pages/admin/integrations/WebhooksPage.tsx` (endpoints, one-time secret display, delivery history) and `apps/web/src/data/webhooks.ts`
 - [ ] T264 [P] [US18] Developer doc `apps/docs/src/content/docs/developers/webhooks.md` (payloads, verifying signatures, retries)
 
