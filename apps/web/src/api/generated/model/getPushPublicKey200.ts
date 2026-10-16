@@ -6,11 +6,9 @@
 
  * OpenAPI spec version: 0.1.0
  */
+import type { GetPushPublicKey200PublicKey } from './getPushPublicKey200PublicKey';
 
 export type GetPushPublicKey200 = {
-  /**
-   * URL-safe base64 application server key
-   * @nullable
-   */
-  publicKey: string | null;
+  /** URL-safe base64 application server key */
+  publicKey: GetPushPublicKey200PublicKey;
 };

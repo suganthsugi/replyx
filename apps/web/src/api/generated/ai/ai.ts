@@ -956,6 +956,9 @@ export const useTestStoreConnection = <
 
   return useMutation(mutationOptions, queryClient);
 };
+/**
+ * @summary Complexity factors and thresholds (ai_settings.manage)
+ */
 export const getGetComplexityConfigUrl = () => {
   return `/ai/complexity`;
 };
@@ -1049,6 +1052,9 @@ export function useGetComplexityConfig<
   },
   queryClient?: QueryClient,
 ): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> };
+/**
+ * @summary Complexity factors and thresholds (ai_settings.manage)
+ */
 
 export function useGetComplexityConfig<
   TData = Awaited<ReturnType<typeof getComplexityConfig>>,
@@ -1516,6 +1522,9 @@ export function useGetPolicyDocument<
   return query;
 }
 
+/**
+ * @summary Rename a policy document (ai_knowledge.manage)
+ */
 export const getRenamePolicyDocumentUrl = (id: string) => {
   return `/ai/policies/${id}`;
 };
@@ -1585,6 +1594,9 @@ export type RenamePolicyDocumentMutationError =
   | NotFoundResponse
   | ConflictResponse;
 
+/**
+ * @summary Rename a policy document (ai_knowledge.manage)
+ */
 export const useRenamePolicyDocument = <
   TError =
     | ValidationFailedResponse
@@ -2060,6 +2072,9 @@ export function useGetTicketAiDraft<
   return query;
 }
 
+/**
+ * @summary Discard the ticket's AI draft
+ */
 export const getDiscardTicketAiDraftUrl = (id: string) => {
   return `/tickets/${id}/ai-draft/discard`;
 };
@@ -2114,6 +2129,9 @@ export type DiscardTicketAiDraftMutationResult = NonNullable<
 export type DiscardTicketAiDraftMutationError =
   UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse;
 
+/**
+ * @summary Discard the ticket's AI draft
+ */
 export const useDiscardTicketAiDraft = <
   TError = UnauthenticatedResponse | PermissionDeniedResponse | NotFoundResponse,
   TContext = unknown,

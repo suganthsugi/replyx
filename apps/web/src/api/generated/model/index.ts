@@ -133,6 +133,7 @@ export * from './getConversation200PendingRatingAnyOf';
 export * from './getConversationParams';
 export * from './getInvitation200';
 export * from './getPushPublicKey200';
+export * from './getPushPublicKey200PublicKey';
 export * from './getViewCounts200';
 export * from './group';
 export * from './groupAccessEntry';
