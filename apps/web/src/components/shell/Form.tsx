@@ -41,6 +41,11 @@ const ISSUE_MESSAGES: Record<string, string> = {
   not_found: 'This no longer exists',
   no_positive_weight: 'Give at least one factor a weight above 0',
   not_above_standard: 'Must be higher than the Standard threshold',
+  // Outbound URLs (webhooks, store connections): the API's outbound guard.
+  invalid_url: 'Enter the full address, for example https://example.com/hooks',
+  not_https: 'The address must start with https://',
+  private_address: 'This address points to a private network and can’t be used',
+  unresolvable: 'This address could not be found',
 };
 
 export function issueMessage(issue: string): string {
