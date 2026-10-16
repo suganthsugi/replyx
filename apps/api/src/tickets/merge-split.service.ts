@@ -151,7 +151,7 @@ export class MergeSplitService {
           payload: { ticketId: source.id, from: source.state, to: 'closed' },
           streams: [ticketStream(source.id)],
         });
-        await this.outbox.append(tx, { type: 'ticket.closed', payload: { ticketId: source.id }, streams: [ticketStream(source.id)] });
+        await this.outbox.append(tx, { type: 'ticket.closed', payload: { ticketId: source.id, by: 'merge' }, streams: [ticketStream(source.id)] });
       }
       await this.outbox.append(tx, {
         type: 'ticket.removed_from_view',

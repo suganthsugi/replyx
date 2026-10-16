@@ -65,8 +65,11 @@ export interface DomainEventMap {
   'ticket.updated': { ticket: TicketSummaryDto; changes: TicketFieldChange[] };
   /** Moved from resolved or closed back to open (consumers: notifications, SLA). */
   'ticket.reopened': { ticketId: string; from: TicketState };
-  /** Entered closed (consumers: CSAT, retention, SLA). */
-  'ticket.closed': { ticketId: string };
+  /**
+   * Entered closed (consumers: CSAT, retention, SLA, webhooks). `by` says how (webhook-events.md
+   * `closedBy`); events written before it was added have none.
+   */
+  'ticket.closed': { ticketId: string; by?: TicketClosedBy };
   /** An explicit agent state change (data-model.md "Ticket state machine"). */
   'ticket.state_changed': { ticketId: string; from: TicketState; to: TicketState };
   /** The owner changed, including to or from unassigned (webhook-events.md `ticket.assigned`). */
@@ -147,6 +150,8 @@ export interface DomainEventMap {
 
 /** Who answers the next customer message (contracts/ai.yaml `Responder`). */
 export type Responder = { kind: 'assistant' } | { kind: 'agent'; name: string; avatarUrl: string | null } | { kind: 'team' };
+
+export type TicketClosedBy = 'agent' | 'auto_close' | 'pending_close' | 'merge';
 
 export interface TicketFieldChange {
   field: string;

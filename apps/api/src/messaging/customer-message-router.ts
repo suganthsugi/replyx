@@ -237,7 +237,7 @@ export class CustomerMessageRouter {
       payload: { ticket: await summaryOf(ctx, tx, row), changes },
       streams: [ticketStream(row.id), groupStream(row.group_id)],
     });
-    await this.outbox.append(tx, { type: 'ticket.closed', actor: { kind: 'system' }, payload: { ticketId: row.id }, streams: [ticketStream(row.id)] });
+    await this.outbox.append(tx, { type: 'ticket.closed', actor: { kind: 'system' }, payload: { ticketId: row.id, by: ticket.state === 'pending_close' ? 'pending_close' : 'auto_close' }, streams: [ticketStream(row.id)] });
     await this.history.record(tx, row.id, changes, { eventId, actorKind: 'system' });
     return row;
   }

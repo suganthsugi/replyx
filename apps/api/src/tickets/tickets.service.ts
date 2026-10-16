@@ -223,7 +223,7 @@ export class TicketsService {
         await announceResolved(this.outbox, tx, ctx, { id: ticket.id, customerId: ticket.customer_id, resolvedAt: ticket.resolved_at });
       }
       if (moved?.closed) {
-        await this.outbox.append(tx, { type: 'ticket.closed', payload: { ticketId: ticket.id }, streams: [ticketStream(ticket.id)] });
+        await this.outbox.append(tx, { type: 'ticket.closed', payload: { ticketId: ticket.id, by: 'agent' }, streams: [ticketStream(ticket.id)] });
       }
       if (moved?.reopened) {
         await this.outbox.append(tx, {
