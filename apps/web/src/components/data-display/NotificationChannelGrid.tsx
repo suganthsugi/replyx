@@ -32,6 +32,7 @@ export const NOTIFICATION_EVENT_LABELS: readonly { event: string; label: string;
   { event: 'sla.warning', label: 'SLA warning', help: 'A ticket is close to breaching its target' },
   { event: 'sla.breached', label: 'SLA breached', help: 'A ticket breached its target' },
   { event: 'ai.paused', label: 'AI assistant paused', help: 'The assistant stopped (key or credit problem)' },
+  { event: 'automation.rule', label: 'Automation rule', help: 'An automation rule asks to notify you' },
 ];
 
 export const CHANNEL_LABELS: readonly { key: ChannelKey; label: string }[] = [
