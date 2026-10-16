@@ -4,6 +4,8 @@ import { defineConfig } from 'vite';
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  // The manifest lets scripts/check-bundle-size.mjs follow what the customer area loads.
+  build: { manifest: true },
   server: {
     host: true,
     port: 5173,
