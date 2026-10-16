@@ -5,6 +5,7 @@
     "users",
     "roles-and-groups",
     "routing-rules",
+    "automation-rules",
     "sla-and-business-hours",
     "audit-and-retention",
     "support-access"
