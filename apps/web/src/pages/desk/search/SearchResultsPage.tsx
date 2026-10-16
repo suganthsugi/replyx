@@ -111,7 +111,8 @@ export default function SearchResultsPage() {
         onChange={(_event, value: SearchScope | null) => {
           if (value !== null) update({ type: value });
         }}
-        sx={{ mb: 3 }}
+        // MUI's default unselected color (action.active, 54% black) is below 4.5:1 here.
+        sx={{ mb: 3, '& .MuiToggleButton-root:not(.Mui-selected)': { color: 'text.secondary' } }}
       >
         {SCOPES.map((scope) => (
           <ToggleButton key={scope.value} value={scope.value}>
