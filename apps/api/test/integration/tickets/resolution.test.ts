@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { TenantContext } from '../../../src/platform-kernel/db/tenant-context.js';
 import { TenantRepository } from '../../../src/platform-kernel/db/tenant-repository.js';
@@ -85,6 +85,22 @@ async function inTenant<T>(tenant: TestTenant, fn: (tx: TenantTransaction, repo:
   return (await service(UnitOfWork)).withTenant(ctx, (tx) => fn(tx, new TicketRowRepository(ctx)));
 }
 
+/**
+ * Sweeps until the ticket is closed. The sweeper claims rows `FOR UPDATE SKIP LOCKED`, so a pass
+ * that runs while the worker's consumers still hold the ticket row (reacting to the reopen or the
+ * resolve) skips it, and the next pass picks it up, as the 30 s repeatable job does in production.
+ */
+async function sweepUntilClosed(job: Awaited<ReturnType<typeof sweeperJob>>, ticketId: string): Promise<void> {
+  await vi.waitFor(
+    async () => {
+      await job.process();
+      const row = await inTenant(tenant, (tx, repo) => repo.ticket(tx, ticketId));
+      expect(row.state).toBe('closed');
+    },
+    { timeout: 15_000, interval: 250 },
+  );
+}
+
 let tenant: TestTenant;
 
 beforeAll(async () => {
@@ -148,9 +164,7 @@ describe('the resolution lifecycle (US7)', { timeout: 60_000 }, () => {
       // 3. Advancing past auto_close_at and running the sweeper closes it.
       clock.set(new Date((autoCloseAt as Date).getTime() + 1_000));
       const job = await sweeperJob();
-      await job.process();
-      const afterSweep = await inTenant(tenant, (tx, repo) => repo.ticket(tx, ticket.id));
-      expect(afterSweep.state).toBe('closed');
+      await sweepUntilClosed(job, ticket.id);
 
       // 4. The next customer message starts a new, ungrouped ticket (no routing rule matches),
       // linked follow_up_of the closed one, while the customer still sees one continuous thread.
@@ -200,9 +214,7 @@ describe('the resolution lifecycle (US7)', { timeout: 60_000 }, () => {
     const afterResolve = await inTenant(tenant, (tx, repo) => repo.ticket(tx, ticket.id));
     clock.set(new Date((afterResolve.auto_close_at as Date).getTime() + 1_000));
     const job = await sweeperJob();
-    await job.process();
-    const closed = await inTenant(tenant, (tx, repo) => repo.ticket(tx, ticket.id));
-    expect(closed.state).toBe('closed');
+    await sweepUntilClosed(job, ticket.id);
 
     const sent = await asUser(customer).post('/customer/messages', { body: 'Are you still there?', clientMessageId: uuidv7() });
     expect(sent.status).toBe(201);
