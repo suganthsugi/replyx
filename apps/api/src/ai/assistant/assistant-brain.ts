@@ -7,7 +7,7 @@ import { AI_PROVIDER, ProviderError, type AiProvider, type ChatMessage } from '.
 import { AiRunsRecorder } from '../runs/ai-runs.recorder.js';
 
 import { ANSWER_SCHEMA, renderConversation, SYSTEM_PROMPT, TOOLS } from './assistant-prompt.js';
-import { AssistantTools, newToolTurn } from './assistant-tools.js';
+import { AssistantTools, newToolTurn, ORDER_NUMBER } from './assistant-tools.js';
 import { AssistantTyping } from './assistant-typing.js';
 import { HandoffScreen } from './handoff-screen.js';
 
@@ -100,6 +100,19 @@ export class AssistantBrain implements TurnBrain {
     const purpose = input.mode === 'auto' ? 'reply' : 'draft';
     const turn = newToolTurn();
 
+    // Models with a forced answer schema sometimes skip the tool and invent an order's status, so
+    // order numbers the customer just wrote are looked up here, as if the model had asked.
+    const written = orderNumbersIn(latestCustomerMessage(input.messages));
+    if (written.length > 0) {
+      const calls = written.map((orderNumber, index) => ({ id: `prefetch_${index}`, name: 'lookup_order', arguments: JSON.stringify({ orderNumber }) }));
+      messages.push({ role: 'assistant', content: null, toolCalls: calls });
+      for (const call of calls) {
+        const outcome = await this.tools.execute(input, call, turn);
+        if (outcome.kind === 'handoff') return outcome;
+        messages.push({ role: 'tool', toolCallId: call.id, content: outcome.content });
+      }
+    }
+
     for (let round = 0; round <= MAX_TOOL_ROUNDS; round += 1) {
       // After the last round the tools are withdrawn, so the model has to answer.
       const withTools = round < MAX_TOOL_ROUNDS;
@@ -129,6 +142,28 @@ export class AssistantBrain implements TurnBrain {
     }
     throw new Error('unreachable: the last round has no tools');
   }
+}
+
+/** At most this many order numbers are looked up up front per turn. */
+const MAX_WRITTEN_ORDERS = 2;
+
+function latestCustomerMessage(messages: TurnInput['messages']): string {
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    if (messages[index]!.authorKind === 'customer') return messages[index]!.body;
+  }
+  return '';
+}
+
+/** Words that look like order numbers ("R742300281", "#100200"): order-number characters with at least 4 digits. */
+export function orderNumbersIn(text: string): string[] {
+  const found: string[] = [];
+  for (const word of text.split(/[^A-Za-z0-9-]+/)) {
+    const candidate = word.replace(/^-+|-+$/g, '').toUpperCase();
+    if (!ORDER_NUMBER.test(candidate) || (candidate.match(/\d/g)?.length ?? 0) < 4 || found.includes(candidate)) continue;
+    found.push(candidate);
+    if (found.length === MAX_WRITTEN_ORDERS) break;
+  }
+  return found;
 }
 
 function parseAnswer(content: string): z.infer<typeof Answer> {
