@@ -35,10 +35,10 @@ const QUESTIONS: Record<(typeof HANDOFF_QUESTION_KEYS)[number], DecisionQuestion
   },
   refund_or_exception: {
     type: 'noul',
-    instructions: 'Decide whether the customer asks for money back or for something outside the normal rules.',
+    instructions: 'Decide whether the customer demands money back or something outside the normal rules, as opposed to asking what the rules allow.',
     criteria: {
-      true: 'The customer asks for a refund, a chargeback, compensation, a discount, a price adjustment, or an exception to a policy.',
-      false: 'The customer asks a question, or asks for status or information only.',
+      true: 'The customer asks for a chargeback, compensation, a discount or a price adjustment, asks for an exception to a policy, or insists on a refund, return or cancellation after being told the policy does not allow it.',
+      false: 'The customer asks a question, asks for status or information, or asks whether they can cancel, return or get a refund for an order; the store policy answers that.',
     },
   },
   frustration: {
