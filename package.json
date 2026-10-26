@@ -1,6 +1,7 @@
 {
   "name": "replyx",
   "private": true,
+  "license": "MIT",
   "scripts": {
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
