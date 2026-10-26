@@ -1,11 +1,11 @@
 ---
 name: jira-tracking
-description: Track implementation work in Jira project RX (board 67) as it happens, not in advance. Use when starting or finishing any Spec Kit user story, phase, or task.
+description: Track implementation work in the Jira board named in CLAUDE.local.md as it happens, not in advance. Use when starting or finishing any Spec Kit user story, phase, or task.
 ---
 
 # jira-tracking
 
-Board: the Jira board URL in CLAUDE.local.md (project key `RX`). Applies to the orchestrator and any agent that starts or finishes tracked work (a Spec Kit user story, phase, or task).
+Board: the project key and board URL in the gitignored `CLAUDE.local.md`. If that file names no board, skip this skill. Applies to the orchestrator and any agent that starts or finishes tracked work (a Spec Kit user story, phase, or task).
 
 ## Rules
 

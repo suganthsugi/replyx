@@ -55,3 +55,8 @@ infra/.env.prod
 
 # next.js build output (legacy app, archived)
 /.next/
+
+# personal Claude Code settings
+CLAUDE.local.md
+.claude/settings.local.json
+.claude/worktrees/
