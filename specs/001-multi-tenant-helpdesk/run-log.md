@@ -405,10 +405,7 @@ Start commit: b4afe6b
 
 ### Phase 12 decisions (2026-09-30)
 - User scope: "deploy to the machine". VM access is in the local (uncommitted) note at the end of spec.md; deploy to `~/replyx`.
-- VM survey (read-only):
-  - Ubuntu 24.04 with Docker and Compose.
-  - SHARED host: host nginx and certbot already serve other sites on 80/443.
-  - 
+- VM survey (read-only): a shared Ubuntu 24.04 host with Docker and a host nginx already serving other sites; host details are kept out of the repo.
 - P12-1 User decisions:
   - base domain `replyx.example.com` (tenants `<slug>.replyx.example.com`, console `console.replyx.example.com`);
   - TLS on host nginx with one wildcard cert (certbot DNS-01) proxying to an internal HTTP-only Caddy on 127.0.0.1:8081. This replaces Caddy on 80/443 with on-demand TLS, so T202 (`/internal/tls-allowed`) isn't needed;
