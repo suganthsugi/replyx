@@ -1,41 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ReplyX
 
-## Deployment
+ReplyX is a self-hostable, multi-tenant customer support helpdesk. Customers talk to you through a
+chat widget, and your team works the conversations as tickets in a staff desk. Each tenant gets its
+own subdomain, and PostgreSQL row-level security keeps tenants' data apart.
 
-To deploy to a VM (host nginx, wildcard certificate, Docker Compose), see
-[apps/docs/src/content/docs/developers/deployment.md](apps/docs/src/content/docs/developers/deployment.md).
+## Features
 
-## Getting Started
+- **Customer chat**: customers sign in by email link and chat with your team or an AI assistant.
+- **Staff desk**: triage, assignment, macros, merge and split, custom views, search and notifications.
+- **Admin**: roles and groups, routing and automation rules, SLAs and business hours, audit log and
+  data retention.
+- **AI assist** (optional): reply drafts, an assistant that can look up orders in a connected
+  store (Spree), and per-conversation model routing through OpenRouter.
+- **Integrations**: signed outbound webhooks and a documented OpenAPI contract.
+- **Platform console**: operators create, suspend and support tenants.
 
-First, run the development server:
+## Tech stack
+
+| App            | Path        | Stack                                                                          |
+| -------------- | ----------- | ------------------------------------------------------------------------------ |
+| API and worker | `apps/api`  | NestJS, PostgreSQL 17 (Kysely), Valkey, BullMQ, Socket.IO                      |
+| Web            | `apps/web`  | React, MUI, Vite, React Query, a client generated from `apps/api/openapi.yaml` |
+| Docs           | `apps/docs` | Fumadocs on Next.js, exported as static files                                  |
+
+The repository is a pnpm and Turborepo monorepo. Everything runs in Docker Compose.
+
+## Quick start
+
+You only need Docker (with Compose) and Git.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env
+docker compose up -d --build
+docker compose run --rm api pnpm --filter api migrate
+docker compose run --rm api pnpm --filter api seed:dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open:
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+| Address                           | What                                                            |
+| --------------------------------- | --------------------------------------------------------------- |
+| `http://acme.localhost:5173/`     | Customer chat for the seeded tenant `acme`                      |
+| `http://acme.localhost:5173/desk` | Staff desk (`agent@acme.test` / `password-123456`)              |
+| `http://console.localhost:5173/`  | Platform console (`operator@replyx.test` / `operator-password`) |
+| `http://localhost:8025`           | Mailpit, where sign-in links and notification emails land       |
+| `http://localhost:4321`           | Documentation site                                              |
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+These accounts and passwords are development seeds only. See
+[Local development](apps/docs/content/docs/developers/local-development.md) for the full guide,
+including how to run the tests.
 
-## Learn More
+## Documentation
 
-To learn more about Next.js, take a look at the following resources:
+The docs site (`apps/docs`) covers user guides, admin settings, concepts and developer topics:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+- [Architecture](apps/docs/content/docs/developers/architecture.md)
+- [Local development](apps/docs/content/docs/developers/local-development.md)
+- [Deployment](apps/docs/content/docs/developers/deployment.md): a single VM with host nginx, a
+  wildcard certificate and Docker Compose
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Contributing
 
-## Deploy on Vercel
+Contributions are welcome. Please read [CONTRIBUTING.md](CONTRIBUTING.md) first, and report
+security issues as described in [SECURITY.md](SECURITY.md).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+ReplyX is released under the [MIT License](LICENSE).
