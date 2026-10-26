@@ -1,0 +1,43 @@
+name: Bug report
+description: Something in ReplyX does not work as expected.
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you saw, and what you expected instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Sign in to the desk as an agent
+        2. Open a ticket
+        3. ...
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Customer chat
+        - Staff desk
+        - Admin settings
+        - Platform console
+        - API or webhooks
+        - AI assist
+        - Deployment or local setup
+        - Docs
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or screenshots
+      description: Remove any secrets or personal data first.
