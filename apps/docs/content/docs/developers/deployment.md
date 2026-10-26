@@ -6,7 +6,7 @@ description: How to set up the shared VM, obtain the wildcard certificate, deplo
 The production stack runs on one VM that also hosts other sites. Images are built on the VM from a
 git checkout (no registry), TLS is terminated by the host nginx with one wildcard certificate, and
 backups are a nightly local dump only. Examples use `replyx.example.com` as the base domain
-(`<base>`).
+(`<base>`); replace it with your own domain in `infra/.env.prod` and `infra/nginx/replyx.conf`.
 
 ## Shape of the deployment
 
