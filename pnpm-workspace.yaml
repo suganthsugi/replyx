@@ -19,3 +19,8 @@ allowBuilds:
 overrides:
   source-map-js: '>=1.2.2'
   sharp: '>=0.35.5'
+  # GHSA-mrhx-c7xc-m3w5 (fumadocs' zod), GHSA-27r3-jxmh-p828 (express's body-parser) and
+  # GHSA-q7qp-rjg7-q26m (Nest 11 pins multer 2.4.0).
+  'zod@>=4 <4.6.6': '^4.6.7'
+  'body-parser@>=2 <2.4.0': '^2.4.0'
+  '@nestjs/platform-express>multer': '^2.5.0'
